@@ -282,7 +282,13 @@ export default function AdminPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(renumbered),
             });
-            setSaveMsg(res.ok ? "Saved to Google Sheets ✓" : "Error saving — check Sheets API setup");
+
+            if (res.ok) {
+                setSaveMsg("Saved to Google Sheets ✓");
+            } else {
+                const data = await res.json();
+                setSaveMsg(data.error || "Error saving — check Sheets API setup");
+            }
         } catch {
             setSaveMsg("Network error");
         } finally {
