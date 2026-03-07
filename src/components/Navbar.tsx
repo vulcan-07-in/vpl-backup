@@ -12,6 +12,8 @@ interface NavLink {
 
 const links: NavLink[] = [
     { href: "/", label: "HOME" },
+    { href: "/fixtures", label: "FIXTURES" },
+    { href: "/points", label: "STANDINGS" },
     { href: "/squads", label: "SQUADS" },
 ];
 
@@ -67,9 +69,7 @@ export default function Navbar() {
             {/* Mobile slide-down menu */}
             {open && (
                 <div className="fixed inset-0 z-40 flex flex-col pt-16" onClick={() => setOpen(false)}>
-                    {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
-                    {/* Links */}
                     <nav className="relative z-10 flex flex-col items-center justify-center flex-1 gap-10">
                         {links.map((l) => (
                             <Link

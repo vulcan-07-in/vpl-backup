@@ -74,3 +74,5 @@
 2. **No pure white borders** — always use opacity variants like `rgba(255,255,255,0.05)` to keep surfaces minimal.
 3. **Glow effects** — use the `amber-500` color for subtle ambient glows (`opacity-5`, `blur-[120px]`).
 4. **Hover states** — scale up elements 5–10%. Translate arrows/chevrons 1–2px on hover. Keep all transitions `duration-300`.
+5. **Knockout Highlighting** — High-stakes matches (Semi-Finals and Final) should always use distinct `amber-500` glow borders and larger typography to separate them from Pool matches.
+6. **Animations (Framer Motion)** — Use staggering for all list and card entrances (`staggerChildren: 0.1`). Use spring animations (`type: "spring", stiffness: 300, damping: 24`) for smooth, premium entry effects. Never use hard cuts for page loads.

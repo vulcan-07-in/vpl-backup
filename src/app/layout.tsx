@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Bebas_Neue, Rajdhani } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import ChampionBanner from "@/components/ChampionBanner";
 
 const geistSans = Geist({
   variable: "--font-body",
@@ -42,8 +43,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${rajdhani.variable} antialiased bg-black text-white`}
       >
+        <div className="ambient-bg" />
         <Navbar />
         {children}
+        <ChampionBanner />
       </body>
     </html>
   );
