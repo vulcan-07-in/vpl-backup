@@ -3,13 +3,17 @@ import { SHEET_ID } from "@/lib/tournament";
 
 function getAuth() {
     const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-    if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env variable is not set");
+    if (!raw) {
+        throw new Error("Environment variable GOOGLE_SERVICE_ACCOUNT_JSON is missing. Check your Vercel Project Settings.");
+    }
 
     let credentials: Record<string, string>;
     try {
-        credentials = JSON.parse(raw);
-    } catch {
-        throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON. Make sure it is on a single line in .env.local");
+        // Remove any unintentional whitespace/newlines at start/end
+        credentials = JSON.parse(raw.trim());
+    } catch (e) {
+        console.error("JSON Parse Error on GOOGLE_SERVICE_ACCOUNT_JSON:", e);
+        throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON. Ensure it's a single line and no characters were missed during copy-paste.");
     }
 
     // Fix: private_key in env vars often loses real newlines — restore them

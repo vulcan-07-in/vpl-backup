@@ -179,7 +179,7 @@ export function resolveKnockouts(
 
 // ── Sheet URLs ────────────────────────────────────────────────────────────────
 
-export const SHEET_ID = process.env.NEXT_PUBLIC_SHEET_ID || "12cbvXQkyWZWor1EYPCUljKi6so1-CANOgyQUzwZFgro";
+export const SHEET_ID = process.env.NEXT_PUBLIC_SHEET_ID || "11T1LB7-Gwe_nCiHF4N0WbtuflCA-ltBjG6WCocuh4yM";
 export const SQUADS_GID = process.env.NEXT_PUBLIC_SQUADS_GID || "667574756";
 
 export const SQUADS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SQUADS_GID}`;

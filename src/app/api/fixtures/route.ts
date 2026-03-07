@@ -79,7 +79,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
-        console.error("Sheets write error:", message);
-        return NextResponse.json({ error: message }, { status: 500 });
+        console.error("VPL Sheets Write Error:", message);
+
+        // Return a slightly more friendly but descriptive error for the UI
+        let status = 500;
+        let errorMsg = message;
+
+        if (message.includes("403") || message.includes("permission")) {
+            errorMsg = "Access Denied: The Service Account needs 'Editor' access to the production Google Sheet.";
+            status = 403;
+        } else if (message.includes("404")) {
+            errorMsg = "Sheet Not Found: Verify the SHEET_ID in your code or environment variables.";
+            status = 404;
+        }
+
+        return NextResponse.json({ error: errorMsg }, { status });
     }
 }
