@@ -22,7 +22,7 @@ export default function Navbar() {
 
     return (
         <>
-            <nav className="fixed top-0 left-0 right-0 z-50 glass-nav px-5 py-3 flex items-center justify-between">
+            <nav className="fixed top-0 left-0 right-0 z-50 glass-nav px-5 py-3 flex items-center justify-between" style={{ backdropFilter: 'blur(8px)' }}>
                 {/* Brand & Logo */}
                 <Link href="/" className="flex items-center gap-2.5 group" onClick={() => setOpen(false)}>
                     <div className="relative w-9 h-9 rounded-full overflow-hidden border border-white/10 group-hover:border-amber-500/50 transition-colors shadow-lg shrink-0">
@@ -31,6 +31,7 @@ export default function Navbar() {
                             alt="Varchasva Phoenix Logo"
                             fill
                             className="object-cover"
+                            sizes="(max-width: 768px) 36px, 72px"
                             priority
                         />
                     </div>

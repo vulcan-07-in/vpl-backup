@@ -15,7 +15,7 @@ export default function HomeClient({ champion }: { champion: { name: string; col
     return (
         <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4">
             {/* Ambient glow */}
-            <div className="absolute w-[500px] h-[500px] rounded-full bg-amber-500 opacity-5 blur-[120px] pointer-events-none" />
+            <div className="absolute w-[500px] h-[500px] rounded-full bg-amber-500 opacity-5 blur-[80px] pointer-events-none" />
 
             {/* Hero */}
             <div className="relative z-10 flex flex-col items-center gap-10 text-center w-full max-w-sm">
@@ -31,6 +31,7 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                         alt="Varchasva Phoenix"
                         fill
                         className="object-contain"
+                        sizes="(max-width: 768px) 160px, 208px"
                         priority
                     />
                 </motion.div>

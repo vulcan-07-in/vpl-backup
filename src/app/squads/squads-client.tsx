@@ -95,7 +95,7 @@ export default function SquadsClient({ teams }: { teams: Team[] }) {
                                     style={{ backgroundColor: team.color }}
                                 />
 
-                                <div className="flex-1 flex items-center justify-between px-5 md:px-8 py-5 md:py-6 border-b border-white/[0.04] group-hover:bg-white/[0.02] transition-colors">
+                                <div className="flex-1 flex items-center justify-between px-5 md:px-8 py-5 md:py-6 border-b border-white/[0.04] group-hover:bg-white/[0.03] transition-colors">
                                     {/* Left: index + names */}
                                     <div className="flex items-center gap-5 md:gap-8 min-w-0">
                                         {/* Index number */}
@@ -158,7 +158,7 @@ export default function SquadsClient({ teams }: { teams: Team[] }) {
                         onClick={() => setSelectedTeam(null)}
                     >
                         {/* Backdrop */}
-                        <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" />
 
                         {/* Panel */}
                         <motion.div
