@@ -36,6 +36,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     // Scheduling States
     const [scheduledTime, setScheduledTime] = useState("");
 
+    // Refined workflow states
+    const [wicketStep, setWicketStep] = useState<1 | 2>(1);
+    const [overJustCompleted, setOverJustCompleted] = useState(false);
+
     // Initial State Builder (VPL 8-Overs Mode)
     const getInitialState = (match: Fixture, bat1: string, bat2: string): LiveMatchState => ({
         matchId: match.matchNo,
@@ -105,6 +109,18 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             setLoading(false);
         }
     };
+
+    // Sync setup states if match is already live (prevents redundant selection)
+    useEffect(() => {
+        if (liveState) {
+            const inn = liveState.currentInnings === 1 ? liveState.innings1 : liveState.innings2;
+            if (liveState.tossWinner) setTossWinner(liveState.tossWinner);
+            if (liveState.tossDecision) setTossDecision(liveState.tossDecision);
+            if (inn.strikerRef) setOpenStriker(inn.strikerRef);
+            if (inn.nonStrikerRef) setOpenNonStriker(inn.nonStrikerRef);
+            if (inn.currentBowlerRef) setOpenBowler(inn.currentBowlerRef);
+        }
+    }, [liveState]);
 
     const beginLiveScoring = async () => {
         if (!selectedMatch || !tossWinner || !tossDecision) return;
@@ -243,6 +259,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         // If over completed, prompt for new bowler (clear current bowler)
         if (overCompleted) {
             inn.currentBowlerRef = undefined;
+            setOverJustCompleted(true);
             setIsScoringLocked(true); // Auto-lock at end of over
         }
 
@@ -251,7 +268,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
     const handleWicket = () => {
         if (!liveState || isScoringLocked) return;
-        setIsScoringLocked(true); // Force lock immediately
+        setIsScoringLocked(true);
+        setWicketStep(1);
+        setWicketPlayerOut(null);
+        setWicketType(null);
+        setWicketNewBatsman(null);
         setScreen("WICKET_MODAL");
     };
 
@@ -286,15 +307,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         pushUpdate(state);
     };
 
-    const submitWicket = () => {
-        if (!liveState || !wicketPlayerOut || !wicketType || !wicketNewBatsman) {
-            alert("Please fill out all Wicket details.");
+    const handleDeclareWicket = async () => {
+        if (!liveState || !wicketPlayerOut || !wicketType) {
+            alert("Please select who got out and how.");
             return;
         }
 
         const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
         const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
-
         if (!inn.strikerRef || !inn.currentBowlerRef) return;
 
         // 1. Mark Wicket on Bowler & Team
@@ -319,24 +339,38 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             bowlerObj.overs = Math.floor(bowlerObj.overs) + (bowlerBalls / 10);
         }
 
-        // 3. Register Timeline Event
-        state.timeline.push({
-            id: Date.now().toString(),
-            timestamp: Date.now(),
-            innings: state.currentInnings,
-            over: inn.overs,
-            striker: strikerObj.name,
-            bowler: bowlerObj.name,
-            runs: 0,
-            extras: 0,
-            isWicket: true,
-            wicketType,
-            playerOut: wicketPlayerOut,
-            newBatsman: wicketNewBatsman
-        });
+        // 3. Mark the out player
+        inn.batsmen[wicketPlayerOut].isOut = true;
+        inn.batsmen[wicketPlayerOut].dismissal = wicketType;
 
-        // 4. Update the actual Batsman references in the Innings object
-        // Add new batsman to tracking if not exists
+        // 4. Clear the reference
+        if (inn.strikerRef === wicketPlayerOut) {
+            inn.strikerRef = undefined;
+        } else {
+            inn.nonStrikerRef = undefined;
+        }
+
+        // 5. If over completed, handle bowler clearing
+        if (overCompleted) {
+            inn.currentBowlerRef = undefined;
+            setOverJustCompleted(true);
+        }
+
+        // 6. Push intermediate state (Wicket animation can trigger here)
+        await pushUpdate(state);
+        setWicketStep(2); // Move to next screen in modal
+    };
+
+    const submitWicket = () => {
+        if (!liveState || !wicketNewBatsman) {
+            alert("Please select the new batsman.");
+            return;
+        }
+
+        const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
+        const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
+
+        // 1. Add new batsman to tracking if not exists
         if (!inn.batsmen[wicketNewBatsman]) {
             inn.batsmen[wicketNewBatsman] = {
                 name: wicketNewBatsman, runs: 0, balls: 0, fours: 0, sixes: 0,
@@ -344,32 +378,40 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             };
         }
 
-        // Mark the out player
-        inn.batsmen[wicketPlayerOut].isOut = true;
-        inn.batsmen[wicketPlayerOut].dismissal = wicketType;
-
-        // ICC Rule: New batsman ALWAYS takes strike on catch/bowled, EXCEPT if it's end of over.
-        if (wicketPlayerOut === inn.strikerRef) {
+        // 2. Assign to empty slot
+        if (inn.strikerRef === undefined) {
             inn.strikerRef = wicketNewBatsman;
-        } else if (wicketPlayerOut === inn.nonStrikerRef) {
+        } else {
             inn.nonStrikerRef = wicketNewBatsman;
         }
 
-        if (overCompleted) {
-            // Swap strike if over completed
-            const temp = inn.strikerRef;
-            inn.strikerRef = inn.nonStrikerRef;
-            inn.nonStrikerRef = temp;
-            inn.currentBowlerRef = undefined; // Force bowler select
-        }
+        // 3. Record Timeline Event (Finalized)
+        state.timeline.push({
+            id: Date.now().toString(),
+            timestamp: Date.now(),
+            innings: state.currentInnings,
+            over: inn.overs,
+            striker: wicketPlayerOut || "Unknown",
+            bowler: inn.currentBowlerRef || "Unknown",
+            runs: 0,
+            extras: 0,
+            isWicket: true,
+            wicketType: wicketType || "BOWLED",
+            playerOut: wicketPlayerOut || "Unknown",
+            newBatsman: wicketNewBatsman
+        });
 
-        // Reset Local States & Return
-        setWicketPlayerOut(null);
-        setWicketType(null);
-        setWicketNewBatsman(null);
+        // 4. Return to match
+        pushUpdate(state);
         setScreen("LIVE_SCORING");
 
-        pushUpdate(state);
+        // If a new bowler is also needed (end of over), keep it locked
+        if (inn.currentBowlerRef) {
+            setIsScoringLocked(false);
+        } else {
+            setOverJustCompleted(true);
+            setIsScoringLocked(true);
+        }
     };
 
     const handleSwapStrike = () => {
@@ -628,10 +670,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                         {tossWinner && tossDecision && openStriker && openNonStriker && openBowler && (
                             <button
-                                onClick={beginLiveScoring}
-                                className="w-full mt-8 bg-white text-black font-bold p-5 rounded-xl tracking-widest text-lg animate-pulse"
+                                onClick={liveState ? () => setScreen("LIVE_SCORING") : beginLiveScoring}
+                                className="w-full mt-8 bg-amber-500 text-black font-bold p-5 rounded-xl tracking-widest text-lg shadow-lg shadow-amber-500/20"
                             >
-                                START LIVE MATCH
+                                {liveState ? "SAVE & RETURN TO MATCH" : "START LIVE MATCH"}
                             </button>
                         )}
                     </div>
@@ -730,13 +772,56 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             </button>
                         </div>
 
-                        {/* Disabled overlay when locked */}
+                        {/* Disabled overlay when locked or need new player */}
                         <div className="relative flex-1">
                             {isScoringLocked && (
-                                <div className="absolute inset-0 bg-zinc-900/60 backdrop-blur-[2px] z-20 flex items-center justify-center rounded-xl border border-zinc-800/50">
-                                    <span className="text-zinc-500 font-medium tracking-widest text-sm bg-zinc-900 px-6 py-3 rounded-full shadow-xl">
-                                        UNLOCK TO SCORE
-                                    </span>
+                                <div className="absolute inset-0 bg-zinc-900/80 backdrop-blur-[4px] z-20 flex flex-col items-center justify-center rounded-xl border border-zinc-800/50 p-6 text-center">
+                                    {overJustCompleted ? (
+                                        <>
+                                            <span className="text-3xl mb-4">⚾</span>
+                                            <h4 className="text-white font-bold tracking-widest mb-2">OVER COMPLETED</h4>
+                                            <p className="text-zinc-500 text-sm mb-6">Who will bowl the next over?</p>
+                                            <select
+                                                onChange={(e) => {
+                                                    const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
+                                                    const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
+                                                    const bName = e.target.value;
+                                                    if (!inn.bowlers[bName]) {
+                                                        inn.bowlers[bName] = { name: bName, runs: 0, wickets: 0, overs: 0, maidens: 0 };
+                                                    }
+                                                    inn.currentBowlerRef = bName;
+                                                    setOverJustCompleted(false);
+                                                    setIsScoringLocked(false);
+                                                    pushUpdate(state);
+                                                }}
+                                                className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none text-center font-bold tracking-widest"
+                                            >
+                                                <option value="">SELECT NEXT BOWLER</option>
+                                                {(squads[liveState.currentInnings === 1 ? liveState.innings2.teamName : liveState.innings1.teamName] || []).map(p => (
+                                                    <option key={p} value={p}>{p}</option>
+                                                ))}
+                                            </select>
+                                        </>
+                                    ) : !currentInningsData.strikerRef || !currentInningsData.nonStrikerRef || !currentInningsData.currentBowlerRef ? (
+                                        <>
+                                            <span className="text-3xl mb-4">👤</span>
+                                            <h4 className="text-white font-bold tracking-widest mb-2">PLAYERS MISSING</h4>
+                                            <p className="text-zinc-500 text-sm mb-6">Select active players to continue scoring.</p>
+                                            <button
+                                                onClick={() => setScreen("TOSS_SETUP")}
+                                                className="bg-amber-500 text-black px-8 py-3 rounded-full font-bold tracking-widest shadow-lg shadow-amber-500/20"
+                                            >
+                                                OPEN SETUP
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            onClick={() => setIsScoringLocked(false)}
+                                            className="bg-zinc-800 text-white px-8 py-3 rounded-full font-bold tracking-widest border border-zinc-700 shadow-xl"
+                                        >
+                                            UNLOCK TO SCORE
+                                        </button>
+                                    )}
                                 </div>
                             )}
 
@@ -782,86 +867,94 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 <div className="bg-zinc-900 border-2 border-red-500/50 rounded-3xl p-8 max-w-xl w-full flex flex-col items-center text-center shadow-[0_0_50px_rgba(239,68,68,0.15)] relative overflow-hidden">
                     <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-red-600 via-red-500 to-red-600" />
 
-                    <span className="text-5xl mb-6 mt-4">🏏</span>
+                    <div className="mt-4 bg-red-500/10 text-red-500 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest border border-red-500/20 mb-4">
+                        WICKET STEP {wicketStep}/2
+                    </div>
+
                     <h2 className="text-3xl font-bold text-white tracking-widest mb-2" style={{ fontFamily: "var(--font-display)" }}>
-                        WICKET FALLEN
+                        {wicketStep === 1 ? "DECLARE WICKET" : "NEXT BATSMAN"}
                     </h2>
-                    <p className="text-zinc-400 mb-8 max-w-sm mx-auto text-sm">Please select who got out, the type of dismissal, and who the new batsman is.</p>
 
-                    {/* WICKET CONFIGURATION FORM */}
-                    <div className="w-full bg-black border border-zinc-800 rounded-xl p-6 mb-8 text-left">
-
-                        {/* 1. Who got out? */}
-                        <div className="mb-6">
-                            <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">1. WHO GOT OUT?</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[currentStriker, currentNonStriker].filter(Boolean).map(player => (
-                                    <button
-                                        key={player}
-                                        onClick={() => setWicketPlayerOut(player as string)}
-                                        className={`p-3 rounded-lg border font-bold text-sm transition-colors ${wicketPlayerOut === player ? 'bg-red-500/20 border-red-500 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}
-                                    >
-                                        {player}
-                                    </button>
-                                ))}
+                    {wicketStep === 1 ? (
+                        <div className="w-full space-y-6 mt-6">
+                            <div className="text-left">
+                                <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">1. WHO GOT OUT?</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[currentStriker, currentNonStriker].filter(Boolean).map(player => (
+                                        <button
+                                            key={player}
+                                            onClick={() => setWicketPlayerOut(player as string)}
+                                            className={`p-4 rounded-xl border font-bold text-lg transition-colors ${wicketPlayerOut === player ? 'bg-red-500/20 border-red-500 text-white' : 'bg-black border-zinc-800 text-zinc-400'}`}
+                                        >
+                                            {player}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* 2. Dismissal Type */}
-                        {wicketPlayerOut && (
-                            <div className="mb-6 border-t border-zinc-800 pt-6">
+                            <div className="text-left">
                                 <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">2. HOW?</label>
                                 <div className="grid grid-cols-3 gap-2">
                                     {(["BOWLED", "CAUGHT", "RUNOUT", "LBW", "STUMPED", "RETIRED_HURT"] as const).map(type => (
                                         <button
                                             key={type}
                                             onClick={() => setWicketType(type)}
-                                            className={`p-2 rounded-lg border font-bold text-xs tracking-widest transition-colors ${wicketType === type ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}
+                                            className={`p-3 rounded-lg border font-bold text-[10px] tracking-widest transition-colors ${wicketType === type ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-black border-zinc-800 text-zinc-500'}`}
                                         >
                                             {type.replace("_", " ")}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                        )}
 
-                        {/* 3. New Batsman */}
-                        {wicketType && (
-                            <div className="border-t border-zinc-800 pt-6">
-                                <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">3. NEW BATSMAN IN</label>
+                            <button
+                                onClick={handleDeclareWicket}
+                                className={`w-full p-5 rounded-2xl font-bold tracking-[0.2em] transition-all bg-white text-black shadow-xl shadow-white/10`}
+                            >
+                                DECLARE WICKET &rarr;
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="w-full space-y-6 mt-6">
+                            <div className="bg-black/40 p-4 rounded-xl border border-zinc-800 text-left">
+                                <p className="text-[10px] text-zinc-500 font-bold mb-1 tracking-widest uppercase">DISMISSAL RECORDED</p>
+                                <p className="text-white font-bold">{wicketPlayerOut} ({wicketType?.replace("_", " ")})</p>
+                            </div>
+
+                            <div className="text-left">
+                                <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">WHO IS THE NEW BATSMAN?</label>
                                 <select
                                     value={wicketNewBatsman || ""}
                                     onChange={(e) => setWicketNewBatsman(e.target.value)}
-                                    className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg p-3 focus:outline-none focus:border-amber-500"
+                                    className="w-full bg-black border-2 border-zinc-800 text-white rounded-xl p-5 text-lg font-bold tracking-wide focus:border-amber-500 outline-none transition-all"
                                 >
-                                    <option value="" disabled>Select New Batsman...</option>
+                                    <option value="" disabled>Select Player...</option>
                                     {(squads[inn.teamName] || [])
-                                        // Filter out players already out, or currently batting
                                         .filter(p => !inn.batsmen[p] || (!inn.batsmen[p].isOut && p !== inn.strikerRef && p !== inn.nonStrikerRef))
                                         .map(p => (
                                             <option key={p} value={p}>{p}</option>
                                         ))}
                                 </select>
                             </div>
-                        )}
 
-                    </div>
-
-                    {wicketPlayerOut && wicketType && wicketNewBatsman && (
-                        <button
-                            onClick={submitWicket}
-                            className="w-full bg-red-500 hover:bg-red-600 text-white font-bold p-4 rounded-xl tracking-widest mb-4 shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-pulse"
-                        >
-                            CONFIRM WICKET
-                        </button>
+                            <button
+                                disabled={!wicketNewBatsman}
+                                onClick={submitWicket}
+                                className={`w-full p-5 rounded-2xl font-bold tracking-[0.2em] transition-all ${wicketNewBatsman ? 'bg-red-500 text-white shadow-xl shadow-red-500/20 animate-pulse' : 'bg-zinc-800 text-zinc-600 opacity-50'}`}
+                            >
+                                COMPLETE DECLARATION
+                            </button>
+                        </div>
                     )}
 
-                    <button
-                        onClick={() => { setIsScoringLocked(true); setScreen("LIVE_SCORING"); }}
-                        className="border border-zinc-700 px-8 py-3 rounded-full text-zinc-400 font-bold tracking-widest hover:text-white transition-colors text-xs"
-                    >
-                        CANCEL & RETURN TO MATCH
-                    </button>
+                    <div className="mt-8 flex gap-4 w-full">
+                        <button
+                            onClick={() => { setIsScoringLocked(true); setScreen("LIVE_SCORING"); }}
+                            className="flex-1 border border-zinc-800 py-3 rounded-xl text-zinc-500 font-bold tracking-widest hover:text-white transition-colors text-[10px]"
+                        >
+                            CANCEL
+                        </button>
+                    </div>
                 </div>
             </div>
         );
