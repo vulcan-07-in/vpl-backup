@@ -73,6 +73,7 @@ export interface BallEvent {
 export interface LiveMatchState {
     matchId: string; // Typically the matchNo (e.g., "M5")
     status: MatchStatus;
+    scheduledTime?: string; // Time the match is set to start, for UI tracking
     tossWinner?: string;
     tossDecision?: "BAT" | "BOWL";
     currentInnings: 1 | 2;

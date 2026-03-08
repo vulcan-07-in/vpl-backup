@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X } from "lucide-react";
 import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 
-type ScorerScreen = "AUTH" | "SELECT_MATCH" | "TOSS_SETUP" | "LIVE_SCORING" | "EDIT_OVERRIDE" | "WICKET_MODAL";
+type ScorerScreen = "AUTH" | "SELECT_MATCH" | "SCHEDULE_SETUP" | "TOSS_SETUP" | "LIVE_SCORING" | "EDIT_OVERRIDE" | "WICKET_MODAL";
 
 export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fixture[], teams: Team[], squads: Record<string, string[]> }) {
     // ---- SCORER AUTH ----
@@ -32,6 +32,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [wicketPlayerOut, setWicketPlayerOut] = useState<string | null>(null);
     const [wicketType, setWicketType] = useState<BallEvent["wicketType"] | null>(null);
     const [wicketNewBatsman, setWicketNewBatsman] = useState<string | null>(null);
+
+    // Scheduling States
+    const [scheduledTime, setScheduledTime] = useState("");
 
     // Initial State Builder (VPL 8-Overs Mode)
     const getInitialState = (match: Fixture, bat1: string, bat2: string): LiveMatchState => ({
@@ -83,11 +86,17 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             const res = await fetch(`/api/live-score?matchId=${matchId}`);
             if (res.ok) {
                 const data = await res.json();
-                setLiveState(data);
-                setScreen("LIVE_SCORING");
+
+                if (data.status === "SCHEDULED") {
+                    setLiveState(data);
+                    setScreen("TOSS_SETUP");
+                } else {
+                    setLiveState(data);
+                    setScreen("LIVE_SCORING");
+                }
             } else {
-                // Not LIVE yet, go to Pre-Match Toss Setup
-                setScreen("TOSS_SETUP");
+                // Not LIVE yet, go to Scheduling Phase
+                setScreen("SCHEDULE_SETUP");
             }
         } catch (e) {
             console.error(e);
@@ -119,6 +128,33 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         setScreen("LIVE_SCORING");
 
         // Save fresh state to KV
+        await fetch("/api/live-score", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newState)
+        });
+    };
+
+    const handleScheduleMatch = async () => {
+        if (!selectedMatch || !scheduledTime) {
+            alert("Please enter a valid time.");
+            return;
+        }
+
+        const newState: LiveMatchState = {
+            matchId: selectedMatch.matchNo,
+            status: "SCHEDULED",
+            scheduledTime: scheduledTime,
+            currentInnings: 1,
+            matchOvers: 8,
+            innings1: { teamName: selectedMatch.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+            innings2: { teamName: selectedMatch.team2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+            timeline: []
+        };
+
+        setLiveState(newState);
+        setScreen("TOSS_SETUP");
+
         await fetch("/api/live-score", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -474,9 +510,58 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     }
 
     // ==========================================
+    // RENDER: SCHEDULE MATCH
+    // ==========================================
+    if (screen === "SCHEDULE_SETUP" && selectedMatch) {
+        return (
+            <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
+                <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+                    <span className="text-4xl mb-4 block">⏰</span>
+                    <h2 className="text-2xl text-white font-bold mb-2 tracking-widest uppercase">
+                        Schedule Match
+                    </h2>
+                    <p className="text-zinc-500 text-sm mb-8">
+                        Set a public start time. Viewers will see this match as &quot;Scheduled&quot; until you start the toss.
+                    </p>
+
+                    <div className="space-y-4">
+                        <input
+                            type="time"
+                            value={scheduledTime}
+                            onChange={(e) => setScheduledTime(e.target.value)}
+                            className="w-full bg-zinc-800 text-white text-xl p-4 rounded-xl border border-zinc-700 outline-none text-center"
+                        />
+
+                        <button
+                            onClick={handleScheduleMatch}
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold p-4 rounded-xl tracking-widest mt-4 shadow-lg shadow-blue-500/20 transition-colors"
+                        >
+                            LOCK IN SCHEDULE
+                        </button>
+
+                        <button
+                            onClick={() => { setScreen("LIVE_SCORING"); }}
+                            className="w-full text-zinc-500 font-bold p-4 tracking-widest text-xs hover:text-white transition-colors mt-2"
+                        >
+                            SKIP TO TOSS
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ==========================================
     // RENDER: TOSS & SETUP
     // ==========================================
     if (screen === "TOSS_SETUP" && selectedMatch) {
+        // Robust team name matching helper because sheets data often has trailing spaces/cases
+        const getSquadForTeam = (teamName: string) => {
+            const cleanName = teamName.trim().toLowerCase();
+            const key = Object.keys(squads).find(k => k.trim().toLowerCase() === cleanName);
+            return key ? squads[key] : [];
+        };
+
         return (
             <div className="min-h-screen bg-black p-8 flex flex-col items-center justify-center">
                 <div className="max-w-2xl w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
@@ -520,21 +605,21 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                                 <select value={openStriker} onChange={(e) => setOpenStriker(e.target.value)} className="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 outline-none">
                                     <option value="" disabled>Select Striker...</option>
-                                    {(squads[tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1)] || []).map(p => (
+                                    {(getSquadForTeam(tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))).map(p => (
                                         <option key={p} value={p}>{p}</option>
                                     ))}
                                 </select>
 
                                 <select value={openNonStriker} onChange={(e) => setOpenNonStriker(e.target.value)} className="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 outline-none">
                                     <option value="" disabled>Select Non-Striker...</option>
-                                    {(squads[tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1)] || []).map(p => (
+                                    {(getSquadForTeam(tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))).map(p => (
                                         <option key={p} value={p}>{p}</option>
                                     ))}
                                 </select>
 
                                 <select value={openBowler} onChange={(e) => setOpenBowler(e.target.value)} className="w-full bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 outline-none">
                                     <option value="" disabled>Select Opening Bowler...</option>
-                                    {(squads[tossDecision === "BOWL" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1)] || []).map(p => (
+                                    {(getSquadForTeam(tossDecision === "BOWL" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))).map(p => (
                                         <option key={p} value={p}>{p}</option>
                                     ))}
                                 </select>

@@ -1,7 +1,8 @@
 "use client";
 
-import { Trophy } from "lucide-react";
-import { type Fixture, type Team } from "@/lib/tournament";
+import { useState, useEffect } from "react";
+import { Trophy, Clock } from "lucide-react";
+import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -19,6 +20,37 @@ const itemVariants = {
 
 export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
     const colorOf = (name: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
+
+    const [liveMatches, setLiveMatches] = useState<Record<string, LiveMatchState>>({});
+
+    // Fetch live status for unplayed matches
+    useEffect(() => {
+        const fetchLiveStatus = async () => {
+            const unplayedIds = fixtures.filter(f => !f.winner).map(f => f.matchNo);
+
+            // We fetch the status for the next 3 upcoming matches to avoid spamming the DB
+            const matchesToCheck = unplayedIds.slice(0, 3);
+
+            const liveData: Record<string, LiveMatchState> = {};
+            for (const id of matchesToCheck) {
+                try {
+                    const res = await fetch(`/api/live-score?matchId=${id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        liveData[id] = data;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+            setLiveMatches(liveData);
+        };
+        fetchLiveStatus();
+
+        // Refresh every 30 seconds
+        const interval = setInterval(fetchLiveStatus, 30000);
+        return () => clearInterval(interval);
+    }, [fixtures]);
 
     // Derive pool team lists from fixtures
     const poolTeams: Record<"A" | "B", string[]> = { A: [], B: [] };
@@ -85,8 +117,19 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             {win1 && <Trophy className={`relative z-10 w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
                         </div>
                         <div className="text-center flex flex-col items-center justify-center pt-1">
-                            <span className={`text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full border ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : "text-zinc-500 border-white/10 bg-white/5"}`} style={{ fontFamily: "var(--font-body)" }}>
-                                {played ? "FT" : "VS"}
+                            <span className={`text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full border ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? "text-blue-400 border-blue-500/30 bg-blue-500/10 flex items-center gap-1" : liveMatches[fixture.matchNo]?.status === "LIVE" ? "text-red-500 border-red-500/30 bg-red-500/10 animate-pulse" : "text-zinc-500 border-white/10 bg-white/5"}`} style={{ fontFamily: "var(--font-body)" }}>
+                                {played ? (
+                                    "FT"
+                                ) : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? (
+                                    <>
+                                        <Clock className="w-3 h-3" />
+                                        {liveMatches[fixture.matchNo]?.scheduledTime || "SOON"}
+                                    </>
+                                ) : liveMatches[fixture.matchNo]?.status === "LIVE" ? (
+                                    "LIVE"
+                                ) : (
+                                    "VS"
+                                )}
                             </span>
                         </div>
                         <div className={`relative flex flex-col items-center gap-1.5 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
@@ -135,9 +178,23 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         </span>
                         <div className={`relative z-10 rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
                     </div>
-                    <div className="text-center flex justify-center">
-                        <span className={`text-[10px] sm:text-xs font-bold tracking-widest px-3 py-1 rounded border ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : "text-zinc-500 border-white/10 bg-white/5"} ${isFeaturedKnockout && !played ? '!text-amber-300 !border-amber-500/50 !bg-amber-900/10' : ''}`} style={{ fontFamily: "var(--font-body)" }}>
-                            {played ? "FT" : "VS"}
+                    <div className="text-center flex justify-center w-24">
+                        <span className={`text-[10px] sm:text-xs font-bold tracking-widest px-3 py-1 rounded border whitespace-nowrap ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? "text-blue-400 border-blue-500/30 bg-blue-500/10 flex items-center justify-center gap-2" : liveMatches[fixture.matchNo]?.status === "LIVE" ? "text-red-500 border-red-500/30 bg-red-500/10 flex items-center justify-center gap-2" : "text-zinc-500 border-white/10 bg-white/5"} ${isFeaturedKnockout && !played && !liveMatches[fixture.matchNo] ? '!text-amber-300 !border-amber-500/50 !bg-amber-900/10' : ''}`} style={{ fontFamily: "var(--font-body)" }}>
+                            {played ? (
+                                "FT"
+                            ) : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? (
+                                <>
+                                    <Clock className="w-3 h-3" />
+                                    {liveMatches[fixture.matchNo]?.scheduledTime || "SOON"}
+                                </>
+                            ) : liveMatches[fixture.matchNo]?.status === "LIVE" ? (
+                                <>
+                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                    LIVE
+                                </>
+                            ) : (
+                                "VS"
+                            )}
                         </span>
                     </div>
                     <div className={`relative flex items-center gap-4 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
