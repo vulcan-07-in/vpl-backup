@@ -136,8 +136,9 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 {/* Player Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     {/* BATSMEN */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-                        <h3 className="text-xs font-bold tracking-[0.2em] text-zinc-500 mb-4 border-b border-zinc-800 pb-3">BATSMEN</h3>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl pointer-events-none" />
+                        <h3 className="text-xs font-bold tracking-[0.2em] text-zinc-500 mb-4 border-b border-zinc-800 pb-3 uppercase">BATSMEN</h3>
                         <div className="space-y-3 relative z-10">
                             <div className={`flex justify-between items-center p-3 rounded-xl border ${activeStriker ? 'border-amber-500/30 bg-amber-500/10' : 'border-zinc-800 bg-black/50'} transition-all`}>
                                 <div className="flex items-center gap-2">
@@ -159,8 +160,9 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     </div>
 
                     {/* BOWLER */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-                        <h3 className="text-xs font-bold tracking-[0.2em] text-zinc-500 mb-4 border-b border-zinc-800 pb-3">CURRENT BOWLER</h3>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl pointer-events-none" />
+                        <h3 className="text-xs font-bold tracking-[0.2em] text-zinc-500 mb-4 border-b border-zinc-800 pb-3 uppercase">CURRENT BOWLER</h3>
                         <div className={`flex justify-between items-center p-3 rounded-xl border ${activeBowler ? 'border-blue-500/30 bg-blue-500/10' : 'border-zinc-800 bg-black/50'} transition-all mt-2`}>
                             <span className="text-blue-100 font-bold text-lg">{activeBowler ? activeBowler.name : "Waiting..."}</span>
                             <div className="flex items-center gap-4 text-white font-bold text-lg tabular-nums">
@@ -168,6 +170,25 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 <span className="text-zinc-500 font-normal text-sm">({activeBowler ? activeBowler.overs.toFixed(1) : "0.0"})</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {/* Recent Balls Timeline */}
+                <div className="mt-8 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                    <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 mb-4 uppercase">Recent Deliveries</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        {liveMatch.timeline.length === 0 ? (
+                            <span className="text-zinc-600 text-xs italic tracking-widest">Awaiting first delivery...</span>
+                        ) : (
+                            [...liveMatch.timeline].reverse().slice(0, 10).map((ball) => (
+                                <div key={ball.id} className="flex flex-col items-center gap-1 min-w-[48px]">
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-2 shadow-inner transition-all ${ball.isWicket ? 'bg-red-500 border-red-400 text-white shadow-red-900/40' : ball.runs >= 4 ? 'bg-amber-500 border-amber-400 text-black shadow-amber-900/20' : 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}>
+                                        {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
+                                    </div>
+                                    <span className="text-[9px] font-bold text-zinc-500 font-mono">{(ball.over - 0.1).toFixed(1)}</span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
