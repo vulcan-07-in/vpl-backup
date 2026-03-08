@@ -18,7 +18,7 @@ Built with Next.js, Tailwind CSS 4, and a live Google Sheets data backend.
 ## � Data Source (Google Sheets)
 
 All team and player data is pulled live from this sheet:
-**[Varchasva Master Sheet](https://docs.google.com/spreadsheets/d/12cbvXQkyWZWor1EYPCUljKi6so1-CANOgyQUzwZFgro/edit?gid=667574756)**
+**[Varchasva Master Sheet](https://docs.google.com/spreadsheets/d/11T1LB7-Gwe_nCiHF4N0WbtuflCA-ltBjG6WCocuh4yM/edit?gid=667574756)**
 
 > [!IMPORTANT]
 > The sheet **must be publicly viewable**: `File → Share → Share with others → General access → Anyone with the link`.
