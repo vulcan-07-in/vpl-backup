@@ -17,7 +17,7 @@ const itemVariants = {
     show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
-export default function FixturesClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
+export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
     const colorOf = (name: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
 
     // Derive pool team lists from fixtures
@@ -67,38 +67,44 @@ export default function FixturesClient({ fixtures, teams }: { fixtures: Fixture[
                         </span>
                     </div>
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                        <div className={`flex flex-col items-center gap-1.5 min-w-0 transition-opacity ${played && !win1 ? "opacity-40" : ""}`}>
-                            <div className="w-5 h-5 rounded-full shrink-0 shadow-lg" style={{ backgroundColor: c1, boxShadow: `0 0 ${isFeaturedKnockout ? '20' : '10'}px ${c1}80` }} />
-                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 overflow-visible`}
+                        <div className={`relative flex flex-col items-center gap-1.5 min-w-0 transition-opacity ${played && !win1 ? "opacity-40" : ""}`}>
+                            {win1 && (
+                                <div className="absolute inset-0 bg-white/5 blur-2xl rounded-full" style={{ backgroundColor: `${c1}15` }} />
+                            )}
+                            <div className="w-5 h-5 rounded-full shrink-0 shadow-lg relative z-10" style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
+                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 relative z-10`}
                                 style={{
                                     fontFamily: "var(--font-display)",
-                                    color: win1 ? c1 : "white",
-                                    textShadow: win1 || isFeaturedKnockout
-                                        ? `0 0 8px ${c1}cc, 0 0 20px ${c1}80, 0 0 35px ${c1}40`
+                                    color: win1 ? 'white' : "white",
+                                    textShadow: win1
+                                        ? `0 0 15px ${c1}60`
                                         : "none"
                                 }}>
                                 {fixture.team1}
                             </span>
-                            {win1 && <Trophy className={`w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
+                            {win1 && <Trophy className={`relative z-10 w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
                         </div>
                         <div className="text-center flex flex-col items-center justify-center pt-1">
                             <span className={`text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full border ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : "text-zinc-500 border-white/10 bg-white/5"}`} style={{ fontFamily: "var(--font-body)" }}>
                                 {played ? "FT" : "VS"}
                             </span>
                         </div>
-                        <div className={`flex flex-col items-center gap-1.5 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
-                            <div className="w-5 h-5 rounded-full shrink-0 shadow-lg" style={{ backgroundColor: c2, boxShadow: `0 0 ${isFeaturedKnockout ? '20' : '10'}px ${c2}80` }} />
-                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 overflow-visible`}
+                        <div className={`relative flex flex-col items-center gap-1.5 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
+                            {win2 && (
+                                <div className="absolute inset-0 bg-white/5 blur-2xl rounded-full" style={{ backgroundColor: `${c2}15` }} />
+                            )}
+                            <div className="w-5 h-5 rounded-full shrink-0 shadow-lg relative z-10" style={{ backgroundColor: c2, border: `1px solid ${c2}40` }} />
+                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 relative z-10`}
                                 style={{
                                     fontFamily: "var(--font-display)",
-                                    color: win2 ? c2 : "white",
-                                    textShadow: win2 || isFeaturedKnockout
-                                        ? `0 0 8px ${c2}cc, 0 0 20px ${c2}80, 0 0 35px ${c2}40`
+                                    color: win2 ? 'white' : "white",
+                                    textShadow: win2
+                                        ? `0 0 15px ${c2}60`
                                         : "none"
                                 }}>
                                 {fixture.team2}
                             </span>
-                            {win2 && <Trophy className={`w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
+                            {win2 && <Trophy className={`relative z-10 w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
                         </div>
                     </div>
                 </div>
@@ -111,40 +117,46 @@ export default function FixturesClient({ fixtures, teams }: { fixtures: Fixture[
                     <span className={`text-[10px] tracking-widest pr-2 ${isFeaturedKnockout ? 'text-amber-400 font-bold text-xs' : 'text-zinc-500'}`} style={{ fontFamily: "var(--font-body)" }}>
                         {isKnockout ? fixture.stage.toUpperCase() : "POOL " + fixture.pool}
                     </span>
-                    <div className={`flex items-center gap-4 justify-end min-w-0 transition-opacity ${played && !win1 ? "opacity-40" : ""}`}>
-                        {win1 && <Trophy className={`w-6 h-6 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'w-8 h-8' : ''}`} strokeWidth={2.5} />}
-                        <span className={`${isFeaturedKnockout ? 'text-5xl tracking-widest text-amber-50' : 'text-4xl tracking-wide'} font-bold text-right transition-colors py-2 px-1 overflow-visible`}
+                    <div className={`relative flex items-center gap-4 justify-end min-w-0 transition-opacity ${played && !win1 ? "opacity-40" : ""}`}>
+                        {win1 && (
+                            <div className="absolute right-0 w-3/4 h-full bg-gradient-to-l from-white/5 to-transparent blur-xl" style={{ borderRight: `2px solid ${c1}30`, backgroundImage: `linear-gradient(to left, ${c1}15, transparent)` }} />
+                        )}
+                        {win1 && <Trophy className={`relative z-10 w-6 h-6 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'w-8 h-8' : ''}`} strokeWidth={2.5} />}
+                        <span className={`${isFeaturedKnockout ? 'text-5xl tracking-widest text-amber-50' : 'text-4xl tracking-wide'} font-bold text-right transition-colors py-2 px-1 relative z-10`}
                             style={{
                                 fontFamily: "var(--font-display)",
-                                color: win1 ? c1 : "white",
-                                textShadow: win1 || isFeaturedKnockout
-                                    ? `0 0 10px ${c1}cc, 0 0 25px ${c1}80, 0 0 45px ${c1}40`
+                                color: 'white',
+                                textShadow: win1
+                                    ? `0 0 20px ${c1}50`
                                     : "none",
                                 paddingTop: "0.2rem"
                             }}>
                             {fixture.team1}
                         </span>
-                        <div className={`rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c1, boxShadow: `0 0 12px ${c1}80` }} />
+                        <div className={`relative z-10 rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
                     </div>
                     <div className="text-center flex justify-center">
                         <span className={`text-[10px] sm:text-xs font-bold tracking-widest px-3 py-1 rounded border ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : "text-zinc-500 border-white/10 bg-white/5"} ${isFeaturedKnockout && !played ? '!text-amber-300 !border-amber-500/50 !bg-amber-900/10' : ''}`} style={{ fontFamily: "var(--font-body)" }}>
                             {played ? "FT" : "VS"}
                         </span>
                     </div>
-                    <div className={`flex items-center gap-4 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
-                        <div className={`rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c2, boxShadow: `0 0 12px ${c2}80` }} />
-                        <span className={`${isFeaturedKnockout ? 'text-5xl tracking-widest text-amber-50' : 'text-4xl tracking-wide'} font-bold transition-colors py-2 px-1 overflow-visible`}
+                    <div className={`relative flex items-center gap-4 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
+                        {win2 && (
+                            <div className="absolute left-0 w-3/4 h-full bg-gradient-to-r from-white/5 to-transparent blur-xl" style={{ borderLeft: `2px solid ${c2}30`, backgroundImage: `linear-gradient(to right, ${c2}15, transparent)` }} />
+                        )}
+                        <div className={`relative z-10 rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c2, border: `1px solid ${c2}40` }} />
+                        <span className={`${isFeaturedKnockout ? 'text-5xl tracking-widest text-amber-50' : 'text-4xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10`}
                             style={{
                                 fontFamily: "var(--font-display)",
-                                color: win2 ? c2 : "white",
-                                textShadow: win2 || isFeaturedKnockout
-                                    ? `0 0 10px ${c2}cc, 0 0 25px ${c2}80, 0 0 45px ${c2}40`
+                                color: 'white',
+                                textShadow: win2
+                                    ? `0 0 20px ${c2}50`
                                     : "none",
                                 paddingTop: "0.2rem"
                             }}>
                             {fixture.team2}
                         </span>
-                        {win2 && <Trophy className={`w-6 h-6 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'w-8 h-8' : ''}`} strokeWidth={2.5} />}
+                        {win2 && <Trophy className={`relative z-10 w-6 h-6 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'w-8 h-8' : ''}`} strokeWidth={2.5} />}
                     </div>
                 </div>
             </motion.div>
@@ -165,7 +177,7 @@ export default function FixturesClient({ fixtures, teams }: { fixtures: Fixture[
                         VARCHASVA PREMIER LEAGUE
                     </p>
                     <h1 className="text-6xl md:text-8xl text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                        FIXTURES
+                        MATCHES
                     </h1>
                     <div className="mt-5 flex items-center gap-4">
                         <div className="h-px w-8 bg-amber-500" />
@@ -177,7 +189,7 @@ export default function FixturesClient({ fixtures, teams }: { fixtures: Fixture[
 
                 {fixtures.length === 0 ? (
                     <div className="py-24 text-center">
-                        <p className="text-zinc-700 text-sm tracking-widest">FIXTURES NOT YET PUBLISHED</p>
+                        <p className="text-zinc-700 text-sm tracking-widest">MATCHES NOT YET PUBLISHED</p>
                     </div>
                 ) : (
                     <motion.div

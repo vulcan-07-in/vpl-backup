@@ -18,6 +18,74 @@ export interface Fixture {
     sortOrder: number;
 }
 
+// ==========================================
+// PHASE 2: LIVE SCORING ENGINE TYPES
+// ==========================================
+
+export type MatchStatus = "SCHEDULED" | "LIVE" | "INNINGS_BREAK" | "COMPLETED" | "ABANDONED";
+
+export interface BatsmanStats {
+    name: string;
+    runs: number;
+    balls: number;
+    fours: number;
+    sixes: number;
+    isOut: boolean;
+    dismissal?: string;
+}
+
+export interface BowlerStats {
+    name: string;
+    overs: number; // Represents completed overs (e.g., 2.4 overs = 2 overs, 4 balls)
+    maidens: number;
+    runs: number;
+    wickets: number;
+}
+
+export interface Innings {
+    teamName: string;
+    runs: number;
+    wickets: number;
+    overs: number; // Decimal representation (2.4)
+    batsmen: Record<string, BatsmanStats>; // Keyed by player name
+    bowlers: Record<string, BowlerStats>;  // Keyed by player name
+    strikerRef?: string;
+    nonStrikerRef?: string;
+    currentBowlerRef?: string;
+}
+
+export interface BallEvent {
+    id: string; // Unique ID for undo targeting
+    timestamp: number;
+    innings: 1 | 2;
+    over: number;      // e.g., 2.4
+    striker: string;
+    bowler: string;
+    runs: number;      // Runs off the bat
+    extras: number;    // Extra runs
+    extraType?: "WD" | "NB" | "B" | "LB";
+    isWicket: boolean;
+    wicketType?: "BOWLED" | "CAUGHT" | "RUNOUT" | "LBW" | "STUMPED" | "HIT_WICKET" | "RETIRED_HURT";
+    playerOut?: string;
+    newBatsman?: string;
+}
+
+export interface LiveMatchState {
+    matchId: string; // Typically the matchNo (e.g., "M5")
+    status: MatchStatus;
+    tossWinner?: string;
+    tossDecision?: "BAT" | "BOWL";
+    currentInnings: 1 | 2;
+    innings1: Innings;
+    innings2: Innings;
+    timeline: BallEvent[]; // The critical event log for the "Undo" feature
+    // Manual Overrides
+    targetScore?: number;
+    matchOvers: number; // Defaults to 8 for VPL
+    // Rule: Squad is 8 players. 7 wickets = All Out. 
+    // BUT Last Man Standing rule applies, so player 8 bats alone until Wicket 8.
+}
+
 // Round-robin pairs for a pool of 4 teams
 function roundRobin(teams: string[]): [string, string][] {
     const pairs: [string, string][] = [];
@@ -232,55 +300,41 @@ export async function fetchTeams(): Promise<Team[]> {
     }
 }
 
-export async function fetchSquadsData() {
+export async function fetchSquads(): Promise<Array<{ teamName: string, players: { name: string, role: string }[] }>> {
     try {
         const res = await fetch(SQUADS_CSV_URL, { next: { revalidate: 60 } });
-        if (!res.ok) throw new Error("Failed to fetch squads");
+        if (!res.ok) throw new Error("Failed to fetch squads csv");
         const text = await res.text();
 
-        // Catch HTML errors before parsing
-        if (text.trim().startsWith('<')) {
-            console.error('fetchSquadsData returned HTML instead of CSV', text.substring(0, 100));
-            return [];
-        }
+        if (text.trim().startsWith('<')) return [];
 
-        interface TeamData {
-            TeamName: string;
-            ShortName: string;
-            Color: string;
-            Players: string;
-        }
+        let squadsList: Record<string, { name: string, role: string }[]> = {};
 
-        return new Promise<{ teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string; }[] }[]>((resolve) => {
-            Papa.parse<TeamData>(text, {
-                header: true,
-                skipEmptyLines: true,
-                complete: ({ data }) => {
-                    const teams = data.map((row) => ({
-                        teamName: row.TeamName || "Unknown",
-                        shortName: row.ShortName || "UNK",
-                        color: row.Color || "#EAB308",
-                        players: row.Players
-                            ? row.Players.split(",").map((p) => {
-                                const [name, role, price] = p.trim().split(":");
-                                return {
-                                    name: name?.trim() ?? "Unknown",
-                                    role: role?.trim() ?? "-",
-                                    price: price?.trim() ?? "-",
-                                };
-                            })
-                            : [],
-                    }));
-                    resolve(teams);
-                },
-                error: (error: Error) => {
-                    console.error("PapaParse error in fetchSquadsData:", error.message);
-                    resolve([]);
-                }
-            });
+        Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const rows = results.data as any[];
+                rows.forEach(row => {
+                    const tName = row.TeamName?.trim();
+                    const pName = row.PlayerName?.trim();
+                    if (!tName || !pName) return;
+
+                    if (!squadsList[tName]) squadsList[tName] = [];
+                    squadsList[tName].push({
+                        name: pName,
+                        role: row.Role?.trim() || "Player"
+                    });
+                });
+            }
         });
+
+        return Object.keys(squadsList).map(teamName => ({
+            teamName,
+            players: squadsList[teamName]
+        }));
     } catch (error) {
-        console.error("fetchSquadsData error:", error);
+        console.error("Error parsing squads:", error);
         return [];
     }
 }

@@ -141,7 +141,7 @@ export default function AdminPage() {
     // Load existing fixtures (if any)
     useEffect(() => {
         if (!authed) return;
-        fetch("/api/fixtures")
+        fetch("/api/matches")
             .then(r => r.json())
             .then((data: Fixture[]) => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -241,7 +241,7 @@ export default function AdminPage() {
         setSaving(true);
         setSaveMsg("");
         try {
-            const res = await fetch("/api/fixtures", {
+            const res = await fetch("/api/matches", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify([]), // Empty array clears the sheet
@@ -277,7 +277,7 @@ export default function AdminPage() {
             }));
             // Update local state so UI reflects new numbers immediately
             setFixtures(renumbered);
-            const res = await fetch("/api/fixtures", {
+            const res = await fetch("/api/matches", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(renumbered),

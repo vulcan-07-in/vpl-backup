@@ -7,13 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 interface Player {
     name: string;
     role: string;
-    price: string;
+    price?: string;
 }
 
 interface Team {
     teamName: string;
-    shortName: string;
-    color: string;
     players: Player[];
 }
 
@@ -40,7 +38,7 @@ const itemVariants = {
     show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
-export default function SquadsClient({ teams }: { teams: Team[] }) {
+export default function SquadsClient({ initialData }: { initialData: Team[] }) {
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
     return (
@@ -70,7 +68,7 @@ export default function SquadsClient({ teams }: { teams: Team[] }) {
                         <div className="mt-5 flex items-center gap-4">
                             <div className="h-px w-8 bg-amber-500" />
                             <span className="text-xs text-zinc-700 tracking-widest">
-                                {teams.length} TEAMS
+                                {initialData.length} TEAMS
                             </span>
                         </div>
                     </motion.div>
@@ -82,63 +80,20 @@ export default function SquadsClient({ teams }: { teams: Team[] }) {
                         animate="show"
                         className="space-y-px"
                     >
-                        {teams.map((team, idx) => (
+                        {initialData.map((team, idx) => (
                             <motion.button
                                 variants={itemVariants}
                                 key={idx}
                                 onClick={() => setSelectedTeam(team)}
-                                className="group w-full flex items-center gap-0 text-left focus:outline-none"
+                                className="group relative w-full h-40 md:h-56 transform hover:-translate-y-2 transition-transform duration-300 focus:outline-none"
                             >
-                                {/* Team color accent bar */}
-                                <div
-                                    className="w-0.5 self-stretch shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
-                                    style={{ backgroundColor: team.color }}
-                                />
-
-                                <div className="flex-1 flex items-center justify-between px-5 md:px-8 py-5 md:py-6 border-b border-white/[0.04] group-hover:bg-white/[0.03] transition-colors">
-                                    {/* Left: index + names */}
-                                    <div className="flex items-center gap-5 md:gap-8 min-w-0">
-                                        {/* Index number */}
-                                        <span
-                                            className="text-xs text-zinc-800 w-5 shrink-0 text-right tabular-nums"
-                                            style={{ fontFamily: "var(--font-mono)" }}
-                                        >
-                                            {String(idx + 1).padStart(2, "0")}
-                                        </span>
-
-                                        {/* Short name pill */}
-                                        <span
-                                            className="hidden sm:block text-[10px] font-bold tracking-widest px-2 py-1 rounded shrink-0"
-                                            style={{
-                                                color: team.color,
-                                                backgroundColor: `${team.color}12`,
-                                                fontFamily: "var(--font-body)",
-                                            }}
-                                        >
-                                            {team.shortName}
-                                        </span>
-
-                                        {/* Full team name */}
-                                        <h2
-                                            className="text-xl md:text-2xl lg:text-3xl text-white group-hover:text-amber-100 transition-colors truncate"
-                                            style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}
-                                        >
-                                            {team.teamName}
-                                        </h2>
+                                <div className={`absolute inset-0 bg-[#EAB308]/20 rounded-3xl blur-xl group-hover:bg-[#EAB308]/30 transition-colors`} />
+                                <div className={`relative h-full flex flex-col justify-end p-6 border-2 border-[#EAB308]/30 hover:border-[#EAB308]/50 rounded-3xl text-left bg-black`}>
+                                    <div className="absolute top-6 left-6 w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg bg-[#EAB308]/10 text-[#EAB308]">
+                                        {team.teamName.slice(0, 3).toUpperCase()}
                                     </div>
-
-                                    {/* Right: player count + arrow */}
-                                    <div className="flex items-center gap-4 md:gap-6 shrink-0 ml-4">
-                                        <span
-                                            className="hidden md:block text-xs text-zinc-700 tracking-widest"
-                                            style={{ fontFamily: "var(--font-body)" }}
-                                        >
-                                            {team.players.length} PLAYERS
-                                        </span>
-                                        <ArrowRight
-                                            className="w-4 h-4 text-zinc-700 group-hover:text-amber-400 group-hover:translate-x-1 transition-all duration-200"
-                                        />
-                                    </div>
+                                    <h3 className="text-xl md:text-2xl font-bold text-white uppercase tracking-widest">{team.teamName}</h3>
+                                    <p className="text-[#EAB308] text-sm mt-2 font-medium tracking-widest">{team.players.length} PLAYERS</p>
                                 </div>
                             </motion.button>
                         ))}
@@ -167,34 +122,26 @@ export default function SquadsClient({ teams }: { teams: Team[] }) {
                             exit={{ y: "100%", opacity: 0 }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
                             className="relative w-full md:max-w-xl bg-zinc-950 border-t md:border md:rounded-2xl overflow-hidden"
-                            style={{ borderColor: `${selectedTeam.color}25` }}
+                            style={{ borderColor: `#EAB30825` }}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Thin color bar at top */}
-                            <div className="h-[2px] w-full" style={{ backgroundColor: selectedTeam.color }} />
+                            <div className="h-[2px] w-full" style={{ backgroundColor: `#EAB308` }} />
 
                             {/* Modal Header */}
-                            <div className="px-6 pt-6 pb-5 flex items-start justify-between gap-4 border-b border-white/[0.05]">
-                                <div className="min-w-0">
-                                    <p
-                                        className="text-[10px] tracking-[0.5em] text-zinc-600 mb-1"
-                                        style={{ fontFamily: "var(--font-body)" }}
-                                    >
-                                        {selectedTeam.shortName} · {selectedTeam.players.length} PLAYERS
-                                    </p>
-                                    <h2
-                                        className="text-3xl md:text-4xl text-white leading-none"
-                                        style={{ fontFamily: "var(--font-display)" }}
-                                    >
-                                        {selectedTeam.teamName.toUpperCase()}
-                                    </h2>
-                                </div>
+                            <div className="relative h-48 md:h-64 bg-zinc-900 flex items-end">
+                                {/* Header Image Gradient */}
+                                <div className={`absolute inset-0 bg-gradient-to-b from-[#EAB308]/10 to-transparent`} />
                                 <button
                                     onClick={() => setSelectedTeam(null)}
-                                    className="mt-1 p-2 text-zinc-700 hover:text-white transition-colors shrink-0"
+                                    className="absolute top-4 right-4 p-2 bg-black/60 rounded-full text-white backdrop-blur-sm hover:bg-white/20 transition-colors"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <X className="w-6 h-6" />
                                 </button>
+                                <div className="absolute bottom-6 left-6 right-6">
+                                    <h2 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tight">{selectedTeam.teamName}</h2>
+                                    <p className={`text-[#EAB308] mt-2 text-lg font-medium tracking-widest`}>FULL SQUAD 2025</p>
+                                </div>
                             </div>
 
                             {/* Player Roster */}
@@ -213,28 +160,15 @@ export default function SquadsClient({ teams }: { teams: Team[] }) {
                                         </span>
 
                                         {/* Player name */}
-                                        <span
-                                            className="flex-1 text-base text-white font-medium truncate"
-                                            style={{ fontFamily: "var(--font-body)" }}
-                                        >
-                                            {player.name}
-                                        </span>
-
-                                        {/* Role pill */}
-                                        <span
-                                            className="text-[10px] font-bold tracking-widest text-zinc-600 shrink-0 hidden sm:block"
-                                            style={{ fontFamily: "var(--font-body)" }}
-                                        >
-                                            {ROLE_LABEL[player.role] ?? player.role.toUpperCase().slice(0, 4)}
-                                        </span>
-
-                                        {/* Price */}
-                                        <span
-                                            className="text-sm font-bold text-amber-400 shrink-0 text-right"
-                                            style={{ fontFamily: "var(--font-mono)" }}
-                                        >
-                                            {player.price}
-                                        </span>
+                                        <span className="font-bold text-white uppercase tracking-wider">{player.name}</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest border border-zinc-700 px-2 py-1 rounded bg-black">
+                                                {ROLE_LABEL[player.role] || "PLY"}
+                                            </span>
+                                            <span className={`text-sm font-black text-[#EAB308] tabular-nums min-w-[3rem] text-right`}>
+                                                {player.price}
+                                            </span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

@@ -6,7 +6,7 @@ import { Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 
 const NAV_ITEMS = [
-    { href: "/fixtures", label: "VIEW FIXTURES" },
+    { href: "/matches", label: "VIEW MATCHES" },
     { href: "/points", label: "STANDINGS" },
     { href: "/squads", label: "VIEW SQUADS" },
 ];

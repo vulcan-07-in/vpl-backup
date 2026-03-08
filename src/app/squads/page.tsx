@@ -1,4 +1,4 @@
-import { fetchSquadsData } from "@/lib/tournament";
+import { fetchSquads } from "@/lib/tournament";
 import SquadsClient from "./squads-client";
 import { Metadata } from "next";
 
@@ -8,8 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function SquadsPage() {
-    // Fetch data perfectly on the server with ISR (revalidates every 60s)
-    const teams = await fetchSquadsData();
-
-    return <SquadsClient teams={teams} />;
+    const data = await fetchSquads();
+    return <SquadsClient initialData={data} />;
 }
