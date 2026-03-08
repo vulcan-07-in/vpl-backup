@@ -18,6 +18,47 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [liveState, setLiveState] = useState<LiveMatchState | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Persistence Effect
+    useEffect(() => {
+        const savedAuth = localStorage.getItem("isScorerAuthenticated");
+        const savedMatchId = localStorage.getItem("selectedMatchId");
+        const savedScreen = localStorage.getItem("scorerScreen");
+
+        if (savedAuth === "true") {
+            setIsAuthenticated(true);
+            if (savedScreen && savedScreen !== "AUTH") {
+                setScreen(savedScreen as ScorerScreen);
+            } else {
+                setScreen("SELECT_MATCH");
+            }
+        }
+
+        if (savedMatchId) {
+            const match = fixtures.find(f => f.matchNo === savedMatchId);
+            if (match) setSelectedMatch(match);
+        }
+    }, [fixtures]);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            localStorage.setItem("isScorerAuthenticated", "true");
+        }
+        if (selectedMatch) {
+            localStorage.setItem("selectedMatchId", selectedMatch.matchNo);
+        }
+        if (screen) {
+            localStorage.setItem("scorerScreen", screen);
+        }
+    }, [isAuthenticated, selectedMatch, screen]);
+
+    // Robust team matching helper
+    const getSquadForTeam = (teamName: string) => {
+        if (!teamName) return [];
+        const cleanName = teamName.trim().toLowerCase();
+        const key = Object.keys(squads).find(k => k.trim().toLowerCase() === cleanName);
+        return key ? squads[key] : [];
+    };
+
     // Toss & Initial Setup
     const [tossWinner, setTossWinner] = useState<string>("");
     const [tossDecision, setTossDecision] = useState<"BAT" | "BOWL" | null>(null);
@@ -75,6 +116,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         if (pin === "2025") { // Mock check for instant UI unlock
             setIsAuthenticated(true);
             setScreen("SELECT_MATCH");
+            localStorage.setItem("isScorerAuthenticated", "true");
         } else {
             alert("Incorrect PIN.");
             setPin("");
@@ -95,6 +137,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 if (data.status === "SCHEDULED") {
                     setLiveState(data);
                     setScreen("TOSS_SETUP");
+                } else if (data.status === "LIVE" || data.status === "INNINGS_BREAK") {
+                    if (confirm(`Match ${matchId} is already in progress. Resume scoring?`)) {
+                        setLiveState(data);
+                        setScreen("LIVE_SCORING");
+                    }
                 } else {
                     setLiveState(data);
                     setScreen("LIVE_SCORING");
@@ -218,12 +265,20 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
     };
 
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setScreen("AUTH");
+        localStorage.removeItem("isScorerAuthenticated");
+        localStorage.removeItem("selectedMatchId");
+        localStorage.removeItem("scorerScreen");
+    };
+
     const handleRun = async (runs: number) => {
         if (!liveState || isScoringLocked) return;
         const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState; // Deep copy
         const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
 
-        if (!inn.strikerRef || !inn.currentBowlerRef) {
+        if (!inn.strikerRef || !inn.currentBowlerRef || !inn.batsmen[inn.strikerRef] || !inn.bowlers[inn.currentBowlerRef]) {
             alert("Please select Batsman AND Bowler first.");
             return;
         }
@@ -634,13 +689,28 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         return (
             <div className="min-h-screen bg-black p-8 pt-24">
                 <div className="max-w-2xl mx-auto">
-                    <h2 className="text-amber-500 tracking-widest text-sm font-bold mb-4">ACTIVE FIXTURES</h2>
+                    {selectedMatch && (screen === "SELECT_MATCH") && (
+                        <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between">
+                            <div>
+                                <span className="text-[10px] font-bold tracking-widest text-amber-500 block">CURRENTLY ACTIVE</span>
+                                <span className="text-white font-bold">{selectedMatch.team1} vs {selectedMatch.team2}</span>
+                            </div>
+                            <button
+                                onClick={() => setScreen("LIVE_SCORING")}
+                                className="bg-amber-500 text-black text-xs font-bold px-4 py-2 rounded-lg"
+                            >
+                                RESUME
+                            </button>
+                        </div>
+                    )}
+
+                    <h2 className="text-zinc-500 tracking-widest text-sm font-bold mb-4">AVAILABLE FIXTURES</h2>
                     <div className="grid gap-3">
                         {unplayed.map(f => (
                             <button
                                 key={f.matchNo}
                                 onClick={() => loadMatchData(f.matchNo)}
-                                className="flex items-center justify-between p-5 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-white/20 transition-all text-left"
+                                className={`flex items-center justify-between p-5 bg-zinc-900 border rounded-xl hover:border-white/20 transition-all text-left ${selectedMatch?.matchNo === f.matchNo ? 'border-amber-500/50 bg-amber-500/5' : 'border-zinc-800'}`}
                             >
                                 <div>
                                     <span className="text-xs text-zinc-500 font-bold block mb-1 tracking-widest">MATCH {f.matchNo}</span>
@@ -648,7 +718,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         {f.team1} <span className="text-zinc-600 mx-2">vs</span> {f.team2}
                                     </span>
                                 </div>
-                                <span className="text-zinc-600">&rarr;</span>
+                                <div className="flex items-center gap-3">
+                                    {selectedMatch?.matchNo === f.matchNo && <span className="text-[10px] bg-amber-500 text-black font-bold px-2 py-0.5 rounded-full">ACTIVE</span>}
+                                    <span className="text-zinc-600">&rarr;</span>
+                                </div>
                             </button>
                         ))}
                     </div>
@@ -688,7 +761,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                         </button>
 
                         <button
-                            onClick={() => { setScreen("LIVE_SCORING"); }}
+                            onClick={() => { setScreen("TOSS_SETUP"); }}
                             className="w-full text-zinc-500 font-bold p-4 tracking-widest text-xs hover:text-white transition-colors mt-2"
                         >
                             SKIP TO TOSS
@@ -703,13 +776,6 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     // RENDER: TOSS & SETUP
     // ==========================================
     if (screen === "TOSS_SETUP" && selectedMatch) {
-        // Robust team name matching helper because sheets data often has trailing spaces/cases
-        const getSquadForTeam = (teamName: string) => {
-            const cleanName = teamName.trim().toLowerCase();
-            const key = Object.keys(squads).find(k => k.trim().toLowerCase() === cleanName);
-            return key ? squads[key] : [];
-        };
-
         return (
             <div className="min-h-screen bg-black p-8 flex flex-col items-center justify-center">
                 <div className="max-w-2xl w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
@@ -793,13 +859,6 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         const fieldingInningsData = liveState.currentInnings === 1 ? liveState.innings2 : liveState.innings1;
         const battingTeamColor = teams.find(t => t.teamName === currentInningsData.teamName)?.color || "#EAB308";
 
-        // Robust team name matching helper
-        const getSquadForTeam = (teamName: string) => {
-            const cleanName = teamName.trim().toLowerCase();
-            const key = Object.keys(squads).find(k => k.trim().toLowerCase() === cleanName);
-            return key ? squads[key] : [];
-        };
-
         // Compute active players
         const activeStriker = currentInningsData.batsmen[currentInningsData.strikerRef || ""] || null;
         const activeNonStriker = currentInningsData.batsmen[currentInningsData.nonStrikerRef || ""] || null;
@@ -848,8 +907,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                         <button onClick={() => setScreen("TOSS_SETUP")} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
                             Setup
                         </button>
-                        <button onClick={() => setScreen("EDIT_OVERRIDE")} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
-                            Fix
+                        <button onClick={() => setScreen("SELECT_MATCH")} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
+                            Matches
+                        </button>
+                        <button onClick={handleLogout} className="p-2 text-zinc-600 hover:text-red-400 transition-colors">
+                            <LogOut className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
