@@ -319,13 +319,19 @@ export async function fetchSquads(): Promise<Array<{ teamName: string, players: 
                     const rows = results.data as any[];
                     rows.forEach(row => {
                         const tName = row.TeamName?.trim();
-                        const pName = row.PlayerName?.trim();
-                        if (!tName || !pName) return;
+                        const playersStr = row.Players?.trim();
+                        if (!tName || !playersStr) return;
 
                         if (!squadsList[tName]) squadsList[tName] = [];
-                        squadsList[tName].push({
-                            name: pName,
-                            role: row.Role?.trim() || "Player"
+
+                        // Players are stored as comma separated string: "Anupam Ghule:All Rounder:1000, Ojas Patil:..."
+                        const playersChunks = playersStr.split(",").map((chunk: string) => chunk.trim());
+                        playersChunks.forEach((chunk: string) => {
+                            const parts = chunk.split(":");
+                            squadsList[tName].push({
+                                name: parts[0]?.trim() || "Unknown Player",
+                                role: parts[1]?.trim() || "Player"
+                            });
                         });
                     });
 
