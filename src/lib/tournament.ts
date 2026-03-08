@@ -311,29 +311,36 @@ export async function fetchSquads(): Promise<Array<{ teamName: string, players: 
 
         let squadsList: Record<string, { name: string, role: string }[]> = {};
 
-        Papa.parse(text, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const rows = results.data as any[];
-                rows.forEach(row => {
-                    const tName = row.TeamName?.trim();
-                    const pName = row.PlayerName?.trim();
-                    if (!tName || !pName) return;
+        return new Promise((resolve) => {
+            Papa.parse(text, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    const rows = results.data as any[];
+                    rows.forEach(row => {
+                        const tName = row.TeamName?.trim();
+                        const pName = row.PlayerName?.trim();
+                        if (!tName || !pName) return;
 
-                    if (!squadsList[tName]) squadsList[tName] = [];
-                    squadsList[tName].push({
-                        name: pName,
-                        role: row.Role?.trim() || "Player"
+                        if (!squadsList[tName]) squadsList[tName] = [];
+                        squadsList[tName].push({
+                            name: pName,
+                            role: row.Role?.trim() || "Player"
+                        });
                     });
-                });
-            }
-        });
 
-        return Object.keys(squadsList).map(teamName => ({
-            teamName,
-            players: squadsList[teamName]
-        }));
+                    const mappedSquads = Object.keys(squadsList).map(teamName => ({
+                        teamName,
+                        players: squadsList[teamName]
+                    }));
+                    resolve(mappedSquads);
+                },
+                error: (error: Error) => {
+                    console.error("PapaParse squad error: ", error.message);
+                    resolve([]);
+                }
+            });
+        });
     } catch (error) {
         console.error("Error parsing squads:", error);
         return [];
