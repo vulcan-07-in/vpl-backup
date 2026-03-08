@@ -83,6 +83,8 @@ export interface LiveMatchState {
     // Manual Overrides
     targetScore?: number;
     matchOvers: number; // Defaults to 8 for VPL
+    winner?: string;
+    result?: string;
     // Rule: Squad is 8 players. 7 wickets = All Out. 
     // BUT Last Man Standing rule applies, so player 8 bats alone until Wicket 8.
 }
