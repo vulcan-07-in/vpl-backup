@@ -52,6 +52,7 @@ export interface Innings {
     strikerRef?: string;
     nonStrikerRef?: string;
     currentBowlerRef?: string;
+    lrr?: number; // Live Run Rate
 }
 
 export interface BallEvent {
@@ -63,11 +64,12 @@ export interface BallEvent {
     bowler: string;
     runs: number;      // Runs off the bat
     extras: number;    // Extra runs
-    extraType?: "WD" | "NB" | "B" | "LB";
+    extraType?: "WD" | "NB" | "B" | "LB" | "DB" | "SWAP";
     isWicket: boolean;
     wicketType?: "BOWLED" | "CAUGHT" | "RUNOUT" | "LBW" | "STUMPED" | "HIT_WICKET" | "RETIRED_HURT";
     playerOut?: string;
     newBatsman?: string;
+    swapped?: boolean; // If strike was swapped during this ball (e.g. crossing)
 }
 
 export interface LiveMatchState {
@@ -135,16 +137,18 @@ export interface Standing {
     won: number;
     lost: number;
     points: number;
+    nrr: number; // Net Run Rate
 }
 
 export function calculateStandings(
     fixtures: Fixture[],
-    teams: Team[]
+    teams: Team[],
+    liveStates: Record<string, LiveMatchState> = {}
 ): { poolA: Standing[]; poolB: Standing[] } {
     const colorMap: Record<string, string> = {};
     teams.forEach((t) => { colorMap[t.teamName] = t.color; });
 
-    const map: Record<string, Standing> = {};
+    const map: Record<string, Standing & { runsScored: number, runsAgainst: number, oversFaced: number, oversBowled: number }> = {};
 
     const ensureTeam = (name: string, pool: "A" | "B") => {
         if (!map[name]) {
@@ -156,8 +160,20 @@ export function calculateStandings(
                 won: 0,
                 lost: 0,
                 points: 0,
+                nrr: 0,
+                runsScored: 0,
+                runsAgainst: 0,
+                oversFaced: 0,
+                oversBowled: 0
             };
         }
+    };
+
+    // Helper to calculate overs for NRR (converts 2.4 to 2 + 4/6)
+    const decimalOversToBalls = (overs: number) => {
+        const fullOvers = Math.floor(overs);
+        const balls = Math.round((overs % 1) * 10);
+        return fullOvers * 6 + balls;
     };
 
     fixtures.forEach((f) => {
@@ -165,22 +181,71 @@ export function calculateStandings(
         const pool = f.pool as "A" | "B";
         ensureTeam(f.team1, pool);
         ensureTeam(f.team2, pool);
-        if (!f.winner) return; // not played yet
+
+        const liveMatch = liveStates[f.matchNo];
+        const winner = f.winner || liveMatch?.winner;
+
+        if (!winner && liveMatch?.status !== "COMPLETED") return; // not played yet
+
         map[f.team1].played++;
         map[f.team2].played++;
-        if (f.winner === f.team1) {
+
+        if (winner === f.team1) {
             map[f.team1].won++;
             map[f.team1].points += 2;
             map[f.team2].lost++;
-        } else {
+        } else if (winner === f.team2) {
             map[f.team2].won++;
             map[f.team2].points += 2;
             map[f.team1].lost++;
+        } else if (winner === "TIE") {
+            map[f.team1].points += 1;
+            map[f.team2].points += 1;
+        }
+
+        // NRR Logic (Using liveState data if available)
+        if (liveMatch && liveMatch.status === "COMPLETED") {
+            const inn1 = liveMatch.innings1;
+            const inn2 = liveMatch.innings2;
+
+            const isTeam1BattingFirst = (liveMatch.tossWinner === f.team1 && liveMatch.tossDecision === "BAT") ||
+                (liveMatch.tossWinner === f.team2 && liveMatch.tossDecision === "BOWL");
+
+            const t1Score = isTeam1BattingFirst ? inn1 : inn2;
+            const t2Score = isTeam1BattingFirst ? inn2 : inn1;
+
+            // Team 1
+            map[f.team1].runsScored += t1Score.runs;
+            map[f.team1].runsAgainst += t2Score.runs;
+
+            // If all out, use full overs quota
+            const t1BallsFaced = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+            const t1BallsBowled = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+
+            map[f.team1].oversFaced += t1BallsFaced / 6;
+            map[f.team1].oversBowled += t1BallsBowled / 6;
+
+            // Team 2
+            map[f.team2].runsScored += t2Score.runs;
+            map[f.team2].runsAgainst += t1Score.runs;
+
+            const t2BallsFaced = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+            const t2BallsBowled = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+
+            map[f.team2].oversFaced += t2BallsFaced / 6;
+            map[f.team2].oversBowled += t2BallsBowled / 6;
         }
     });
 
+    // Finalize NRR
+    Object.values(map).forEach(s => {
+        const battingRR = s.oversFaced > 0 ? (s.runsScored / s.oversFaced) : 0;
+        const bowlingRR = s.oversBowled > 0 ? (s.runsAgainst / s.oversBowled) : 0;
+        s.nrr = battingRR - bowlingRR;
+    });
+
     const sort = (standings: Standing[]) =>
-        standings.sort((a, b) => b.points - a.points || b.won - a.won);
+        standings.sort((a, b) => b.points - a.points || b.nrr - a.nrr || b.won - a.won);
 
     return {
         poolA: sort(Object.values(map).filter((s) => s.pool === "A")),
@@ -303,7 +368,7 @@ export async function fetchTeams(): Promise<Team[]> {
     }
 }
 
-export async function fetchSquads(): Promise<Array<{ teamName: string, players: { name: string, role: string }[] }>> {
+export async function fetchSquads(): Promise<Array<{ teamName: string, shortName: string, color: string, players: { name: string, role: string, price: string }[] }>> {
     try {
         const res = await fetch(SQUADS_CSV_URL, { next: { revalidate: 60 } });
         if (!res.ok) throw new Error("Failed to fetch squads csv");
@@ -311,37 +376,34 @@ export async function fetchSquads(): Promise<Array<{ teamName: string, players: 
 
         if (text.trim().startsWith('<')) return [];
 
-        let squadsList: Record<string, { name: string, role: string }[]> = {};
+        interface TeamData {
+            TeamName: string;
+            ShortName: string;
+            Color: string;
+            Players: string;
+        }
 
         return new Promise((resolve) => {
-            Papa.parse(text, {
+            Papa.parse<TeamData>(text, {
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    const rows = results.data as any[];
-                    rows.forEach(row => {
-                        const tName = row.TeamName?.trim();
-                        const playersStr = row.Players?.trim();
-                        if (!tName || !playersStr) return;
-
-                        if (!squadsList[tName]) squadsList[tName] = [];
-
-                        // Players are stored as comma separated string: "Anupam Ghule:All Rounder:1000, Ojas Patil:..."
-                        const playersChunks = playersStr.split(",").map((chunk: string) => chunk.trim());
-                        playersChunks.forEach((chunk: string) => {
-                            const parts = chunk.split(":");
-                            squadsList[tName].push({
-                                name: parts[0]?.trim() || "Unknown Player",
-                                role: parts[1]?.trim() || "Player"
-                            });
-                        });
-                    });
-
-                    const mappedSquads = Object.keys(squadsList).map(teamName => ({
-                        teamName,
-                        players: squadsList[teamName]
+                    const teams = results.data.map((row) => ({
+                        teamName: row.TeamName || "Unknown",
+                        shortName: row.ShortName || "UNK",
+                        color: row.Color || "#EAB308",
+                        players: row.Players
+                            ? row.Players.split(",").map((p) => {
+                                const [name, role, price] = p.trim().split(":");
+                                return {
+                                    name: name?.trim() ?? "Unknown",
+                                    role: role?.trim() ?? "-",
+                                    price: price?.trim() ?? "-",
+                                };
+                            })
+                            : [],
                     }));
-                    resolve(mappedSquads);
+                    resolve(teams);
                 },
                 error: (error: Error) => {
                     console.error("PapaParse squad error: ", error.message);

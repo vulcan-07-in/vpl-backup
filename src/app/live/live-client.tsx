@@ -2,42 +2,64 @@
 
 import { useState, useEffect } from "react";
 import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
-import { Clock } from "lucide-react";
+import { Clock, Bell, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
     const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
     const [loading, setLoading] = useState(true);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [showScorecard, setShowScorecard] = useState(false);
 
     const colorOf = (name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
 
     useEffect(() => {
         const fetchLiveStatus = async () => {
-            const unplayedIds = fixtures.filter(f => !f.winner).map(f => f.matchNo);
-            const matchesToCheck = unplayedIds.slice(0, 3);
+            try {
+                // 1. Get active match ID from scorer dashboard control
+                const activeRes = await fetch("/api/active-match");
+                if (!activeRes.ok) throw new Error();
+                const { activeMatchId } = await activeRes.json();
 
-            for (const id of matchesToCheck) {
-                try {
-                    const res = await fetch(`/api/live-score?matchId=${id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.status === "LIVE" || data.status === "SCHEDULED") {
-                            setLiveMatch(data);
-                            setLoading(false);
-                            return; // Stop after finding the first active or scheduled match
-                        }
-                    }
-                } catch (e) {
-                    // ignore
+                if (!activeMatchId) {
+                    setLiveMatch(null);
+                    setLoading(false);
+                    return;
                 }
+
+                // 2. Fetch that specific match state
+                const res = await fetch(`/api/live-score?matchId=${activeMatchId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setLiveMatch(data);
+                } else {
+                    setLiveMatch(null);
+                }
+            } catch (e) {
+                console.error("Live fetch error", e);
+                setLiveMatch(null);
             }
-            // If we checked the top 3 and found nothing:
-            setLiveMatch(null);
             setLoading(false);
         };
+
+        const fetchNotifications = async () => {
+            try {
+                const res = await fetch("/api/notify");
+                if (res.ok) {
+                    const data = await res.json();
+                    setNotifications(data);
+                }
+            } catch (e) { }
+        };
+
         fetchLiveStatus();
+        fetchNotifications();
 
         // Refresh exactly every 2 seconds for a fast, snappy real-time experience!
-        const interval = setInterval(fetchLiveStatus, 2000);
+        const interval = setInterval(() => {
+            fetchLiveStatus();
+            fetchNotifications();
+        }, 2000);
         return () => clearInterval(interval);
     }, [fixtures]);
 
@@ -105,6 +127,40 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.7)]" />
                         <span className="text-sm font-bold tracking-[0.3em] text-red-500 uppercase">LIVE MATCH {liveMatch.matchId}</span>
                     </div>
+
+                    <button
+                        onClick={() => setShowScorecard(true)}
+                        className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-bold tracking-widest px-4 py-2 rounded-full border border-amber-500/30 transition-all uppercase"
+                    >
+                        View Full Scorecard
+                    </button>
+                </div>
+
+                {/* Real-time Notifications */}
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4 space-y-2 pointer-events-none">
+                    <AnimatePresence>
+                        {notifications.slice(0, 3).map((n, i) => (
+                            <motion.div
+                                key={n.id || i}
+                                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className={`p-4 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-xl ${n.type === 'SUCCESS' ? 'bg-amber-500/90 border-amber-400 text-black' : 'bg-blue-600/90 border-blue-500 text-white'}`}
+                            >
+                                <div className="bg-white/20 p-2 rounded-full">
+                                    <Bell className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-bold leading-tight uppercase tracking-wide">
+                                        {n.message}
+                                    </p>
+                                    <p className="text-[9px] opacity-70 mt-1 uppercase tracking-widest font-bold">
+                                        {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
                 </div>
 
                 {/* Score Big Board */}
@@ -125,11 +181,30 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                             </span>
                         </div>
 
-                        <div className="mt-2 flex items-center gap-6">
+                        <div className="mt-2 flex flex-col md:flex-row items-center gap-4 md:gap-8">
                             <span className="text-2xl md:text-3xl font-medium text-zinc-400 tabular-nums">
                                 OVERS: {currentInningsData.overs.toFixed(1)} <span className="text-zinc-600 text-lg">/ {liveMatch.matchOvers}</span>
                             </span>
+                            <div className="hidden md:block w-px h-4 bg-zinc-800" />
+                            <span className="text-lg md:text-xl font-bold tracking-[0.2em] text-amber-500/80 uppercase">
+                                LRR: {currentInningsData.lrr?.toFixed(2) || "0.00"}
+                            </span>
                         </div>
+
+                        {/* 2nd Innings Chasing Info */}
+                        {liveMatch.currentInnings === 2 && (
+                            <div className="mt-8 flex flex-col items-center gap-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                <div className="text-amber-500 font-bold tracking-[0.3em] text-[10px] md:text-xs uppercase mb-1">
+                                    THE CHASE IS ON
+                                </div>
+                                <div className="text-2xl md:text-4xl font-bold text-white tracking-widest uppercase">
+                                    NEED {(liveMatch.innings1.runs + 1) - currentInningsData.runs} RUNS IN {(liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))} BALLS
+                                </div>
+                                <div className="text-[10px] md:text-xs text-zinc-500 tracking-[0.2em] font-medium uppercase mt-1">
+                                    Target: {liveMatch.innings1.runs + 1} • Required: {(((liveMatch.innings1.runs + 1) - currentInningsData.runs) / (((liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))) / 6)).toFixed(2)} RPO
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -175,23 +250,133 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
 
                 {/* Recent Balls Timeline */}
                 <div className="mt-8 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-                    <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 mb-4 uppercase">Recent Deliveries</h3>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        {liveMatch.timeline.length === 0 ? (
-                            <span className="text-zinc-600 text-xs italic tracking-widest">Awaiting first delivery...</span>
-                        ) : (
-                            [...liveMatch.timeline].reverse().slice(0, 10).map((ball) => (
-                                <div key={ball.id} className="flex flex-col items-center gap-1 min-w-[48px]">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-2 shadow-inner transition-all ${ball.isWicket ? 'bg-red-500 border-red-400 text-white shadow-red-900/40' : ball.runs >= 4 ? 'bg-amber-500 border-amber-400 text-black shadow-amber-900/20' : 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}>
-                                        {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
-                                    </div>
-                                    <span className="text-[9px] font-bold text-zinc-500 font-mono">{(ball.over - 0.1).toFixed(1)}</span>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                    {liveMatch.status === "COMPLETED" ? (
+                        <div className="text-center py-4">
+                            <h3 className="text-xs font-bold tracking-[0.3em] text-amber-500 mb-2 uppercase">MATCH RESULT</h3>
+                            <p className="text-2xl md:text-4xl font-bold text-white tracking-widest uppercase" style={{ fontFamily: "var(--font-display)" }}>
+                                {liveMatch.result}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 mb-4 uppercase">Recent Deliveries</h3>
+                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                {liveMatch.timeline.length === 0 ? (
+                                    <span className="text-zinc-600 text-xs italic tracking-widest">Awaiting first delivery...</span>
+                                ) : (
+                                    [...liveMatch.timeline].reverse().slice(0, 10).map((ball) => (
+                                        <div key={ball.id} className="flex flex-col items-center gap-1 min-w-[48px]">
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-2 shadow-inner transition-all ${ball.isWicket ? 'bg-red-500 border-red-400 text-white shadow-red-900/40' : ball.runs >= 4 ? 'bg-amber-500 border-amber-400 text-black shadow-amber-900/20' : 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}>
+                                                {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
+                                            </div>
+                                            <span className="text-[9px] font-bold text-zinc-500 font-mono">{(ball.over - 0.1).toFixed(1)}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
+
+                {/* Scorecard Overlay */}
+                <AnimatePresence>
+                    {showScorecard && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl p-4 md:p-8 flex items-center justify-center">
+                            <div className="bg-zinc-950 border border-zinc-800 w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+                                <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                                    <h2 className="text-xl font-bold tracking-tight uppercase" style={{ fontFamily: "var(--font-display)" }}>Full Scorecard</h2>
+                                    <button onClick={() => setShowScorecard(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-500 hover:text-white">
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                                    {[liveMatch.innings1, liveMatch.innings2].map((inn, innIdx) => (
+                                        <div key={innIdx} className="space-y-4">
+                                            <div className="flex justify-between items-end border-b border-zinc-800 pb-2">
+                                                <h3 className="text-amber-500 font-bold tracking-widest text-[10px] uppercase">{inn.teamName} Innings</h3>
+                                                <span className="text-2xl font-bold text-white tabular-nums">{inn.runs}-{inn.wickets} <span className="text-zinc-500 text-sm font-normal">({inn.overs.toFixed(1)})</span></span>
+                                            </div>
+
+                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20">
+                                                <table className="w-full text-left text-xs min-w-[500px]">
+                                                    <thead>
+                                                        <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
+                                                            <th className="px-4 py-2.5">Batter</th>
+                                                            <th className="px-4 py-2.5 text-right">R</th>
+                                                            <th className="px-4 py-2.5 text-right">B</th>
+                                                            <th className="px-4 py-2.5 text-right">4s</th>
+                                                            <th className="px-4 py-2.5 text-right">6s</th>
+                                                            <th className="px-4 py-2.5 text-right">SR</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-zinc-900">
+                                                        {Object.values(inn.batsmen).length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={6} className="px-4 py-4 text-center text-zinc-600 italic">Yet to bat</td>
+                                                            </tr>
+                                                        ) : (
+                                                            Object.values(inn.batsmen).map((b, bIdx) => (
+                                                                <tr key={bIdx} className={b.isOut ? 'text-zinc-600' : 'text-zinc-300'}>
+                                                                    <td className="px-4 py-3 font-medium">
+                                                                        {b.name} {b.isOut && <span className="text-[10px] ml-1 opacity-60">({b.dismissal})</span>}
+                                                                        {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <span className="text-amber-500 ml-1 italic font-bold">*</span>}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-right font-bold text-white">{b.runs}</td>
+                                                                    <td className="px-4 py-3 text-right">{b.balls}</td>
+                                                                    <td className="px-4 py-3 text-right">{b.fours}</td>
+                                                                    <td className="px-4 py-3 text-right">{b.sixes}</td>
+                                                                    <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
+                                                                        {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
+                                                                    </td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20">
+                                                <table className="w-full text-left text-xs min-w-[500px]">
+                                                    <thead>
+                                                        <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
+                                                            <th className="px-4 py-2.5">Bowler</th>
+                                                            <th className="px-4 py-2.5 text-right">O</th>
+                                                            <th className="px-4 py-2.5 text-right">M</th>
+                                                            <th className="px-4 py-2.5 text-right">R</th>
+                                                            <th className="px-4 py-2.5 text-right">W</th>
+                                                            <th className="px-4 py-2.5 text-right">Econ</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-zinc-900">
+                                                        {Object.values(inn.bowlers).length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={6} className="px-4 py-4 text-center text-zinc-600 italic">Yet to bowl</td>
+                                                            </tr>
+                                                        ) : (
+                                                            Object.values(inn.bowlers).map((bw, bwIdx) => (
+                                                                <tr key={bwIdx} className="text-zinc-300">
+                                                                    <td className="px-4 py-3 font-medium">{bw.name}</td>
+                                                                    <td className="px-4 py-3 text-right font-bold text-white">{bw.overs.toFixed(1)}</td>
+                                                                    <td className="px-4 py-3 text-right">{bw.maidens || 0}</td>
+                                                                    <td className="px-4 py-3 text-right">{bw.runs}</td>
+                                                                    <td className="px-4 py-3 text-right font-bold text-blue-400">{bw.wickets}</td>
+                                                                    <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
+                                                                        {bw.overs > 0 ? (bw.runs / bw.overs).toFixed(2) : '0.00'}
+                                                                    </td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
-        </main>
+        </main >
     );
 }

@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { writeSheet, clearSheet } from "@/lib/sheets";
+import { readSheet, writeSheet, clearSheet } from "@/lib/sheets";
 import { FIXTURES_CSV_URL, type Fixture } from "@/lib/tournament";
+import { validateAdminRequest } from "@/lib/auth";
 
 const FIXTURES_RANGE = "Fixtures!A:G";
 const HEADER = ["MatchNo", "Stage", "Pool", "Team1", "Team2", "Winner", "SortOrder"];
-
-async function isAuthenticated(): Promise<boolean> {
-    const cookieStore = await cookies();
-    return cookieStore.get("vpl_admin_session")?.value === "authenticated";
-}
 
 // GET — proxy the public CSV so admin can load existing fixtures without CORS
 export async function GET() {
@@ -55,44 +50,31 @@ export async function GET() {
 
 // POST — write full fixture list (admin only)
 export async function POST(request: Request) {
-    if (!(await isAuthenticated())) {
+    if (!(await validateAdminRequest())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const fixtures: Fixture[] = await request.json();
-    const rows: string[][] = [
-        HEADER,
-        ...fixtures.map((f, i) => [
-            f.matchNo,
-            f.stage,
-            f.pool,
-            f.team1,
-            f.team2,
-            f.winner,
-            String(i + 1),
-        ]),
-    ];
-
     try {
+        const fixtures: Fixture[] = await request.json();
+        const rows: string[][] = [
+            HEADER,
+            ...fixtures.map((f, i) => [
+                f.matchNo,
+                f.stage,
+                f.pool,
+                f.team1,
+                f.team2,
+                f.winner,
+                String(i + 1),
+            ]),
+        ];
+
         await clearSheet(FIXTURES_RANGE);
         await writeSheet(FIXTURES_RANGE, rows);
         return NextResponse.json({ ok: true });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
         console.error("VPL Sheets Write Error:", message);
-
-        // Return a slightly more friendly but descriptive error for the UI
-        let status = 500;
-        let errorMsg = message;
-
-        if (message.includes("403") || message.includes("permission")) {
-            errorMsg = "Access Denied: The Service Account needs 'Editor' access to the production Google Sheet.";
-            status = 403;
-        } else if (message.includes("404")) {
-            errorMsg = "Sheet Not Found: Verify the SHEET_ID in your code or environment variables.";
-            status = 404;
-        }
-
-        return NextResponse.json({ error: errorMsg }, { status });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

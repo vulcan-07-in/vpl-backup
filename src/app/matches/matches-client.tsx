@@ -47,8 +47,8 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         };
         fetchLiveStatus();
 
-        // Refresh every 30 seconds
-        const interval = setInterval(fetchLiveStatus, 30000);
+        // Refresh every 3 seconds for better live experience
+        const interval = setInterval(fetchLiveStatus, 3000);
         return () => clearInterval(interval);
     }, [fixtures]);
 
@@ -150,6 +150,14 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             {win2 && <Trophy className={`relative z-10 w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
                         </div>
                     </div>
+                    {/* Result Text Mobile */}
+                    {played && (
+                        <div className="text-center">
+                            <span className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest">
+                                {liveMatches[fixture.matchNo]?.result || "Match Completed"}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Desktop layout (md+) */}
@@ -178,7 +186,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         </span>
                         <div className={`relative z-10 rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
                     </div>
-                    <div className="text-center flex justify-center w-24">
+                    <div className="text-center flex flex-col items-center justify-center w-24">
                         <span className={`text-[10px] sm:text-xs font-bold tracking-widest px-3 py-1 rounded border whitespace-nowrap ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? "text-blue-400 border-blue-500/30 bg-blue-500/10 flex items-center justify-center gap-2" : liveMatches[fixture.matchNo]?.status === "LIVE" ? "text-red-500 border-red-500/30 bg-red-500/10 flex items-center justify-center gap-2" : "text-zinc-500 border-white/10 bg-white/5"} ${isFeaturedKnockout && !played && !liveMatches[fixture.matchNo] ? '!text-amber-300 !border-amber-500/50 !bg-amber-900/10' : ''}`} style={{ fontFamily: "var(--font-body)" }}>
                             {played ? (
                                 "FT"
@@ -196,6 +204,11 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                 "VS"
                             )}
                         </span>
+                        {played && (
+                            <span className="text-[8px] text-amber-500/60 font-bold uppercase tracking-wider mt-1 block max-w-[80px] leading-tight">
+                                {liveMatches[fixture.matchNo]?.result || "COMPLETED"}
+                            </span>
+                        )}
                     </div>
                     <div className={`relative flex items-center gap-4 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
                         {win2 && (

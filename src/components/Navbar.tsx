@@ -18,6 +18,15 @@ const links: NavLink[] = [
     { href: "/squads", label: "SQUADS" },
 ];
 
+function LivePulse() {
+    return (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+            <span className="text-[8px] font-bold tracking-widest text-red-500 uppercase">LIVE</span>
+        </div>
+    );
+}
+
 export default function Navbar() {
     const [open, setOpen] = useState(false);
 
@@ -44,18 +53,21 @@ export default function Navbar() {
                     </span>
                 </Link>
 
-                {/* Desktop links */}
-                <div className="hidden md:flex items-center gap-8">
-                    {links.map((l) => (
-                        <Link
-                            key={l.href}
-                            href={l.href}
-                            className="text-xs font-semibold tracking-[0.25em] text-zinc-500 hover:text-white transition-colors"
-                            style={{ fontFamily: "var(--font-heading)" }}
-                        >
-                            {l.label}
-                        </Link>
-                    ))}
+                <div className="flex items-center gap-4">
+                    <LivePulse />
+                    {/* Desktop links */}
+                    <div className="hidden md:flex items-center gap-8">
+                        {links.map((l) => (
+                            <Link
+                                key={l.href}
+                                href={l.href}
+                                className="text-xs font-semibold tracking-[0.25em] text-zinc-500 hover:text-white transition-colors"
+                                style={{ fontFamily: "var(--font-heading)" }}
+                            >
+                                {l.label}
+                            </Link>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Mobile hamburger */}

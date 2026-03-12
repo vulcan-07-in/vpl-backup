@@ -45,13 +45,14 @@ function PoolTable({ standings, label, qualifiedSet, tiedForSecond }: { pool: "A
             <div className="relative overflow-hidden">
                 <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
                     <div className="min-w-[480px]">
-                        <div className="grid grid-cols-[2rem_1fr_repeat(4,3rem)] gap-2 px-5 pb-2 text-[10px] tracking-widest text-zinc-700 uppercase"
+                        <div className="grid grid-cols-[2rem_1fr_repeat(5,3rem)] gap-2 px-5 pb-2 text-[10px] tracking-widest text-zinc-700 uppercase"
                             style={{ fontFamily: "var(--font-body)" }}>
                             <span>#</span>
                             <span>Team</span>
                             <span className="text-center">P</span>
                             <span className="text-center">W</span>
                             <span className="text-center">L</span>
+                            <span className="text-center">NRR</span>
                             <span className="text-center">Pts</span>
                         </div>
 
@@ -68,7 +69,7 @@ function PoolTable({ standings, label, qualifiedSet, tiedForSecond }: { pool: "A
                                 <motion.div
                                     variants={tableRowVariants}
                                     key={s.team}
-                                    className={`grid grid-cols-[2rem_1fr_repeat(4,3rem)] gap-2 items-center px-5 py-4 border-b border-white/[0.04] transition-colors ${idx < 2
+                                    className={`grid grid-cols-[2rem_1fr_repeat(5,3rem)] gap-2 items-center px-5 py-4 border-b border-white/[0.04] transition-colors ${idx < 2
                                         ? "bg-amber-900/10 hover:bg-amber-900/20 shadow-[inset_0_0_15px_rgba(234,179,8,0.05)] border-t border-t-amber-500/10 border-b-amber-500/10"
                                         : "hover:bg-white/[0.02]"
                                         }`}
@@ -101,6 +102,7 @@ function PoolTable({ standings, label, qualifiedSet, tiedForSecond }: { pool: "A
                                     <span className="text-center text-sm text-zinc-500 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{s.played}</span>
                                     <span className="text-center text-sm text-zinc-400 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{s.won}</span>
                                     <span className="text-center text-sm text-zinc-700 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{s.lost}</span>
+                                    <span className="text-center text-sm text-zinc-300 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{s.nrr > 0 ? "+" : ""}{s.nrr.toFixed(3)}</span>
                                     <span className="text-center text-sm font-bold text-amber-400 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{s.points}</span>
                                 </motion.div>
                             ))}
@@ -185,7 +187,7 @@ export default function PointsClient({ fixtures, teams }: { fixtures: Fixture[],
                             className="text-[10px] text-zinc-800 tracking-widest text-center"
                             style={{ fontFamily: "var(--font-body)" }}
                         >
-                            TOP 2 FROM EACH POOL ADVANCE TO SEMI-FINALS · NRR TIEBREAKER COMING SOON
+                            TOP 2 FROM EACH POOL ADVANCE TO SEMI-FINALS · NRR USED AS TIEBREAKER
                         </motion.p>
                     </div>
                 )}

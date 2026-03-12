@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { NextResponse } from 'next/server';
 import { LiveMatchState } from '@/lib/tournament';
+import { validateAdminRequest } from '@/lib/auth';
 
 const redis = new Redis(process.env.REDIS_URL || '');
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
         // It tells the browser/Vercel CDN: "Cache this for 5 seconds. If a request comes in within 5s, serve the cached version."
         return NextResponse.json(matchState, {
             headers: {
-                'Cache-Control': 's-maxage=5, stale-while-revalidate=5',
+                'Cache-Control': 's-maxage=1, stale-while-revalidate=1',
             },
         });
     } catch (error) {

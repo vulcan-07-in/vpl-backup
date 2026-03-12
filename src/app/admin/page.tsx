@@ -14,8 +14,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Check, LogOut, ChevronRight } from "lucide-react";
 import { generateFixtures, resolveKnockouts, calculateStandings, SQUADS_CSV_URL, type Fixture, type Team } from "@/lib/tournament";
 
+const ADMIN_API_KEY = "vpl_secret_2025";
+
 // ── Types ────────────────────────────────────────────────────────────────────
-type Tab = "pools" | "fixtures";
+type Tab = "pools" | "fixtures" | "teams" | "players";
 type Overrides = Partial<Record<"A" | "B", string>>;
 
 // ── Sortable fixture row ──────────────────────────────────────────────────────
@@ -121,6 +123,10 @@ export default function AdminPage() {
     const [bracketMsg, setBracketMsg] = useState("");
     const [resetConfirm, setResetConfirm] = useState(false);
 
+    // Phase 2: Squads management state
+    const [fullSquads, setFullSquads] = useState<any[]>([]);
+    const [selectedTeamForPlayers, setSelectedTeamForPlayers] = useState<string | null>(null);
+
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -128,14 +134,28 @@ export default function AdminPage() {
 
     // Load teams from Squads sheet
     useEffect(() => {
-        Papa.parse<{ TeamName: string; ShortName: string; Color: string }>(`${SQUADS_CSV_URL}&t=${Date.now()}`, {
-            download: true, header: true, skipEmptyLines: true,
-            complete: ({ data }) => {
-                const t = data.map(r => ({ teamName: r.TeamName, shortName: r.ShortName, color: r.Color ?? "#EAB308" }));
-                setTeams(t);
-                setUnassigned(t.map(t => t.teamName));
-            },
-        });
+        const loadSquads = async () => {
+            try {
+                const res = await fetch("/api/squads");
+                if (res.ok) {
+                    const data = await res.json();
+                    setFullSquads(data);
+                    const t = data.map((r: any) => ({
+                        teamName: r.TeamName,
+                        shortName: r.ShortName,
+                        color: r.Color ?? "#EAB308",
+                    }));
+                    setTeams(t);
+                    setUnassigned(t.map((t: any) => t.teamName));
+                    if (data.length > 0 && !selectedTeamForPlayers) {
+                        setSelectedTeamForPlayers(data[0].TeamName);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load squads:", e);
+            }
+        };
+        loadSquads();
     }, []);
 
     // Load existing fixtures (if any)
@@ -243,7 +263,10 @@ export default function AdminPage() {
         try {
             const res = await fetch("/api/matches", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-vpl-internal-key": ADMIN_API_KEY
+                },
                 body: JSON.stringify([]), // Empty array clears the sheet
             });
             if (res.ok) {
@@ -279,7 +302,10 @@ export default function AdminPage() {
             setFixtures(renumbered);
             const res = await fetch("/api/matches", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-vpl-internal-key": ADMIN_API_KEY
+                },
                 body: JSON.stringify(renumbered),
             });
 
@@ -295,6 +321,46 @@ export default function AdminPage() {
             setSaving(false);
         }
     }
+
+    async function handleSaveSquads() {
+        setSaving(true);
+        setSaveMsg("");
+        try {
+            const res = await fetch("/api/squads", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-vpl-internal-key": ADMIN_API_KEY
+                },
+                body: JSON.stringify(fullSquads),
+            });
+            if (res.ok) setSaveMsg("Squads updated in Sheets ✓");
+            else setSaveMsg("Error updating squads");
+        } catch {
+            setSaveMsg("Network error");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    const updateTeam = (teamName: string, field: string, value: string) => {
+        setFullSquads(prev => prev.map(t => t.TeamName === teamName ? { ...t, [field]: value } : t));
+    };
+
+    const addTeam = () => {
+        const newName = `New Team ${fullSquads.length + 1}`;
+        setFullSquads(prev => [...prev, { TeamName: newName, ShortName: "NEW", Color: "#EAB308", Players: "" }]);
+    };
+
+    const deleteTeam = (name: string) => {
+        if (confirm(`Delete ${name}?`)) {
+            setFullSquads(prev => prev.filter(t => t.TeamName !== name));
+        }
+    };
+
+    const updatePlayers = (teamName: string, playersStr: string) => {
+        setFullSquads(prev => prev.map(t => t.TeamName === teamName ? { ...t, Players: playersStr } : t));
+    };
 
     // ── Login screen ─────────────────────────────────────────────────────────
     if (!authed) {
@@ -389,7 +455,7 @@ export default function AdminPage() {
 
                 {/* Tabs */}
                 <div className="flex gap-6 mb-8 border-b border-white/[0.05]">
-                    {(["pools", "fixtures"] as Tab[]).map(t => (
+                    {(["pools", "fixtures", "teams", "players"] as Tab[]).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -600,6 +666,136 @@ export default function AdminPage() {
                                     )}
                                 </div>
                             </>
+                        )}
+                    </div>
+                )}
+
+                {/* ── Tab: Teams Management ──────────────────────────────────── */}
+                {tab === "teams" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xs tracking-[0.4em] text-zinc-600 font-bold uppercase">Tournament Teams</h2>
+                            <button
+                                onClick={addTeam}
+                                className="text-[10px] px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold tracking-widest hover:bg-amber-500/20 transition-all"
+                            >
+                                + ADD TEAM
+                            </button>
+                        </div>
+
+                        <div className="grid gap-4">
+                            {fullSquads.map((t, idx) => (
+                                <div key={idx} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 flex items-center gap-6">
+                                    <div className="flex-1 space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[9px] text-zinc-600 tracking-widest uppercase mb-1.5 block">Team Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={t.TeamName}
+                                                    onChange={(e) => updateTeam(t.TeamName, "TeamName", e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500/30 transition-all outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] text-zinc-600 tracking-widest uppercase mb-1.5 block">Short Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={t.ShortName}
+                                                    onChange={(e) => updateTeam(t.TeamName, "ShortName", e.target.value)}
+                                                    className="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-white focus:border-amber-500/30 transition-all outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-zinc-600 tracking-widest uppercase mb-1.5 block">Theme Color</label>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="color"
+                                                    value={t.Color}
+                                                    onChange={(e) => updateTeam(t.TeamName, "Color", e.target.value)}
+                                                    className="w-10 h-10 rounded-lg bg-transparent border-none cursor-pointer"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={t.Color}
+                                                    onChange={(e) => updateTeam(t.TeamName, "Color", e.target.value)}
+                                                    className="flex-1 bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-xs text-zinc-400 font-mono outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => deleteTeam(t.TeamName)}
+                                        className="p-3 text-zinc-800 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="pt-6 border-t border-white/[0.05]">
+                            <button
+                                onClick={handleSaveSquads}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-amber-500 text-black text-xs font-bold tracking-[0.3em] hover:scale-[1.02] active:scale-95 transition-all shadow-[0_10px_30px_rgba(245,158,11,0.2)]"
+                            >
+                                <Check className="w-4 h-4" />
+                                {saving ? "UPDATING..." : "SAVE TEAMS TO SHEETS"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Tab: Players Management ────────────────────────────────── */}
+                {tab === "players" && (
+                    <div className="space-y-6">
+                        <div className="flex gap-2 overflow-x-auto pb-4 custom-scrollbar">
+                            {fullSquads.map((t) => (
+                                <button
+                                    key={t.TeamName}
+                                    onClick={() => setSelectedTeamForPlayers(t.TeamName)}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-bold tracking-widest whitespace-nowrap transition-all border ${selectedTeamForPlayers === t.TeamName ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-white/[0.02] border-white/[0.05] text-zinc-600 hover:text-zinc-400'}`}
+                                >
+                                    {t.ShortName}
+                                </button>
+                            ))}
+                        </div>
+
+                        {selectedTeamForPlayers && (
+                            <div className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-8">
+                                <div className="mb-6">
+                                    <h3 className="text-xl font-bold text-white mb-1 uppercase tracking-widest" style={{ fontFamily: "var(--font-heading)" }}>
+                                        {selectedTeamForPlayers} Squad
+                                    </h3>
+                                    <p className="text-[10px] text-zinc-600 tracking-[0.2em] font-medium leading-relaxed">
+                                        Format: <code className="text-zinc-400">Name:Role:Price</code> separated by commas.<br />
+                                        Roles: <span className="text-amber-500/60 font-mono italic">Batsman, Bowler, All-Rounder, Wicket-Keeper</span>
+                                    </p>
+                                </div>
+
+                                <textarea
+                                    value={fullSquads.find(t => t.TeamName === selectedTeamForPlayers)?.Players || ""}
+                                    onChange={(e) => updatePlayers(selectedTeamForPlayers, e.target.value)}
+                                    className="w-full h-96 bg-black/40 border border-white/[0.07] rounded-2xl p-6 text-sm text-zinc-300 font-mono leading-relaxed focus:border-amber-500/40 transition-all outline-none resize-none custom-scrollbar shadow-inner"
+                                    placeholder="e.g. MS Dhoni:Wicket-Keeper:20Cr, Virat Kohli:Batsman:18Cr..."
+                                />
+
+                                <div className="mt-8 flex items-center justify-between">
+                                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest">
+                                        Changes are saved locally until you sync with Sheets
+                                    </p>
+                                    <button
+                                        onClick={handleSaveSquads}
+                                        disabled={saving}
+                                        className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-amber-500 text-black text-xs font-bold tracking-[0.3em] hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_40px_rgba(245,158,11,0.15)]"
+                                    >
+                                        <Check className="w-4 h-4" />
+                                        {saving ? "UPDATING..." : "SYNC SQUADS TO SHEETS"}
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
