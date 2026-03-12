@@ -1714,7 +1714,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             <div className="text-left">
                                 <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">2. HOW?</label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {(["BOWLED", "CAUGHT", "RUNOUT", "LBW", "STUMPED", "RETIRED_HURT"] as const).map(type => (
+                                    {(["BOWLED", "CAUGHT", "RUNOUT", "LBW", "STUMPED"] as const).map(type => (
                                         <button
                                             key={type}
                                             onClick={() => setWicketType(type)}
