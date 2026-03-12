@@ -192,7 +192,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </div>
 
                         {/* 2nd Innings Chasing Info */}
-                        {liveMatch.currentInnings === 2 && (
+                        {liveMatch.currentInnings === 2 && liveMatch.status !== "COMPLETED" && (
                             <div className="mt-8 flex flex-col items-center gap-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
                                 <div className="text-amber-500 font-bold tracking-[0.3em] text-[10px] md:text-xs uppercase mb-1">
                                     THE CHASE IS ON

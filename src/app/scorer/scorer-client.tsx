@@ -545,6 +545,38 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
     };
 
+    const syncMatchResultToSheet = async (finalState: LiveMatchState) => {
+        if (!finalState.winner || !finalState.matchId) return;
+
+        try {
+            // 1. Get current fixtures
+            const res = await fetch("/api/matches");
+            if (!res.ok) return;
+            const fixtures: Fixture[] = await res.json();
+
+            // 2. Update the specific fixture
+            const updatedFixtures = fixtures.map(f => {
+                if (f.matchNo === finalState.matchId) {
+                    return { ...f, winner: finalState.winner };
+                }
+                return f;
+            });
+
+            // 3. POST back to sync with Google Sheets
+            await fetch("/api/matches", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-vpl-internal-key": ADMIN_API_KEY
+                },
+                body: JSON.stringify(updatedFixtures)
+            });
+            console.log("Match result synced to Google Sheets");
+        } catch (e) {
+            console.error("Failed to sync match result to sheet", e);
+        }
+    };
+
     const pushUpdate = async (newState: LiveMatchState, actionDesc?: string) => {
         setLiveState(newState); // Optimistic UI
         setSyncStatus("PENDING");
@@ -580,6 +612,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             }
             if (liveState?.status !== "COMPLETED" && newState.status === "COMPLETED") {
                 notifyMatch(`Match Finished! ${newState.winner} won by ${newState.result?.split('by ')[1] || 'victory'}`, "SUCCESS");
+                syncMatchResultToSheet(newState);
             }
 
             if (actionDesc) {
@@ -1521,7 +1554,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 {/* Full Scoreboard Overlay */}
                 <AnimatePresence>
                     {showFullScoreboard && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md p-6 flex items-center justify-center">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-md p-6 flex items-center justify-center">
                             <div className="bg-zinc-950 border border-zinc-800 w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl">
                                 <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
                                     <h2 className="text-xl font-bold tracking-tight uppercase">Full Scorecard</h2>

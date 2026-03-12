@@ -56,8 +56,8 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
     const groupTeams: Record<"A" | "B", string[]> = { A: [], B: [] };
     fixtures.forEach(f => {
         if (f.group === "A" || f.group === "B") {
-            if (!groupTeams[f.group].includes(f.team1)) groupTeams[f.group].push(f.team1);
-            if (!groupTeams[f.group].includes(f.team2)) groupTeams[f.group].push(f.team2);
+            if (!groupTeams[f.group].includes(f.team1) && !f.team1.includes("Group") && !f.team1.includes("Pool")) groupTeams[f.group].push(f.team1);
+            if (!groupTeams[f.group].includes(f.team2) && !f.team2.includes("Group") && !f.team2.includes("Pool")) groupTeams[f.group].push(f.team2);
         }
     });
 
@@ -206,7 +206,9 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         </span>
                         {played && (
                             <span className="text-[8px] text-amber-500/60 font-bold uppercase tracking-wider mt-1 block max-w-[80px] leading-tight">
-                                {liveMatches[fixture.matchNo]?.result || "COMPLETED"}
+                                {fixture.winner ? (
+                                    fixture.winner === fixture.team1 ? `${fixture.team1} WON` : `${fixture.team2} WON`
+                                ) : (liveMatches[fixture.matchNo]?.result || "COMPLETED")}
                             </span>
                         )}
                     </div>
@@ -292,8 +294,10 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         )}
 
                         <div className="space-y-12">
-                            {/* Knockout Stage - Only show if semi-finals are decided (teams don't contain "Group") */}
-                            {fixtures.filter(f => f.group === "-" && !f.team1.includes("Group") && !f.team2.includes("Group") && !f.team1.includes("Winner") && !f.team2.includes("Winner")).length > 0 && (
+                            {/* Knockout Stage - Only show if semi-finals are decided (teams don't contain "Group" or "Pool" or "Winner") */}
+                            {fixtures.filter(f => f.group === "-" && 
+                                !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
+                                !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner")).length > 0 && (
                                 <div>
                                     <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
                                         <span className="text-[12px] tracking-[0.4em] text-amber-500 font-bold uppercase" style={{ fontFamily: "var(--font-body)" }}>
@@ -303,25 +307,33 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                     </motion.div>
                                     <div className="space-y-6">
                                         {fixtures
-                                            .filter(f => f.group === "-" && !f.team1.includes("Group") && !f.team2.includes("Group") && !f.team1.includes("Winner") && !f.team2.includes("Winner"))
+                                            .filter(f => f.group === "-" && 
+                                                !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
+                                                !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner"))
                                             .sort((a, b) => b.matchNo.localeCompare(a.matchNo)) // Final first, then SFs
                                             .map(fixture => renderFixture(fixture, true))}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Group Matches Schedule */}
+                            {/* Group Matches & Pending Knockouts Schedule */}
                             <div>
                                 <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
                                     <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                                        GROUP SCHEDULE
+                                        TOURNAMENT SCHEDULE
                                     </span>
                                     <div className="flex-1 h-px bg-white/[0.05]" />
                                 </motion.div>
 
                                 <div className="space-y-4">
                                     {fixtures
-                                        .filter(f => f.group !== "-" || f.team1.includes("Group") || f.team2.includes("Group") || f.team1.includes("Winner") || f.team2.includes("Winner"))
+                                        .filter(f => {
+                                            const isKnockout = f.group === "-";
+                                            const isResolved = !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
+                                                             !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner");
+                                            // Show it in result section only if it's NOT a resolved knockout (resolved knockouts go to the top section)
+                                            return !isKnockout || !isResolved;
+                                        })
                                         .map(fixture => renderFixture(fixture, false))}
                                 </div>
                             </div>
