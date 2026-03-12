@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 
 interface NavLink {
@@ -18,17 +18,24 @@ const links: NavLink[] = [
     { href: "/squads", label: "SQUADS" },
 ];
 
-function LivePulse() {
-    return (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-            <span className="text-[8px] font-bold tracking-widest text-red-500 uppercase">LIVE</span>
-        </div>
-    );
-}
-
 export default function Navbar() {
     const [open, setOpen] = useState(false);
+    const [isMatchLive, setIsMatchLive] = useState(false);
+
+    useEffect(() => {
+        const checkLive = async () => {
+            try {
+                const res = await fetch("/api/active-match");
+                if (res.ok) {
+                    const data = await res.json();
+                    setIsMatchLive(!!data.activeMatchId);
+                }
+            } catch (e) {}
+        };
+        checkLive();
+        const interval = setInterval(checkLive, 30000); // Check every 30s
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <>
@@ -54,19 +61,28 @@ export default function Navbar() {
                 </Link>
 
                 <div className="flex items-center gap-4">
-                    <LivePulse />
                     {/* Desktop links */}
                     <div className="hidden md:flex items-center gap-8">
-                        {links.map((l) => (
-                            <Link
-                                key={l.href}
-                                href={l.href}
-                                className="text-xs font-semibold tracking-[0.25em] text-zinc-500 hover:text-white transition-colors"
-                                style={{ fontFamily: "var(--font-heading)" }}
-                            >
-                                {l.label}
-                            </Link>
-                        ))}
+                        {links.map((l) => {
+                            const isLiveLink = l.href === "/live";
+                            return (
+                                <Link
+                                    key={l.href}
+                                    href={l.href}
+                                    className={`text-xs font-semibold tracking-[0.25em] transition-all relative ${
+                                        isLiveLink && isMatchLive 
+                                            ? "text-red-500 hover:text-red-400" 
+                                            : "text-zinc-500 hover:text-white"
+                                    }`}
+                                    style={{ fontFamily: "var(--font-heading)" }}
+                                >
+                                    {l.label}
+                                    {isLiveLink && isMatchLive && (
+                                        <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                                    )}
+                                </Link>
+                            );
+                        })}
                     </div>
                 </div>
 

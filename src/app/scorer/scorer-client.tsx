@@ -109,6 +109,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     // Scheduling States
     const [scheduledTime, setScheduledTime] = useState("");
 
+    // No-Ball Mode
+    const [isNBMode, setIsNBMode] = useState(false);
+
     // Refined workflow states
     const [wicketStep, setWicketStep] = useState<1 | 2>(1);
     const [overJustCompleted, setOverJustCompleted] = useState(false);
@@ -250,6 +253,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
         // 3. Status Check
         if (isSecondInnings && target !== null) {
+            state.status = "LIVE"; // Ensure we are in LIVE mode if processing 2nd innings balls
             if (inn.runs >= target || inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
                 state.status = "COMPLETED";
                 if (inn.runs >= target) {
@@ -266,6 +270,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         } else {
             if (inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
                 state.status = "INNINGS_BREAK";
+            } else {
+                state.status = "LIVE";
             }
         }
 
@@ -597,6 +603,42 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         pushUpdate(newState, "DEAD_BALL");
     };
 
+    const handleExtra = (type: "WD" | "NB", runs: number = 1) => {
+        if (!liveState || isScoringLocked || !selectedMatch) return;
+        const currentInn = liveState.currentInnings === 1 ? liveState.innings1 : liveState.innings2;
+
+        if (!currentInn.strikerRef || !currentInn.currentBowlerRef) {
+            alert("Please select Batsman AND Bowler first.");
+            return;
+        }
+
+        // Simplify Wide: Just 1 run, no hover selection anymore
+        if (type === "WD") {
+            const ball: BallEvent = {
+                id: Date.now().toString(),
+                timestamp: Date.now(),
+                innings: liveState.currentInnings,
+                over: currentInn.overs,
+                striker: currentInn.strikerRef,
+                bowler: currentInn.currentBowlerRef,
+                runs: 0,
+                extras: 1,
+                extraType: "WD",
+                isWicket: false
+            };
+            const newState = rebuildState(selectedMatch, [...liveState.timeline, ball]);
+            pushUpdate(newState, "EXTRA: WIDE");
+            return;
+        }
+
+        // No Ball: Enter NB mode
+        if (type === "NB") {
+            setIsNBMode(true);
+            return;
+        }
+    };
+
+    // Modified handleRun to handle NB mode
     const handleRun = async (runs: number) => {
         if (!liveState || isScoringLocked || !selectedMatch) return;
         const currentInn = liveState.currentInnings === 1 ? liveState.innings1 : liveState.innings2;
@@ -613,39 +655,16 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             over: currentInn.overs,
             striker: currentInn.strikerRef,
             bowler: currentInn.currentBowlerRef,
-            runs,
-            extras: 0,
+            runs: runs,
+            extras: isNBMode ? 1 : 0,
+            extraType: isNBMode ? "NB" : undefined,
             isWicket: false
         };
 
         const newState = rebuildState(selectedMatch, [...liveState.timeline, ball]);
-        pushUpdate(newState, `${runs} RUN(S)`);
-    };
-
-    const handleExtra = (type: "WD" | "NB", runs: number = 1) => {
-        if (!liveState || isScoringLocked || !selectedMatch) return;
-        const currentInn = liveState.currentInnings === 1 ? liveState.innings1 : liveState.innings2;
-
-        if (!currentInn.strikerRef || !currentInn.currentBowlerRef) {
-            alert("Please select Batsman AND Bowler first.");
-            return;
-        }
-
-        const ball: BallEvent = {
-            id: Date.now().toString(),
-            timestamp: Date.now(),
-            innings: liveState.currentInnings,
-            over: currentInn.overs,
-            striker: currentInn.strikerRef,
-            bowler: currentInn.currentBowlerRef,
-            runs: type === "NB" ? (runs - 1) : 0,
-            extras: type === "NB" ? 1 : runs,
-            extraType: type,
-            isWicket: false
-        };
-
-        const newState = rebuildState(selectedMatch, [...liveState.timeline, ball]);
-        pushUpdate(newState, `EXTRA: ${type}`);
+        const desc = isNBMode ? `NB + ${runs} RUNS` : `${runs} RUN(S)`;
+        setIsNBMode(false);
+        pushUpdate(newState, desc);
     };
     const handleDeclareWicket = async (extraRuns: number = 0, swapped: boolean = false) => {
         if (!liveState || !wicketPlayerOut || !wicketType || !selectedMatch) {
@@ -913,9 +932,15 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
                 <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
                     <span className="text-4xl mb-4 block">⏰</span>
-                    <h2 className="text-2xl text-white font-bold mb-2 tracking-widest uppercase">
-                        Schedule Match
-                    </h2>
+                    <div className="flex items-center justify-between mb-2">
+                        <button onClick={() => setActiveScreen("SELECT_MATCH")} className="p-2 -ml-2 text-zinc-500 hover:text-white transition-colors">
+                            <Undo2 className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-2xl text-white font-bold tracking-widest uppercase">
+                            Schedule Match
+                        </h2>
+                        <div className="w-9" /> {/* Spacer */}
+                    </div>
                     <p className="text-zinc-500 text-sm mb-8">
                         Set a public start time. Viewers will see this match as &quot;Scheduled&quot; until you start the toss.
                     </p>
@@ -954,9 +979,15 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         return (
             <div className="min-h-screen bg-black p-8 flex flex-col items-center justify-center">
                 <div className="max-w-2xl w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-                    <h2 className="text-2xl text-white font-bold mb-6 text-center" style={{ fontFamily: "var(--font-display)" }}>
-                        PRE-MATCH SETUP
-                    </h2>
+                    <div className="flex items-center justify-between mb-6">
+                        <button onClick={() => setActiveScreen(liveState ? "LIVE_SCORING" : "SELECT_MATCH")} className="p-2 -ml-2 text-zinc-500 hover:text-white transition-colors">
+                            <Undo2 className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-2xl text-white font-bold text-center" style={{ fontFamily: "var(--font-display)" }}>
+                            PRE-MATCH SETUP
+                        </h2>
+                        <div className="w-9" /> {/* Spacer */}
+                    </div>
 
                     <div className="space-y-6">
                         <div>
@@ -1017,7 +1048,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                         {tossWinner && tossDecision && openStriker && openNonStriker && openBowler && (
                             <button
-                                onClick={liveState ? () => setActiveScreen("LIVE_SCORING") : beginLiveScoring}
+                                onClick={() => {
+                                    if (openStriker === openNonStriker) {
+                                        alert("Striker and Non-Striker cannot be the same player.");
+                                        return;
+                                    }
+                                    if (liveState) setActiveScreen("LIVE_SCORING");
+                                    else beginLiveScoring();
+                                }}
                                 className="w-full mt-8 bg-amber-500 text-black font-bold p-5 rounded-xl tracking-widest text-lg shadow-lg shadow-amber-500/20"
                             >
                                 {liveState ? "SAVE & RETURN TO MATCH" : "START LIVE MATCH"}
@@ -1208,9 +1246,20 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                             <select
                                                 value={p.ref || ""}
                                                 onChange={(e) => {
+                                                    const name = e.target.value;
+                                                    if (!name) return; // Ignore "CHANGE" placeholder
+
                                                     const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
                                                     const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
-                                                    const name = e.target.value;
+
+                                                    if (!p.isBowler) {
+                                                        const otherSlot = p.pRef === "strikerRef" ? "nonStrikerRef" : "strikerRef";
+                                                        if (name === inn[otherSlot]) {
+                                                            alert("Player is already at the other end!");
+                                                            return;
+                                                        }
+                                                    }
+                                                    
                                                     if (p.isBowler) {
                                                         if (!inn.bowlers[name]) inn.bowlers[name] = { name, runs: 0, wickets: 0, overs: 0, maidens: 0 };
                                                         inn.currentBowlerRef = name;
@@ -1220,7 +1269,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                     }
                                                     pushUpdate(state);
                                                 }}
-                                                className={`bg-zinc-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-zinc-700 outline-none ${p.color === 'blue' ? 'text-blue-400' : p.color === 'amber' ? 'text-amber-500' : 'text-zinc-500'}`}
+                                                className="bg-zinc-800 text-[10px] font-bold text-white border-zinc-700 rounded px-1 py-0.5 outline-none focus:border-amber-500 transition-colors"
                                             >
                                                 <option value="">CHANGE</option>
                                                 {getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName).map(name => (
@@ -1283,30 +1332,18 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         <button key={run} onClick={() => handleRun(run)} className={`rounded-xl font-bold transition-all active:scale-95 text-2xl ${run >= 4 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700'}`}>{run}</button>
                                     ))}
                                     <div className="col-span-3 grid grid-cols-4 gap-2">
-                                        <div className="relative group col-span-1">
-                                            <button className="w-full h-full bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center py-3">
-                                                <span>WD +</span>
-                                                <span className="text-[8px] opacity-60">Hover</span>
-                                            </button>
-                                            <div className="absolute bottom-full left-0 mb-2 w-full bg-zinc-900 border border-zinc-700 rounded-xl hidden group-hover:grid grid-cols-1 overflow-hidden z-[60] shadow-2xl">
-                                                <div className="p-2 border-b border-zinc-800 bg-zinc-800/50 text-center text-[8px] font-bold text-zinc-500 uppercase">Total Extras</div>
-                                                {[1, 2, 3, 4, 5].map(r => (
-                                                    <button key={r} onClick={() => handleExtra("WD", r)} className="p-2.5 hover:bg-blue-500 hover:text-black text-[10px] font-bold transition-colors">{r}</button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="relative group col-span-1">
-                                            <button className="w-full h-full bg-blue-600/20 text-blue-300 border border-blue-500/40 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center">
-                                                <span>NB +</span>
-                                                <span className="text-[8px] opacity-60">Hover</span>
-                                            </button>
-                                            <div className="absolute bottom-full left-0 mb-2 w-full bg-zinc-900 border border-zinc-700 rounded-xl hidden group-hover:grid grid-cols-1 overflow-hidden z-[60] shadow-2xl">
-                                                <div className="p-2 border-b border-zinc-800 bg-zinc-800/50 text-center text-[8px] font-bold text-zinc-500 uppercase">Bat Runs</div>
-                                                {[0, 1, 2, 3, 4, 6].map(r => (
-                                                    <button key={r} onClick={() => handleExtra("NB", r + 1)} className="p-2.5 hover:bg-amber-500 hover:text-black text-[10px] font-bold transition-colors">{r}</button>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        <button 
+                                            onClick={() => handleExtra("WD")} 
+                                            className="w-full h-full bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center py-3"
+                                        >
+                                            WIDE
+                                        </button>
+                                        <button 
+                                            onClick={() => handleExtra("NB")} 
+                                            className={`w-full h-full border rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center ${isNBMode ? 'bg-amber-500 text-black border-amber-400 animate-pulse' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40'}`}
+                                        >
+                                            {isNBMode ? "SELECT RUNS" : "NO BALL"}
+                                        </button>
                                         <button onClick={handleDeadBall} className="bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-xl text-xs font-bold uppercase transition-all">DB</button>
                                         <button onClick={handleWicket} className="bg-red-500 text-white rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-red-500/20">Out</button>
                                     </div>
@@ -1439,8 +1476,18 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         <button
                                             onClick={() => {
                                                 const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
+                                                const bowlFirst = state.innings1.teamName;
+                                                const batFirst = state.innings2.teamName;
+                                                
                                                 state.currentInnings = 2;
                                                 state.status = "LIVE";
+                                                state.innings2.teamName = bowlFirst; // The team that bowled 1st bats 2nd
+                                                
+                                                // Reset setup states for 2nd innings
+                                                setOpenStriker("");
+                                                setOpenNonStriker("");
+                                                setOpenBowler("");
+                                                
                                                 pushUpdate(state);
                                                 setActiveScreen("TOSS_SETUP"); // Use toss setup to pick opening players for 2nd innings
                                             }}
