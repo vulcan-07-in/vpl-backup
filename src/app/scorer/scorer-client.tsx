@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check } from "lucide-react";
+import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check, AlertCircle } from "lucide-react";
 import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 import { MatchReport } from "@/components/match-report";
 
@@ -2160,5 +2160,38 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         );
     }
 
-    return null;
+    // ==========================================
+    // FALLBACK: STATE RECOVERY
+    // ==========================================
+    return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
+            <div className="ambient-bg opacity-20" />
+            <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 relative z-10 shadow-2xl">
+                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
+                <h2 className="text-xl text-white font-bold mb-2 uppercase tracking-widest">System Recovery</h2>
+                <p className="text-zinc-500 text-sm mb-8">
+                    The scorer was in an inconsistent state (Screen: {activeScreen}). 
+                    Please return to match selection to continue.
+                </p>
+                <div className="space-y-3">
+                    <button 
+                        onClick={() => {
+                            setActiveScreen("SELECT_MATCH");
+                            localStorage.setItem("scorerScreen", "SELECT_MATCH");
+                        }}
+                        className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold p-4 rounded-xl tracking-widest transition-all"
+                    >
+                        GO TO MATCHES
+                    </button>
+                    <button 
+                        onClick={handleLogout}
+                        className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold p-4 rounded-xl tracking-widest transition-all text-xs border border-zinc-700"
+                    >
+                        LOGOUT & CLEAR CACHE
+                    </button>
+                </div>
+            </div>
+            <p className="mt-8 text-zinc-800 font-mono text-[8px] uppercase tracking-[0.5em]">VPL SCORING SYSTEM RECOVERY MODULE</p>
+        </div>
+    );
 }
