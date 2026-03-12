@@ -16,7 +16,8 @@ export default async function ScorerPage() {
     // Map squads into easily accessible dictionary of names
     const squadDictionary: Record<string, string[]> = {};
     for (const team of teams) {
-        squadDictionary[team.teamName] = squadsData.find(s => s.teamName === team.teamName)?.players.map((p: any) => p.name) || [];
+        const teamSquad = squadsData.find(s => s.teamName === team.teamName);
+        squadDictionary[team.teamName] = teamSquad?.players?.map((p: any) => p.name) || [];
     }
 
     return <ScorerClient fixtures={fixtures} teams={teams} squads={squadDictionary} />;
