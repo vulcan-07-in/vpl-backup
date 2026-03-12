@@ -3,7 +3,7 @@ import { readSheet, writeSheet, clearSheet } from "@/lib/sheets";
 import { SQUADS_GID } from "@/lib/tournament";
 import { validateAdminRequest } from "@/lib/auth";
 
-const SQUADS_RANGE = "Squads!A:D"; // Assuming column A to D has headers
+const SQUADS_RANGE = "MasterDB!A:D"; // Match the GID 667574756
 
 export async function GET() {
     try {

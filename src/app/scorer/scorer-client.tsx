@@ -43,7 +43,15 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
             if (savedMatchId) {
                 const match = fixtures.find(f => f.matchNo === savedMatchId);
-                if (match) setSelectedMatch(match);
+                if (match) {
+                    setSelectedMatch(match);
+                } else {
+                    // Safety: mismatch between saved session and current data
+                    if (savedAuth === "true") setActiveScreen("SELECT_MATCH");
+                }
+            } else if (savedAuth === "true" && (savedScreen === "TOSS_SETUP" || savedScreen === "LIVE_SCORING" || savedScreen === "SCHEDULE_SETUP")) {
+                // Safety: no match selected but trying to enter a match screen
+                setActiveScreen("SELECT_MATCH");
             }
 
             // Artificial delay to ensure fonts/state are ready and prevent flash
