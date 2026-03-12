@@ -61,6 +61,7 @@ export interface BallEvent {
     innings: 1 | 2;
     over: number;      // e.g., 2.4
     striker: string;
+    nonStriker: string;
     bowler: string;
     runs: number;      // Runs off the bat
     extras: number;    // Extra runs

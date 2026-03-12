@@ -146,10 +146,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
         // 1. Reset specific bowler/batter refs if they changed in this ball
         inn.strikerRef = ball.striker;
+        inn.nonStrikerRef = ball.nonStriker;
         inn.currentBowlerRef = ball.bowler;
 
         if (!inn.batsmen[ball.striker]) {
             inn.batsmen[ball.striker] = { name: ball.striker, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
+        }
+        if (ball.nonStriker && !inn.batsmen[ball.nonStriker]) {
+            inn.batsmen[ball.nonStriker] = { name: ball.nonStriker, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
         }
         if (!inn.bowlers[ball.bowler]) {
             inn.bowlers[ball.bowler] = { name: ball.bowler, overs: 0, runs: 0, wickets: 0, maidens: 0 };
@@ -727,6 +731,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef || "Unknown",
+            nonStriker: currentInn.nonStrikerRef || "Unknown",
             bowler: currentInn.currentBowlerRef || "Unknown",
             runs: 0,
             extras: 0,
@@ -755,6 +760,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 innings: liveState.currentInnings,
                 over: currentInn.overs,
                 striker: currentInn.strikerRef,
+                nonStriker: currentInn.nonStrikerRef || "Unknown",
                 bowler: currentInn.currentBowlerRef,
                 runs: 0,
                 extras: 1,
@@ -789,6 +795,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef,
+            nonStriker: currentInn.nonStrikerRef || "Unknown",
             bowler: currentInn.currentBowlerRef,
             runs: runs,
             extras: fromNB ? 1 : 0,
@@ -816,6 +823,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef,
+            nonStriker: currentInn.nonStrikerRef || "Unknown",
             bowler: currentInn.currentBowlerRef,
             runs: extraRuns,
             extras: 0,
@@ -872,6 +880,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef,
+            nonStriker: currentInn.nonStrikerRef || "Unknown",
             bowler: currentInn.currentBowlerRef,
             runs: 0,
             extras: 0,
@@ -1980,7 +1989,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     className="w-full bg-black border-2 border-zinc-800 text-white rounded-xl p-5 text-lg font-bold tracking-wide focus:border-amber-500 outline-none transition-all"
                                 >
                                     <option value="" disabled>Select Player...</option>
-                                    {(squads[inn.teamName] || [])
+                                    {getSquadForTeam(inn.teamName)
                                         .filter(p => !inn.batsmen[p] || (!inn.batsmen[p].isOut && p !== inn.strikerRef && p !== inn.nonStrikerRef))
                                         .map(p => (
                                             <option key={p} value={p}>{p}</option>

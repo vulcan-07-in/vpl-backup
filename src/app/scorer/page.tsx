@@ -13,10 +13,11 @@ export default async function ScorerPage() {
     const teams = await fetchTeams();
     const squadsData = await fetchSquads();
 
-    // Map squads into easily accessible dictionary of names
+    // Map squads into easily accessible dictionary of names with robust matching
     const squadDictionary: Record<string, string[]> = {};
     for (const team of teams) {
-        const teamSquad = squadsData.find(s => s.teamName === team.teamName);
+        const teamNameLower = team.teamName.trim().toLowerCase();
+        const teamSquad = squadsData.find(s => s.teamName.trim().toLowerCase() === teamNameLower);
         squadDictionary[team.teamName] = teamSquad?.players?.map((p: any) => p.name) || [];
     }
 
