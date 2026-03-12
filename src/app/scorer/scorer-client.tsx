@@ -1265,7 +1265,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                         inn.currentBowlerRef = name;
                                                     } else {
                                                         if (!inn.batsmen[name]) inn.batsmen[name] = { name, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
-                                                        inn[p.pRef as "strikerRef" | "nonStrikerRef"] = name;
+                                                        if (p.pRef === "strikerRef") inn.strikerRef = name;
+                                                        else inn.nonStrikerRef = name;
                                                     }
                                                     pushUpdate(state);
                                                 }}
@@ -1369,7 +1370,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
                                     {/* Innings 1 / Innings 2 Tabs or Sections */}
-                                    {[liveState.innings1, liveState.innings2].map((inn, innIdx) => (
+                                    {liveState && [liveState.innings1, liveState.innings2].map((inn, innIdx) => (
                                         <div key={innIdx} className="space-y-4">
                                             <div className="flex justify-between items-end border-b border-zinc-800 pb-2">
                                                 <h3 className="text-amber-500 font-bold tracking-widest text-xs uppercase">{inn.teamName} Innings</h3>
@@ -1476,12 +1477,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         <button
                                             onClick={() => {
                                                 const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
-                                                const bowlFirst = state.innings1.teamName;
-                                                const batFirst = state.innings2.teamName;
                                                 
                                                 state.currentInnings = 2;
                                                 state.status = "LIVE";
-                                                state.innings2.teamName = bowlFirst; // The team that bowled 1st bats 2nd
                                                 
                                                 // Reset setup states for 2nd innings
                                                 setOpenStriker("");
@@ -1489,7 +1487,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 setOpenBowler("");
                                                 
                                                 pushUpdate(state);
-                                                setActiveScreen("TOSS_SETUP"); // Use toss setup to pick opening players for 2nd innings
+                                                setActiveScreen("TOSS_SETUP"); // Use setup to pick opening players for 2nd innings
                                             }}
                                             className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-[0_10px_30px_rgba(245,158,11,0.2)] hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest"
                                         >
@@ -1628,6 +1626,12 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     const fd = new FormData(e.currentTarget);
                                     handleSaveEdit({
                                         ...editingBall,
+                                        id: editingBall.id,
+                                        timestamp: editingBall.timestamp,
+                                        innings: editingBall.innings,
+                                        over: editingBall.over,
+                                        striker: editingBall.striker,
+                                        bowler: editingBall.bowler,
                                         runs: parseInt(fd.get("runs") as string, 10),
                                         extras: parseInt(fd.get("extras") as string, 10),
                                         extraType: (fd.get("extraType") || undefined) as any
