@@ -10,7 +10,7 @@ function RankBadge({ rank }: { rank: number }) {
     return <span className="text-zinc-700">{String(rank).padStart(2, "0")}</span>;
 }
 
-function qualifiedTeams(standings: Standing[], poolFixtures: Fixture[]): Set<string> {
+function qualifiedTeams(standings: Standing[], groupFixtures: Fixture[]): Set<string> {
     const third = standings[2];
     if (!third) return new Set();
 
@@ -31,7 +31,7 @@ const tableRowVariants = {
     show: { opacity: 1, x: 0, transition: { duration: 0.3 } }
 };
 
-function PoolTable({ standings, label, qualifiedSet, tiedForSecond }: { pool: "A" | "B"; standings: Standing[]; label: string; qualifiedSet: Set<string>; tiedForSecond: boolean }) {
+function GroupTable({ standings, label, qualifiedSet, tiedForSecond }: { group: "A" | "B"; standings: Standing[]; label: string; qualifiedSet: Set<string>; tiedForSecond: boolean }) {
     return (
         <div>
             <div className="flex items-center gap-4 mb-4">
@@ -117,35 +117,35 @@ function PoolTable({ standings, label, qualifiedSet, tiedForSecond }: { pool: "A
 }
 
 export default function PointsClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
-    const { poolA, poolB } = calculateStandings(fixtures, teams);
+    const { groupA, groupB } = calculateStandings(fixtures, teams);
 
-    const poolAFixtures = fixtures.filter(f => f.pool === "A");
-    const poolBFixtures = fixtures.filter(f => f.pool === "B");
-    const qualifiedA = qualifiedTeams(poolA, poolAFixtures);
-    const qualifiedB = qualifiedTeams(poolB, poolBFixtures);
+    const groupAFixtures = fixtures.filter(f => f.group === "A");
+    const groupBFixtures = fixtures.filter(f => f.group === "B");
+    const qualifiedA = qualifiedTeams(groupA, groupAFixtures);
+    const qualifiedB = qualifiedTeams(groupB, groupBFixtures);
 
     const sfTeams = new Set(
         fixtures.filter(f => f.stage.startsWith("Semi-Final")).flatMap(f => [f.team1, f.team2])
     );
     sfTeams.forEach(t => {
-        if (t && !t.includes("Pool") && t !== "TBD") {
+        if (t && !t.includes("Group") && t !== "TBD") {
             qualifiedA.add(t);
             qualifiedB.add(t);
         }
     });
 
-    const isTiedA = poolA.length >= 3 && poolA[1].points === poolA[2].points;
-    const isTiedB = poolB.length >= 3 && poolB[1].points === poolB[2].points;
+    const isTiedA = groupA.length >= 3 && groupA[1].points === groupA[2].points;
+    const isTiedB = groupB.length >= 3 && groupB[1].points === groupB[2].points;
 
-    if (isTiedA && sfTeams.has(poolA[2].team)) {
-        [poolA[1], poolA[2]] = [poolA[2], poolA[1]];
+    if (isTiedA && sfTeams.has(groupA[2].team)) {
+        [groupA[1], groupA[2]] = [groupA[2], groupA[1]];
     }
-    if (isTiedB && sfTeams.has(poolB[2].team)) {
-        [poolB[1], poolB[2]] = [poolB[2], poolB[1]];
+    if (isTiedB && sfTeams.has(groupB[2].team)) {
+        [groupB[1], groupB[2]] = [groupB[2], groupB[1]];
     }
 
-    const tiedAResolved = isTiedA && (sfTeams.has(poolA[1].team) || sfTeams.has(poolA[2].team));
-    const tiedBResolved = isTiedB && (sfTeams.has(poolB[1].team) || sfTeams.has(poolB[2].team));
+    const tiedAResolved = isTiedA && (sfTeams.has(groupA[1].team) || sfTeams.has(groupA[2].team));
+    const tiedBResolved = isTiedB && (sfTeams.has(groupB[1].team) || sfTeams.has(groupB[2].team));
 
     const tiedA = isTiedA && !tiedAResolved;
     const tiedB = isTiedB && !tiedBResolved;
@@ -172,14 +172,14 @@ export default function PointsClient({ fixtures, teams }: { fixtures: Fixture[],
                     </div>
                 </motion.div>
 
-                {poolA.length === 0 && poolB.length === 0 ? (
+                {groupA.length === 0 && groupB.length === 0 ? (
                     <div className="py-24 text-center">
                         <p className="text-zinc-700 text-sm tracking-widest">STANDINGS NOT YET AVAILABLE</p>
                     </div>
                 ) : (
                     <div className="space-y-12">
-                        <PoolTable pool="A" standings={poolA} label="Pool A" qualifiedSet={qualifiedA} tiedForSecond={tiedA} />
-                        <PoolTable pool="B" standings={poolB} label="Pool B" qualifiedSet={qualifiedB} tiedForSecond={tiedB} />
+                        <GroupTable group="A" standings={groupA} label="Group A" qualifiedSet={qualifiedA} tiedForSecond={tiedA} />
+                        <GroupTable group="B" standings={groupB} label="Group B" qualifiedSet={qualifiedB} tiedForSecond={tiedB} />
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -187,7 +187,7 @@ export default function PointsClient({ fixtures, teams }: { fixtures: Fixture[],
                             className="text-[10px] text-zinc-800 tracking-widest text-center"
                             style={{ fontFamily: "var(--font-body)" }}
                         >
-                            TOP 2 FROM EACH POOL ADVANCE TO SEMI-FINALS · NRR USED AS TIEBREAKER
+                            TOP 2 FROM EACH GROUP ADVANCE TO SEMI-FINALS · NRR USED AS TIEBREAKER
                         </motion.p>
                     </div>
                 )}

@@ -4,7 +4,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "Standings | Varchasva Premier League",
-    description: "Current points table and pool standings for the VPL.",
+    description: "Current points table and group standings for the VPL.",
 };
 
 export default async function PointsPage() {

@@ -78,7 +78,10 @@ export default function Navbar() {
                                 >
                                     {l.label}
                                     {isLiveLink && isMatchLive && (
-                                        <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                                        <>
+                                            <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                                            <span className="absolute inset-0 bg-red-500/20 blur-md rounded-full animate-pulse -z-10" />
+                                        </>
                                     )}
                                 </Link>
                             );

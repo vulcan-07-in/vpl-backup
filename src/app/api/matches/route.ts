@@ -4,7 +4,7 @@ import { FIXTURES_CSV_URL, type Fixture } from "@/lib/tournament";
 import { validateAdminRequest } from "@/lib/auth";
 
 const FIXTURES_RANGE = "Fixtures!A:G";
-const HEADER = ["MatchNo", "Stage", "Pool", "Team1", "Team2", "Winner", "SortOrder"];
+const HEADER = ["MatchNo", "Stage", "Group", "Team1", "Team2", "Winner", "SortOrder"];
 
 // GET — proxy the public CSV so admin can load existing fixtures without CORS
 export async function GET() {
@@ -32,7 +32,7 @@ export async function GET() {
                 return {
                     matchNo: col(row, "MatchNo"),
                     stage: col(row, "Stage") as Fixture["stage"],
-                    pool: (col(row, "Pool") || "-") as Fixture["pool"],
+                    group: (col(row, "Group") || col(row, "Pool") || "-") as Fixture["group"],
                     team1: col(row, "Team1"),
                     team2: col(row, "Team2"),
                     winner: col(row, "Winner"),
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             ...fixtures.map((f, i) => [
                 f.matchNo,
                 f.stage,
-                f.pool,
+                f.group,
                 f.team1,
                 f.team2,
                 f.winner,

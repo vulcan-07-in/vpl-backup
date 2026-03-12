@@ -6,12 +6,12 @@ export interface Team {
     color: string;
 }
 
-export type Stage = "Pool A" | "Pool B" | "Semi-Final 1" | "Semi-Final 2" | "Final";
+export type Stage = "Group A" | "Group B" | "Semi-Final 1" | "Semi-Final 2" | "Final";
 
 export interface Fixture {
     matchNo: string;   // e.g. "M1"
     stage: Stage;
-    pool: "A" | "B" | "-";
+    group: "A" | "B" | "-";
     team1: string;
     team2: string;
     winner: string;    // blank if not played yet
@@ -91,7 +91,7 @@ export interface LiveMatchState {
     // BUT Last Man Standing rule applies, so player 8 bats alone until Wicket 8.
 }
 
-// Round-robin pairs for a pool of 4 teams
+// Round-robin pairs for a group of 4 teams
 function roundRobin(teams: string[]): [string, string][] {
     const pairs: [string, string][] = [];
     for (let i = 0; i < teams.length; i++) {
@@ -102,15 +102,15 @@ function roundRobin(teams: string[]): [string, string][] {
     return pairs;
 }
 
-export function generateFixtures(poolA: string[], poolB: string[]): Fixture[] {
+export function generateFixtures(groupA: string[], groupB: string[]): Fixture[] {
     const fixtures: Fixture[] = [];
     let matchNum = 1;
 
-    const addMatch = (stage: Stage, pool: "A" | "B" | "-", t1: string, t2: string) => {
+    const addMatch = (stage: Stage, group: "A" | "B" | "-", t1: string, t2: string) => {
         fixtures.push({
             matchNo: `M${matchNum++}`,
             stage,
-            pool,
+            group,
             team1: t1,
             team2: t2,
             winner: "",
@@ -118,10 +118,10 @@ export function generateFixtures(poolA: string[], poolB: string[]): Fixture[] {
         });
     };
 
-    roundRobin(poolA).forEach(([t1, t2]) => addMatch("Pool A", "A", t1, t2));
-    roundRobin(poolB).forEach(([t1, t2]) => addMatch("Pool B", "B", t1, t2));
-    addMatch("Semi-Final 1", "-", "1st Pool A", "2nd Pool B");
-    addMatch("Semi-Final 2", "-", "1st Pool B", "2nd Pool A");
+    roundRobin(groupA).forEach(([t1, t2]) => addMatch("Group A", "A", t1, t2));
+    roundRobin(groupB).forEach(([t1, t2]) => addMatch("Group B", "B", t1, t2));
+    addMatch("Semi-Final 1", "-", "1st Group A", "2nd Group B");
+    addMatch("Semi-Final 2", "-", "1st Group B", "2nd Group A");
     addMatch("Final", "-", "Winner SF1", "Winner SF2");
 
     return fixtures;
@@ -132,7 +132,7 @@ export function generateFixtures(poolA: string[], poolB: string[]): Fixture[] {
 export interface Standing {
     team: string;
     color: string;
-    pool: "A" | "B";
+    group: "A" | "B";
     played: number;
     won: number;
     lost: number;
@@ -144,18 +144,18 @@ export function calculateStandings(
     fixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
-): { poolA: Standing[]; poolB: Standing[] } {
+): { groupA: Standing[]; groupB: Standing[] } {
     const colorMap: Record<string, string> = {};
     teams.forEach((t) => { colorMap[t.teamName] = t.color; });
 
     const map: Record<string, Standing & { runsScored: number, runsAgainst: number, oversFaced: number, oversBowled: number }> = {};
 
-    const ensureTeam = (name: string, pool: "A" | "B") => {
+    const ensureTeam = (name: string, group: "A" | "B") => {
         if (!map[name]) {
             map[name] = {
                 team: name,
                 color: colorMap[name] ?? "#EAB308",
-                pool,
+                group,
                 played: 0,
                 won: 0,
                 lost: 0,
@@ -177,10 +177,10 @@ export function calculateStandings(
     };
 
     fixtures.forEach((f) => {
-        if (f.pool === "-") return; // skip knockouts
-        const pool = f.pool as "A" | "B";
-        ensureTeam(f.team1, pool);
-        ensureTeam(f.team2, pool);
+        if (f.group === "-") return; // skip knockouts
+        const group = f.group as "A" | "B";
+        ensureTeam(f.team1, group);
+        ensureTeam(f.team2, group);
 
         const liveMatch = liveStates[f.matchNo];
         const winner = f.winner || liveMatch?.winner;
@@ -233,7 +233,7 @@ export function calculateStandings(
             const t2BallsBowled = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
 
             map[f.team2].oversFaced += t2BallsFaced / 6;
-            map[f.team2].oversBowled += t2BallsBowled / 6;
+            map[f.team2].oversBowled += t1BallsBowled / 6; // Fixed: should be t1BallsBowled
         }
     });
 
@@ -248,8 +248,8 @@ export function calculateStandings(
         standings.sort((a, b) => b.points - a.points || b.nrr - a.nrr || b.won - a.won);
 
     return {
-        poolA: sort(Object.values(map).filter((s) => s.pool === "A")),
-        poolB: sort(Object.values(map).filter((s) => s.pool === "B")),
+        groupA: sort(Object.values(map).filter((s) => s.group === "A")),
+        groupB: sort(Object.values(map).filter((s) => s.group === "B")),
     };
 }
 
@@ -258,12 +258,12 @@ export function resolveKnockouts(
     teams: Team[],
     manualOverrides: Partial<Record<"A" | "B", string>> = {}
 ): Fixture[] {
-    const { poolA, poolB } = calculateStandings(fixtures, teams);
+    const { groupA, groupB } = calculateStandings(fixtures, teams);
 
     const getQualifiers = (
         standings: Standing[],
-        poolFixtures: Fixture[],
-        pool: "A" | "B"
+        groupFixtures: Fixture[],
+        group: "A" | "B"
     ): { first: string | null; second: string | null } => {
         if (standings.length < 3) return { first: null, second: null };
         const [p1, p2, p3] = standings;
@@ -274,16 +274,16 @@ export function resolveKnockouts(
         const tiedFor2nd = p2.points === p3.points;
         const second = (!tiedFor2nd && p2.points > maxPts3rd)
             ? p2.team
-            : (tiedFor2nd && manualOverrides[pool])
-                ? manualOverrides[pool]!
+            : (tiedFor2nd && manualOverrides[group])
+                ? manualOverrides[group]!
                 : null;
         return { first, second };
     };
 
-    const poolAFix = fixtures.filter(f => f.pool === "A");
-    const poolBFix = fixtures.filter(f => f.pool === "B");
-    const { first: a1, second: a2 } = getQualifiers(poolA, poolAFix, "A");
-    const { first: b1, second: b2 } = getQualifiers(poolB, poolBFix, "B");
+    const groupAFix = fixtures.filter(f => f.group === "A");
+    const groupBFix = fixtures.filter(f => f.group === "B");
+    const { first: a1, second: a2 } = getQualifiers(groupA, groupAFix, "A");
+    const { first: b1, second: b2 } = getQualifiers(groupB, groupBFix, "B");
 
     return fixtures.map(f => {
         if (f.stage === "Semi-Final 1") {
@@ -438,7 +438,7 @@ export async function fetchFixtures(): Promise<Fixture[]> {
                         .map(r => ({
                             matchNo: r.MatchNo,
                             stage: r.Stage as Fixture["stage"],
-                            pool: (r.Pool ?? "-") as Fixture["pool"],
+                            group: (r.Pool ?? r.Group ?? "-") as Fixture["group"],
                             team1: r.Team1,
                             team2: r.Team2,
                             winner: r.Winner ?? "",

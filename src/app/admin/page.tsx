@@ -11,13 +11,13 @@ import {
     useSortable, verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Check, LogOut, ChevronRight } from "lucide-react";
+import { GripVertical, Check, LogOut, ChevronRight, X } from "lucide-react";
 import { generateFixtures, resolveKnockouts, calculateStandings, SQUADS_CSV_URL, type Fixture, type Team } from "@/lib/tournament";
 
 const ADMIN_API_KEY = "vpl_secret_2025";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Tab = "pools" | "fixtures" | "teams" | "players";
+type Tab = "groups" | "fixtures" | "teams" | "players" | "logs";
 type Overrides = Partial<Record<"A" | "B", string>>;
 
 // ── Sortable fixture row ──────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ function SortableRow({
     const colorOf = (name: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
     const shortNameOf = (name: string) => teams.find(t => t.teamName === name)?.shortName ?? name.slice(0, 4).toUpperCase();
 
-    const isKnockout = fixture.pool === "-";
+    const isKnockout = fixture.group === "-";
 
     return (
         <div ref={setNodeRef} style={style}
@@ -73,8 +73,8 @@ function SortableRow({
                 </div>
             </div>
 
-            {/* Winner picker (only for pool matches or if teams are known) */}
-            {(!isKnockout || (!fixture.team1.includes("Pool") && !fixture.team2.includes("Pool") && fixture.team1 !== "TBD" && fixture.team2 !== "TBD")) ? (
+            {/* Winner picker (only for group matches or if teams are known) */}
+            {(!isKnockout || (!fixture.team1.includes("Group") && !fixture.team2.includes("Group") && fixture.team1 !== "TBD" && fixture.team2 !== "TBD")) ? (
                 <div className="flex items-center gap-1 shrink-0">
                     {[fixture.team1, fixture.team2].map(team => (
                         <button
@@ -111,12 +111,12 @@ export default function AdminPage() {
     const [loggingIn, setLoggingIn] = useState(false);
 
     const [teams, setTeams] = useState<Team[]>([]);
-    const [poolA, setPoolA] = useState<string[]>([]);
-    const [poolB, setPoolB] = useState<string[]>([]);
+    const [groupA, setGroupA] = useState<string[]>([]);
+    const [groupB, setGroupB] = useState<string[]>([]);
     const [unassigned, setUnassigned] = useState<string[]>([]);
 
     const [fixtures, setFixtures] = useState<Fixture[]>([]);
-    const [tab, setTab] = useState<Tab>("pools");
+    const [tab, setTab] = useState<Tab>("groups");
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState("");
     const [manualOverrides, setManualOverrides] = useState<Overrides>({});
@@ -125,12 +125,52 @@ export default function AdminPage() {
 
     // Phase 2: Squads management state
     const [fullSquads, setFullSquads] = useState<any[]>([]);
-    const [selectedTeamForPlayers, setSelectedTeamForPlayers] = useState<string | null>(null);
+    const [selectedTeamForPlayers, setSelectedTeamForPlayers] = useState("");
+
+    // Helpers for player parsing
+    const parsePlayers = (str: string) => {
+        if (!str) return [];
+        return str.split(',').filter(p => p.trim()).map(p => {
+            const parts = p.trim().split(':');
+            return { 
+                name: parts[0] || "", 
+                role: parts[1] || "Batsman", 
+                price: parts[2] || "0" 
+            };
+        }).filter(p => p.name);
+    };
+
+    const stringifyPlayers = (players: { name: string, role: string, price: string }[]) => {
+        return players.filter(p => p.name).map(p => `${p.name}:${p.role}:${p.price}`).join(', ');
+    };
+    const [logs, setLogs] = useState<any[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
+
+    const fetchLogs = useCallback(async () => {
+        setLoadingLogs(true);
+        try {
+            const res = await fetch("/api/logs");
+            if (res.ok) {
+                const data = await res.json();
+                setLogs(data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch logs", e);
+        } finally {
+            setLoadingLogs(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (tab === "logs") {
+            fetchLogs();
+        }
+    }, [tab, fetchLogs]);
 
     // Load teams from Squads sheet
     useEffect(() => {
@@ -147,9 +187,6 @@ export default function AdminPage() {
                     }));
                     setTeams(t);
                     setUnassigned(t.map((t: any) => t.teamName));
-                    if (data.length > 0 && !selectedTeamForPlayers) {
-                        setSelectedTeamForPlayers(data[0].TeamName);
-                    }
                 }
             } catch (e) {
                 console.error("Failed to load squads:", e);
@@ -157,6 +194,16 @@ export default function AdminPage() {
         };
         loadSquads();
     }, []);
+
+    // Sync teams state with fullSquads for fixture generation
+    useEffect(() => {
+        const t = fullSquads.map((r: any) => ({
+            teamName: r.TeamName,
+            shortName: r.ShortName,
+            color: r.Color ?? "#EAB308",
+        }));
+        setTeams(t);
+    }, [fullSquads]);
 
     // Load existing fixtures (if any)
     useEffect(() => {
@@ -166,13 +213,13 @@ export default function AdminPage() {
             .then((data: Fixture[]) => {
                 if (Array.isArray(data) && data.length > 0) {
                     setFixtures(data);
-                    // Rebuild pool assignments from fixtures
-                    const pa = new Set<string>();
-                    const pb = new Set<string>();
-                    data.filter(f => f.pool === "A").forEach(f => { pa.add(f.team1); pa.add(f.team2); });
-                    data.filter(f => f.pool === "B").forEach(f => { pb.add(f.team1); pb.add(f.team2); });
-                    setPoolA([...pa]);
-                    setPoolB([...pb]);
+                    // Rebuild group assignments from fixtures
+                    const ga = new Set<string>();
+                    const gb = new Set<string>();
+                    data.filter(f => f.group === "A").forEach(f => { ga.add(f.team1); ga.add(f.team2); });
+                    data.filter(f => f.group === "B").forEach(f => { gb.add(f.team1); gb.add(f.team2); });
+                    setGroupA([...ga]);
+                    setGroupB([...gb]);
                     setUnassigned([]);
                     setTab("fixtures");
                 }
@@ -200,17 +247,17 @@ export default function AdminPage() {
         }
     }
 
-    // Pool assignment
-    const assignToPool = (team: string, pool: "A" | "B") => {
-        if (pool === "A" && poolA.length >= 4) return;
-        if (pool === "B" && poolB.length >= 4) return;
+    // Group assignment
+    const assignToGroup = (team: string, group: "A" | "B") => {
+        if (group === "A" && groupA.length >= 4) return;
+        if (group === "B" && groupB.length >= 4) return;
         setUnassigned(u => u.filter(t => t !== team));
-        setPoolA(p => pool === "A" ? [...p, team] : p.filter(t => t !== team));
-        setPoolB(p => pool === "B" ? [...p, team] : p.filter(t => t !== team));
+        setGroupA(p => group === "A" ? [...p, team] : p.filter(t => t !== team));
+        setGroupB(p => group === "B" ? [...p, team] : p.filter(t => t !== team));
     };
-    const removeFromPool = (team: string, pool: "A" | "B") => {
-        if (pool === "A") setPoolA(p => p.filter(t => t !== team));
-        else setPoolB(p => p.filter(t => t !== team));
+    const removeFromGroup = (team: string, group: "A" | "B") => {
+        if (group === "A") setGroupA(p => p.filter(t => t !== team));
+        else setGroupB(p => p.filter(t => t !== team));
         setUnassigned(u => [...u, team]);
     };
 
@@ -218,8 +265,8 @@ export default function AdminPage() {
 
     // Generate
     function handleGenerate() {
-        if (poolA.length !== 4 || poolB.length !== 4) return;
-        setFixtures(generateFixtures(poolA, poolB));
+        if (groupA.length !== 4 || groupB.length !== 4) return;
+        setFixtures(generateFixtures(groupA, groupB));
         setTab("fixtures");
     }
 
@@ -271,13 +318,13 @@ export default function AdminPage() {
             });
             if (res.ok) {
                 setFixtures([]);
-                setPoolA([]);
-                setPoolB([]);
+                setGroupA([]);
+                setGroupB([]);
                 setManualOverrides({});
                 setUnassigned(teams.map(t => t.teamName));
                 setBracketMsg("");
                 setSaveMsg("All data reset successfully");
-                setTab("pools");
+                setTab("groups");
             } else {
                 setSaveMsg("Error resetting data");
             }
@@ -455,7 +502,7 @@ export default function AdminPage() {
 
                 {/* Tabs */}
                 <div className="flex gap-6 mb-8 border-b border-white/[0.05]">
-                    {(["pools", "fixtures", "teams", "players"] as Tab[]).map(t => (
+                    {(["groups", "fixtures", "teams", "players", "logs"] as Tab[]).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -467,13 +514,13 @@ export default function AdminPage() {
                                 marginBottom: "-1px",
                             }}
                         >
-                            {t.toUpperCase()}
+                            {t === "groups" ? "GROUPS" : t.toUpperCase()}
                         </button>
                     ))}
                 </div>
 
-                {/* ── Tab: Pool Setup ─────────────────────────────────────── */}
-                {tab === "pools" && (
+                {/* ── Tab: Group Setup ─────────────────────────────────────── */}
+                {tab === "groups" && (
                     <div>
                         {/* Unassigned teams */}
                         {unassigned.length > 0 && (
@@ -485,18 +532,18 @@ export default function AdminPage() {
                                     {unassigned.map(team => (
                                         <div key={team} className="flex items-center gap-1">
                                             <button
-                                                onClick={() => assignToPool(team, "A")}
+                                                onClick={() => assignToGroup(team, "A")}
                                                 className="text-[10px] px-3 py-2 rounded-lg border border-white/[0.07] text-zinc-400 hover:border-blue-500/50 hover:text-blue-400 transition-colors"
                                                 style={{ fontFamily: "var(--font-body)" }}
-                                                title="Add to Pool A"
+                                                title="Add to Group A"
                                             >
                                                 {team} → A
                                             </button>
                                             <button
-                                                onClick={() => assignToPool(team, "B")}
+                                                onClick={() => assignToGroup(team, "B")}
                                                 className="text-[10px] px-3 py-2 rounded-lg border border-white/[0.07] text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-colors"
                                                 style={{ fontFamily: "var(--font-body)" }}
-                                                title="Add to Pool B"
+                                                title="Add to Group B"
                                             >
                                                 → B
                                             </button>
@@ -506,22 +553,22 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        {/* Two pool columns */}
+                        {/* Two group columns */}
                         <div className="grid grid-cols-2 gap-4">
-                            {(["A", "B"] as const).map(pool => {
-                                const poolTeams = pool === "A" ? poolA : poolB;
+                            {(["A", "B"] as const).map(group => {
+                                const groupTeams = group === "A" ? groupA : groupB;
                                 return (
-                                    <div key={pool} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4">
+                                    <div key={group} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4">
                                         <div className="flex items-center justify-between mb-4">
                                             <span className="text-sm font-bold tracking-widest text-white" style={{ fontFamily: "var(--font-heading)" }}>
-                                                POOL {pool}
+                                                GROUP {group}
                                             </span>
                                             <span className="text-[10px] text-zinc-700" style={{ fontFamily: "var(--font-body)" }}>
-                                                {poolTeams.length}/4
+                                                {groupTeams.length}/4
                                             </span>
                                         </div>
                                         <div className="space-y-2">
-                                            {poolTeams.map(team => (
+                                            {groupTeams.map(team => (
                                                 <div key={team}
                                                     className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
                                                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colorOf(team) }} />
@@ -529,14 +576,14 @@ export default function AdminPage() {
                                                         {team}
                                                     </span>
                                                     <button
-                                                        onClick={() => removeFromPool(team, pool)}
+                                                        onClick={() => removeFromGroup(team, group)}
                                                         className="text-zinc-700 hover:text-red-400 transition-colors text-xs"
                                                     >
                                                         ✕
                                                     </button>
                                                 </div>
                                             ))}
-                                            {Array.from({ length: 4 - poolTeams.length }).map((_, i) => (
+                                            {Array.from({ length: 4 - groupTeams.length }).map((_, i) => (
                                                 <div key={i} className="h-10 rounded-xl border border-dashed border-white/[0.04]" />
                                             ))}
                                         </div>
@@ -549,16 +596,16 @@ export default function AdminPage() {
                         <div className="mt-8 flex items-center gap-4">
                             <button
                                 onClick={handleGenerate}
-                                disabled={poolA.length !== 4 || poolB.length !== 4}
+                                disabled={groupA.length !== 4 || groupB.length !== 4}
                                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold tracking-[0.3em] hover:bg-amber-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                                 style={{ fontFamily: "var(--font-body)" }}
                             >
                                 GENERATE FIXTURES
                                 <ChevronRight className="w-4 h-4" />
                             </button>
-                            {(poolA.length !== 4 || poolB.length !== 4) && (
+                            {(groupA.length !== 4 || groupB.length !== 4) && (
                                 <span className="text-xs text-zinc-700" style={{ fontFamily: "var(--font-body)" }}>
-                                    Assign 4 teams to each pool first
+                                    Assign 4 teams to each group first
                                 </span>
                             )}
                         </div>
@@ -571,7 +618,7 @@ export default function AdminPage() {
                         {fixtures.length === 0 ? (
                             <div className="py-16 text-center">
                                 <p className="text-zinc-700 text-xs tracking-widest" style={{ fontFamily: "var(--font-body)" }}>
-                                    NO FIXTURES YET — GO TO POOLS TAB TO GENERATE
+                                    NO FIXTURES YET — GO TO GROUPS TAB TO GENERATE
                                 </p>
                             </div>
                         ) : (
@@ -587,9 +634,9 @@ export default function AdminPage() {
                                     </p>
                                 )}
 
-                                {/* Tiebreaker panel — shown when 2nd/3rd tied in any pool */}
+                                {/* Tiebreaker panel — shown when 2nd/3rd tied in any group */}
                                 {(() => {
-                                    const { poolA: stA, poolB: stB } = calculateStandings(fixtures, teams);
+                                    const { groupA: stA, groupB: stB } = calculateStandings(fixtures, teams);
                                     const tiedA = stA.length >= 3 && stA[1].points === stA[2].points;
                                     const tiedB = stB.length >= 3 && stB[1].points === stB[2].points;
                                     if (!tiedA && !tiedB) return null;
@@ -599,28 +646,28 @@ export default function AdminPage() {
                                                 ⚡ TIE DETECTED — MANUALLY PROMOTE A TEAM TO SEMI-FINALS
                                             </p>
                                             <div className="space-y-3">
-                                                {([["A", stA, tiedA], ["B", stB, tiedB]] as const).map(([pool, st, tied]) => {
+                                                {([["A", stA, tiedA], ["B", stB, tiedB]] as const).map(([group, st, tied]) => {
                                                     if (!tied || st.length < 3) return null;
                                                     const [, p2, p3] = st;
                                                     return (
-                                                        <div key={pool}>
+                                                        <div key={group}>
                                                             <p className="text-[9px] tracking-widest text-zinc-600 mb-2" style={{ fontFamily: "var(--font-body)" }}>
-                                                                POOL {pool} · 2ND PLACE ({p2.points} pts each)
+                                                                GROUP {group} · 2ND PLACE ({p2.points} pts each)
                                                             </p>
                                                             <div className="flex gap-2 flex-wrap">
                                                                 {[p2, p3].map(s => (
                                                                     <button
                                                                         key={s.team}
-                                                                        onClick={() => setManualOverrides(o => ({ ...o, [pool]: o[pool] === s.team ? undefined : s.team }))}
+                                                                        onClick={() => setManualOverrides(o => ({ ...o, [group]: o[group] === s.team ? undefined : s.team }))}
                                                                         className="text-[10px] px-3 py-1.5 rounded-lg font-bold tracking-wider transition-all"
                                                                         style={{
                                                                             fontFamily: "var(--font-body)",
                                                                             color: colorOf(s.team),
-                                                                            backgroundColor: manualOverrides[pool] === s.team ? `${colorOf(s.team)}25` : "transparent",
-                                                                            border: `1px solid ${manualOverrides[pool] === s.team ? colorOf(s.team) + "50" : "rgba(255,255,255,0.08)"}`,
+                                                                            backgroundColor: manualOverrides[group] === s.team ? `${colorOf(s.team)}25` : "transparent",
+                                                                            border: `1px solid ${manualOverrides[group] === s.team ? colorOf(s.team) + "50" : "rgba(255,255,255,0.08)"}`,
                                                                         }}
                                                                     >
-                                                                        {manualOverrides[pool] === s.team ? "✓ " : ""}{s.team} → SF
+                                                                        {manualOverrides[group] === s.team ? "✓ " : ""}{s.team} → SF
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -763,40 +810,159 @@ export default function AdminPage() {
                             ))}
                         </div>
 
-                        {selectedTeamForPlayers && (
-                            <div className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-8">
-                                <div className="mb-6">
-                                    <h3 className="text-xl font-bold text-white mb-1 uppercase tracking-widest" style={{ fontFamily: "var(--font-heading)" }}>
-                                        {selectedTeamForPlayers} Squad
-                                    </h3>
-                                    <p className="text-[10px] text-zinc-600 tracking-[0.2em] font-medium leading-relaxed">
-                                        Format: <code className="text-zinc-400">Name:Role:Price</code> separated by commas.<br />
-                                        Roles: <span className="text-amber-500/60 font-mono italic">Batsman, Bowler, All-Rounder, Wicket-Keeper</span>
-                                    </p>
-                                </div>
+                                {selectedTeamForPlayers && (
+                                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-3xl p-8">
+                                        <div className="mb-6 flex justify-between items-end">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-white mb-1 uppercase tracking-widest" style={{ fontFamily: "var(--font-heading)" }}>
+                                                    {selectedTeamForPlayers} Squad
+                                                </h3>
+                                                <p className="text-[10px] text-zinc-600 tracking-[0.2em] font-medium leading-relaxed">
+                                                    Manage players, roles, and auction prices for the team.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const team = fullSquads.find(t => t.TeamName === selectedTeamForPlayers);
+                                                    if (!team) return;
+                                                    const currentPlayers = parsePlayers(team.Players || "");
+                                                    const updated = stringifyPlayers([...currentPlayers, { name: "New Player", role: "Batsman", price: "0" }]);
+                                                    updatePlayers(selectedTeamForPlayers, updated);
+                                                }}
+                                                className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-bold uppercase tracking-widest hover:bg-amber-500/20 transition-all"
+                                            >
+                                                + Add Player
+                                            </button>
+                                        </div>
 
-                                <textarea
-                                    value={fullSquads.find(t => t.TeamName === selectedTeamForPlayers)?.Players || ""}
-                                    onChange={(e) => updatePlayers(selectedTeamForPlayers, e.target.value)}
-                                    className="w-full h-96 bg-black/40 border border-white/[0.07] rounded-2xl p-6 text-sm text-zinc-300 font-mono leading-relaxed focus:border-amber-500/40 transition-all outline-none resize-none custom-scrollbar shadow-inner"
-                                    placeholder="e.g. MS Dhoni:Wicket-Keeper:20Cr, Virat Kohli:Batsman:18Cr..."
-                                />
+                                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {parsePlayers(fullSquads.find(t => t.TeamName === selectedTeamForPlayers)?.Players || "").map((p, idx, arr) => (
+                                                <div key={idx} className="flex gap-3 items-center bg-black/40 border border-white/[0.05] p-3 rounded-2xl group transition-all hover:border-white/[0.1]">
+                                                    <input
+                                                        value={p.name}
+                                                        onChange={(e) => {
+                                                            const newArr = [...arr];
+                                                            newArr[idx].name = e.target.value;
+                                                            updatePlayers(selectedTeamForPlayers, stringifyPlayers(newArr));
+                                                        }}
+                                                        className="flex-1 bg-transparent border-b border-white/10 text-white font-bold px-2 py-1 outline-none focus:border-amber-500/50 transition-all text-sm"
+                                                        placeholder="Player Name"
+                                                    />
+                                                    <select
+                                                        value={p.role}
+                                                        onChange={(e) => {
+                                                            const newArr = [...arr];
+                                                            newArr[idx].role = e.target.value;
+                                                            updatePlayers(selectedTeamForPlayers, stringifyPlayers(newArr));
+                                                        }}
+                                                        className="bg-zinc-900 text-zinc-400 text-[10px] font-bold uppercase py-1 px-3 rounded-lg border border-white/5 outline-none focus:border-amber-500/50"
+                                                    >
+                                                        <option value="Batsman">Batsman</option>
+                                                        <option value="Bowler">Bowler</option>
+                                                        <option value="All-Rounder">All-Rounder</option>
+                                                        <option value="Wicket-Keeper">Wicket-Keeper</option>
+                                                    </select>
+                                                    <div className="flex items-center gap-1 bg-zinc-900 border border-white/5 px-2 py-1 rounded-lg">
+                                                        <span className="text-[9px] text-zinc-600 font-bold">₹</span>
+                                                        <input
+                                                            value={p.price}
+                                                            onChange={(e) => {
+                                                                const newArr = [...arr];
+                                                                newArr[idx].price = e.target.value;
+                                                                updatePlayers(selectedTeamForPlayers, stringifyPlayers(newArr));
+                                                            }}
+                                                            className="w-16 bg-transparent text-amber-500 font-mono text-xs outline-none"
+                                                            placeholder="Price"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            const newArr = arr.filter((_, i) => i !== idx);
+                                                            updatePlayers(selectedTeamForPlayers, stringifyPlayers(newArr));
+                                                        }}
+                                                        className="p-2 text-zinc-700 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
 
-                                <div className="mt-8 flex items-center justify-between">
-                                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest">
-                                        Changes are saved locally until you sync with Sheets
-                                    </p>
-                                    <button
-                                        onClick={handleSaveSquads}
-                                        disabled={saving}
-                                        className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-amber-500 text-black text-xs font-bold tracking-[0.3em] hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_40px_rgba(245,158,11,0.15)]"
-                                    >
-                                        <Check className="w-4 h-4" />
-                                        {saving ? "UPDATING..." : "SYNC SQUADS TO SHEETS"}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                                        <div className="mt-8 flex items-center justify-between">
+                                            <p className="text-[9px] text-zinc-600 uppercase tracking-widest">
+                                                Changes are saved locally until you sync with Sheets
+                                            </p>
+                                            <button
+                                                onClick={handleSaveSquads}
+                                                disabled={saving}
+                                                className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-amber-500 text-black text-xs font-bold tracking-[0.3em] hover:scale-[1.02] active:scale-95 transition-all shadow-[0_20px_40px_rgba(245,158,11,0.15)]"
+                                            >
+                                                <Check className="w-4 h-4" />
+                                                {saving ? "UPDATING..." : "SYNC SQUADS TO SHEETS"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                    </div>
+                )}
+                {/* ── Tab: Logs ─────────────────────────────────────────────── */}
+                {tab === "logs" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xs tracking-[0.4em] text-zinc-600 font-bold uppercase">Activity Logs</h2>
+                            <button
+                                onClick={fetchLogs}
+                                disabled={loadingLogs}
+                                className="text-[10px] px-4 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] text-zinc-500 hover:text-white transition-all"
+                            >
+                                {loadingLogs ? "REFRESHING..." : "REFRESH"}
+                            </button>
+                        </div>
+
+                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-white/[0.03] border-b border-white/[0.05]">
+                                        <th className="px-6 py-4 text-left text-[9px] tracking-widest text-zinc-600 uppercase">Timestamp</th>
+                                        <th className="px-6 py-4 text-left text-[9px] tracking-widest text-zinc-600 uppercase">Match</th>
+                                        <th className="px-6 py-4 text-left text-[9px] tracking-widest text-zinc-600 uppercase">Action</th>
+                                        <th className="px-6 py-4 text-left text-[9px] tracking-widest text-zinc-600 uppercase">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/[0.02]">
+                                    {logs.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center text-xs text-zinc-700 tracking-widest">
+                                                NO LOGS RECORDED YET
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        logs.map((log, idx) => (
+                                            <tr key={idx} className="hover:bg-white/[0.01] transition-colors">
+                                                <td className="px-6 py-4 text-[10px] tabular-nums text-zinc-500 font-mono">
+                                                    {new Date(log.timestamp).toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[10px] font-bold text-amber-500/80 tracking-widest bg-amber-500/5 px-2 py-1 rounded border border-amber-500/10">
+                                                        MATCH {log.matchId}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`text-[10px] font-bold tracking-widest ${log.action === "SCORE_UPDATE" ? "text-emerald-400" : "text-blue-400"}`}>
+                                                        {log.action}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <pre className="text-[9px] text-zinc-400 font-mono max-w-md overflow-hidden text-ellipsis">
+                                                        {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                                                    </pre>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>

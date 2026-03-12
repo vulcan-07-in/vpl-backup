@@ -324,43 +324,53 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     };
 
     // Initial State Builder (VPL 8-Overs Mode)
-    const getInitialState = (match: Fixture, bat1: string, bat2: string, currentInnings: 1 | 2 = 1): LiveMatchState => ({
-        matchId: match.matchNo,
-        status: "LIVE",
-        tossWinner,
-        tossDecision: tossDecision || "BAT",
-        currentInnings,
-        matchOvers: 8,
-        innings1: {
-            teamName: bat1,
-            runs: 0, wickets: 0, overs: 0,
-            strikerRef: currentInnings === 1 ? openStriker : (liveState?.innings1.strikerRef || ""),
-            nonStrikerRef: currentInnings === 1 ? openNonStriker : (liveState?.innings1.nonStrikerRef || ""),
-            currentBowlerRef: currentInnings === 1 ? openBowler : (liveState?.innings1.currentBowlerRef || ""),
-            batsmen: liveState?.innings1.batsmen || {
-                [openStriker]: { name: openStriker, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false },
-                [openNonStriker]: { name: openNonStriker, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false }
+    const getInitialState = (match: Fixture, bat1: string, bat2: string, currentInnings: 1 | 2 = 1): LiveMatchState => {
+        const s1 = currentInnings === 1 ? openStriker : (liveState?.innings1.strikerRef || "");
+        const ns1 = currentInnings === 1 ? openNonStriker : (liveState?.innings1.nonStrikerRef || "");
+        const b1 = currentInnings === 1 ? openBowler : (liveState?.innings1.currentBowlerRef || "");
+        
+        const s2 = currentInnings === 2 ? openStriker : "";
+        const ns2 = currentInnings === 2 ? openNonStriker : "";
+        const b2 = currentInnings === 2 ? openBowler : "";
+
+        return {
+            matchId: match.matchNo,
+            status: "LIVE",
+            tossWinner,
+            tossDecision: tossDecision || "BAT",
+            currentInnings,
+            matchOvers: 8,
+            innings1: {
+                teamName: bat1,
+                runs: 0, wickets: 0, overs: 0,
+                strikerRef: s1,
+                nonStrikerRef: ns1,
+                currentBowlerRef: b1,
+                batsmen: s1 ? {
+                    [s1]: { name: s1, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false },
+                    ...(ns1 ? { [ns1]: { name: ns1, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false } } : {})
+                } : {},
+                bowlers: b1 ? {
+                    [b1]: { name: b1, overs: 0, runs: 0, wickets: 0, maidens: 0 }
+                } : {}
             },
-            bowlers: liveState?.innings1.bowlers || {
-                [openBowler]: { name: openBowler, overs: 0, runs: 0, wickets: 0, maidens: 0 }
-            }
-        },
-        innings2: {
-            teamName: bat2,
-            runs: 0, wickets: 0, overs: 0,
-            strikerRef: currentInnings === 2 ? openStriker : "",
-            nonStrikerRef: currentInnings === 2 ? openNonStriker : "",
-            currentBowlerRef: currentInnings === 2 ? openBowler : "",
-            batsmen: currentInnings === 2 ? {
-                [openStriker]: { name: openStriker, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false },
-                [openNonStriker]: { name: openNonStriker, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false }
-            } : {}, 
-            bowlers: currentInnings === 2 ? {
-                [openBowler]: { name: openBowler, overs: 0, runs: 0, wickets: 0, maidens: 0 }
-            } : {}
-        },
-        timeline: []
-    });
+            innings2: {
+                teamName: bat2,
+                runs: 0, wickets: 0, overs: 0,
+                strikerRef: s2,
+                nonStrikerRef: ns2,
+                currentBowlerRef: b2,
+                batsmen: s2 ? {
+                    [s2]: { name: s2, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false },
+                    ...(ns2 ? { [ns2]: { name: ns2, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false } } : {})
+                } : {}, 
+                bowlers: b2 ? {
+                    [b2]: { name: b2, overs: 0, runs: 0, wickets: 0, maidens: 0 }
+                } : {}
+            },
+            timeline: []
+        };
+    };
 
     const handleAuth = async () => {
         if (pin === "2025") { // Mock check for instant UI unlock
@@ -540,8 +550,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         setSyncStatus("PENDING");
 
         // PERSISTENCE: Save to localStorage immediately for Auto-Resume/Offline
-        if (newState.matchId) {
-            localStorage.setItem(`vpl_live_state_${newState.matchId}`, JSON.stringify(newState));
+        const matchId = newState.matchId;
+        if (matchId) {
+            localStorage.setItem(`vpl_live_state_${matchId}`, JSON.stringify(newState));
         }
 
         try {
@@ -558,6 +569,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
             setSyncStatus("SYNCED");
 
+            // Clear any pending sync for this match
+            if (matchId) {
+                localStorage.removeItem(`vpl_pending_sync_${matchId}`);
+            }
+
             // Transition Notifications
             if (liveState?.status === "SCHEDULED" && newState.status === "LIVE") {
                 notifyMatch(`Match Started: ${newState.innings1.teamName} vs ${newState.innings2.teamName}`, "INFO");
@@ -572,9 +588,49 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         } catch (e) {
             console.error("Failed to sync live state", e);
             setSyncStatus("ERROR");
-            // In a real app, we'd add it to a retry queue here.
+            
+            // Background Queue: Save for later sync
+            if (matchId) {
+                localStorage.setItem(`vpl_pending_sync_${matchId}`, JSON.stringify(newState));
+            }
         }
     };
+
+    // Background Sync Effect
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            if (!navigator.onLine) return;
+
+            // Look for pending syncs in localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.startsWith("vpl_pending_sync_")) {
+                    const matchId = key.replace("vpl_pending_sync_", "");
+                    const pendingData = localStorage.getItem(key);
+                    if (pendingData) {
+                        try {
+                            const res = await fetch("/api/live-score", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "x-vpl-internal-key": ADMIN_API_KEY
+                                },
+                                body: pendingData
+                            });
+                            if (res.ok) {
+                                localStorage.removeItem(key);
+                                setSyncStatus("SYNCED");
+                                console.log(`Background sync success for ${matchId}`);
+                            }
+                        } catch (e) {
+                            // Retry next time
+                        }
+                    }
+                }
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleResetMatch = async () => {
         if (!selectedMatch) return;
@@ -1432,6 +1488,35 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                         </div>
                     </div>
                 </div>
+
+                {/* No Ball Runs Modal */}
+                <AnimatePresence>
+                    {showNBModal && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[160] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-center">
+                            <div className="max-w-md w-full bg-zinc-900 border-2 border-blue-500/50 rounded-3xl p-8 shadow-[0_0_50px_rgba(59,130,246,0.2)]">
+                                <h2 className="text-3xl font-bold text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>No Ball!</h2>
+                                <p className="text-zinc-500 mb-8 uppercase tracking-widest text-sm">Select runs scored off the bat</p>
+                                <div className="grid grid-cols-3 gap-4 mb-8">
+                                    {[0, 1, 2, 3, 4, 6].map(run => (
+                                        <button 
+                                            key={run} 
+                                            onClick={() => handleRun(run, true)} 
+                                            className="bg-zinc-800 hover:bg-blue-500 hover:text-white transition-all py-6 rounded-2xl text-2xl font-bold border border-zinc-700 active:scale-95"
+                                        >
+                                            {run}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button 
+                                    onClick={() => setShowNBModal(false)}
+                                    className="w-full py-4 text-zinc-500 font-bold uppercase tracking-widest text-xs hover:text-white transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Full Scoreboard Overlay */}
                 <AnimatePresence>

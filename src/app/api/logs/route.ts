@@ -1,50 +1,46 @@
-import Redis from "ioredis";
 import { NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
 
-const redis = new Redis(process.env.REDIS_URL || '');
+const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL || "",
+    token: process.env.UPSTASH_REDIS_REST_TOKEN || "",
+});
 
 export async function POST(req: Request) {
     try {
-        const { matchId, action, details, timestamp, scorerId } = await req.json();
+        const body = await req.json();
+        const { action, matchId, details } = body;
 
-        if (!matchId || !action) {
-            return NextResponse.json({ error: "MatchId and Action required" }, { status: 400 });
-        }
-
-        const logKey = `vpl_logs_${matchId}`;
         const logEntry = {
-            id: Date.now().toString(),
+            timestamp: Date.now(),
             action,
+            matchId,
             details,
-            timestamp: timestamp || Date.now(),
-            scorerId: scorerId || "anonymous"
         };
 
-        // Store in a list in Redis
-        await redis.lpush(logKey, JSON.stringify(logEntry));
-        // Keep only last 1000 logs per match
-        await redis.ltrim(logKey, 0, 999);
+        // Store logs in a list for the match
+        await redis.lpush(`vpl_logs_${matchId}`, JSON.stringify(logEntry));
+        // Also a global list for the admin
+        await redis.lpush(`vpl_logs_global`, JSON.stringify(logEntry));
+        // Trim to last 1000 logs
+        await redis.ltrim(`vpl_logs_global`, 0, 999);
 
         return NextResponse.json({ success: true });
-    } catch (e) {
-        console.error("Log error:", e);
-        return NextResponse.json({ error: "Failed to store log" }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: "Failed to log action" }, { status: 500 });
     }
 }
 
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const matchId = searchParams.get("matchId");
-
-    if (!matchId) {
-        return NextResponse.json({ error: "MatchId required" }, { status: 400 });
-    }
-
     try {
-        const logKey = `vpl_logs_${matchId}`;
-        const logs = await redis.lrange(logKey, 0, -1);
-        return NextResponse.json(logs.map((l: any) => typeof l === 'string' ? JSON.parse(l) : l));
-    } catch (e) {
+        const { searchParams } = new URL(req.url);
+        const matchId = searchParams.get("matchId");
+        
+        const key = matchId ? `vpl_logs_${matchId}` : `vpl_logs_global`;
+        const logs = await redis.lrange(key, 0, 100);
+
+        return NextResponse.json(logs.map(l => typeof l === 'string' ? JSON.parse(l) : l));
+    } catch (error) {
         return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
     }
 }

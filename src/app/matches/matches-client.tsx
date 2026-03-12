@@ -52,16 +52,16 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         return () => clearInterval(interval);
     }, [fixtures]);
 
-    // Derive pool team lists from fixtures
-    const poolTeams: Record<"A" | "B", string[]> = { A: [], B: [] };
+    // Derive group team lists from fixtures
+    const groupTeams: Record<"A" | "B", string[]> = { A: [], B: [] };
     fixtures.forEach(f => {
-        if (f.pool === "A" || f.pool === "B") {
-            if (!poolTeams[f.pool].includes(f.team1)) poolTeams[f.pool].push(f.team1);
-            if (!poolTeams[f.pool].includes(f.team2)) poolTeams[f.pool].push(f.team2);
+        if (f.group === "A" || f.group === "B") {
+            if (!groupTeams[f.group].includes(f.team1)) groupTeams[f.group].push(f.team1);
+            if (!groupTeams[f.group].includes(f.team2)) groupTeams[f.group].push(f.team2);
         }
     });
 
-    const hasPoolData = poolTeams.A.length > 0 || poolTeams.B.length > 0;
+    const hasGroupData = groupTeams.A.length > 0 || groupTeams.B.length > 0;
 
     function renderFixture(fixture: Fixture, isFeaturedKnockout: boolean) {
         const played = !!fixture.winner;
@@ -69,7 +69,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const c2 = colorOf(fixture.team2);
         const win1 = played && fixture.winner === fixture.team1;
         const win2 = played && fixture.winner === fixture.team2;
-        const isKnockout = fixture.pool === "-";
+        const isKnockout = fixture.group === "-";
 
         let containerClasses = "relative overflow-hidden rounded-2xl border bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] hover:bg-black/60 group";
 
@@ -166,7 +166,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         {fixture.matchNo}
                     </span>
                     <span className={`text-[10px] tracking-widest pr-2 ${isFeaturedKnockout ? 'text-amber-400 font-bold text-xs' : 'text-zinc-500'}`} style={{ fontFamily: "var(--font-body)" }}>
-                        {isKnockout ? fixture.stage.toUpperCase() : "POOL " + fixture.pool}
+                        {isKnockout ? fixture.stage.toUpperCase() : "GROUP " + fixture.group}
                     </span>
                     <div className={`relative flex items-center gap-4 justify-end min-w-0 transition-opacity ${played && !win1 ? "opacity-40" : ""}`}>
                         {win1 && (
@@ -268,16 +268,16 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         animate="show"
                         className="space-y-12"
                     >
-                        {/* Pool summary cards */}
-                        {hasPoolData && (
+                        {/* Group summary cards */}
+                        {hasGroupData && (
                             <div className="grid grid-cols-2 gap-4">
-                                {(["A", "B"] as const).map(pool => (
-                                    <motion.div variants={itemVariants} key={pool} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4">
+                                {(["A", "B"] as const).map(group => (
+                                    <motion.div variants={itemVariants} key={group} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4">
                                         <p className="text-[10px] tracking-[0.4em] text-zinc-600 mb-3" style={{ fontFamily: "var(--font-body)" }}>
-                                            POOL {pool}
+                                            GROUP {group}
                                         </p>
                                         <div className="space-y-2">
-                                            {poolTeams[pool].map(team => (
+                                            {groupTeams[group].map(team => (
                                                 <div key={team} className="flex items-center gap-2">
                                                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colorOf(team) }} />
                                                     <span className="text-sm text-white font-medium truncate" style={{ fontFamily: "var(--font-heading)" }}>
@@ -292,8 +292,8 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         )}
 
                         <div className="space-y-12">
-                            {/* Knockout Stage - Only show if semi-finals are decided (teams don't contain "Pool") */}
-                            {fixtures.filter(f => f.pool === "-" && !f.team1.includes("Pool") && !f.team2.includes("Pool") && !f.team1.includes("Winner") && !f.team2.includes("Winner")).length > 0 && (
+                            {/* Knockout Stage - Only show if semi-finals are decided (teams don't contain "Group") */}
+                            {fixtures.filter(f => f.group === "-" && !f.team1.includes("Group") && !f.team2.includes("Group") && !f.team1.includes("Winner") && !f.team2.includes("Winner")).length > 0 && (
                                 <div>
                                     <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
                                         <span className="text-[12px] tracking-[0.4em] text-amber-500 font-bold uppercase" style={{ fontFamily: "var(--font-body)" }}>
@@ -303,25 +303,25 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                     </motion.div>
                                     <div className="space-y-6">
                                         {fixtures
-                                            .filter(f => f.pool === "-" && !f.team1.includes("Pool") && !f.team2.includes("Pool") && !f.team1.includes("Winner") && !f.team2.includes("Winner"))
+                                            .filter(f => f.group === "-" && !f.team1.includes("Group") && !f.team2.includes("Group") && !f.team1.includes("Winner") && !f.team2.includes("Winner"))
                                             .sort((a, b) => b.matchNo.localeCompare(a.matchNo)) // Final first, then SFs
                                             .map(fixture => renderFixture(fixture, true))}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Pool Matches Schedule */}
+                            {/* Group Matches Schedule */}
                             <div>
                                 <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
                                     <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                                        POOL SCHEDULE
+                                        GROUP SCHEDULE
                                     </span>
                                     <div className="flex-1 h-px bg-white/[0.05]" />
                                 </motion.div>
 
                                 <div className="space-y-4">
                                     {fixtures
-                                        .filter(f => f.pool !== "-" || f.team1.includes("Pool") || f.team2.includes("Pool") || f.team1.includes("Winner") || f.team2.includes("Winner"))
+                                        .filter(f => f.group !== "-" || f.team1.includes("Group") || f.team2.includes("Group") || f.team1.includes("Winner") || f.team2.includes("Winner"))
                                         .map(fixture => renderFixture(fixture, false))}
                                 </div>
                             </div>
