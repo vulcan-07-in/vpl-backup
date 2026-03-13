@@ -44,10 +44,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${rajdhani.variable} antialiased bg-black text-white`}
       >
-        <div className="ambient-bg" />
-        <Navbar />
-        {children}
-        <ChampionBanner />
+        <div className="relative w-full overflow-x-hidden min-h-screen flex flex-col">
+          <div className="ambient-bg" />
+          <Navbar />
+          {children}
+          <ChampionBanner />
+        </div>
         <Analytics />
       </body>
     </html>

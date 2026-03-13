@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from 'react-dom';
 import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { Clock, Bell, X, Trophy, ChevronLeft, AlertCircle, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,6 +17,9 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
     // This avoids the stale closure problem in the polling useEffect
     const liveMatchRef = useRef<LiveMatchState | null>(null);
     useEffect(() => { liveMatchRef.current = liveMatch; }, [liveMatch]);
+
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
 
     const colorOf = useCallback((name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308", [teams]);
     const shortNameOf = useCallback((name?: string) => teams.find(t => t.teamName === name)?.shortName ?? (name || "???").substring(0, 3).toUpperCase(), [teams]);
@@ -523,83 +527,85 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     </AnimatePresence>
                 </div>
 
-                {/* Big Event Animation Backdrop (Full Page) */}
-                <AnimatePresence>
-                    {animationEvent && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none overflow-hidden"
-                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
-                        >
-                            <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
-                            
-                            {/* Flash Bang Effect - Removed mix-blend for iOS compatibility */}
+                {/* Big Event Animation Backdrop (Full Page) - PORTALED FOR MOBILE SUPPORT */}
+                {mounted && typeof document !== 'undefined' && createPortal(
+                    <AnimatePresence>
+                        {animationEvent && (
                             <motion.div
-                                initial={{ opacity: 0.8 }}
-                                animate={{ opacity: 0 }}
-                                transition={{ duration: 1 }}
-                                className="absolute inset-0 bg-white"
-                            />
-
-                            {/* Abstract Shapes/Particles Move */}
-                            <div className="absolute inset-0 overflow-hidden">
-                                {[...Array(12)].map((_, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ 
-                                            x: typeof window !== 'undefined' ? Math.random() * 100 - 50 + "%" : "0%",
-                                            y: typeof window !== 'undefined' ? Math.random() * 100 - 50 + "%" : "0%",
-                                            scale: 0,
-                                            rotate: typeof window !== 'undefined' ? Math.random() * 360 : 0
-                                        }}
-                                        animate={{ 
-                                            x: typeof window !== 'undefined' ? [null, (Math.random() * 200 - 100) + "%"] : "0%",
-                                            y: typeof window !== 'undefined' ? [null, (Math.random() * 200 - 100) + "%"] : "0%",
-                                            scale: [0, 2, 0],
-                                            opacity: [0, 0.5, 0]
-                                        }}
-                                        transition={{ duration: 2, ease: "easeOut" }}
-                                        className="absolute w-32 md:w-64 h-32 md:h-64 border border-white/30 rounded-full"
-                                    />
-                                ))}
-                            </div>
-
-                            {/* Center Content */}
-                            <motion.div
-                                initial={{ scale: 0.5, opacity: 0, y: 100 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 1.5, opacity: 0, y: -100 }}
-                                transition={{ type: "spring", damping: 15, stiffness: 200 }}
-                                className="relative flex flex-col items-center z-10"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none overflow-hidden"
                             >
-                                <div className="absolute -inset-20 bg-black/80 blur-2xl rounded-full md:blur-3xl" />
+                                <div className="absolute inset-0 bg-black/90 backdrop-blur-lg" />
                                 
-                                <motion.h2 
-                                    className="text-[25vw] md:text-[20vw] font-black italic text-white leading-none tracking-tighter drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative"
-                                    style={{ fontFamily: "var(--font-display)" }}
-                                    animate={{ 
-                                        scale: [1, 1.1, 1],
-                                        rotate: [-2, 2, -2]
-                                    }}
-                                    transition={{ duration: 0.5, repeat: 4 }}
-                                >
-                                    {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
-                                </motion.h2>
+                                {/* Flash Bang Effect */}
+                                <motion.div
+                                    initial={{ opacity: 1 }}
+                                    animate={{ opacity: 0 }}
+                                    transition={{ duration: 0.8 }}
+                                    className="absolute inset-0 bg-white"
+                                />
 
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="relative px-8 md:px-12 py-3 md:py-4 bg-white text-black font-black text-xl md:text-5xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl mt-4 md:mt-0"
+                                {/* Abstract Shapes/Particles Move */}
+                                <div className="absolute inset-0 overflow-hidden">
+                                    {[...Array(12)].map((_, i) => (
+                                        <motion.div
+                                            key={i}
+                                            initial={{ 
+                                                x: Math.random() * 100 - 50 + "vw",
+                                                y: Math.random() * 100 - 50 + "vh",
+                                                scale: 0,
+                                                rotate: Math.random() * 360
+                                            }}
+                                            animate={{ 
+                                                x: [null, (Math.random() * 200 - 100) + "vw"],
+                                                y: [null, (Math.random() * 200 - 100) + "vh"],
+                                                scale: [0, 2, 0],
+                                                opacity: [0, 0.5, 0]
+                                            }}
+                                            transition={{ duration: 2, ease: "easeOut" }}
+                                            className="absolute w-32 md:w-64 h-32 md:h-64 border border-white/20 rounded-full"
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Center Content */}
+                                <motion.div
+                                    initial={{ scale: 0.5, opacity: 0, y: 100 }}
+                                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                                    exit={{ scale: 1.5, opacity: 0, y: -100 }}
+                                    transition={{ type: "spring", damping: 15, stiffness: 200 }}
+                                    className="relative flex flex-col items-center z-10"
                                 >
-                                    {animationEvent.player}
+                                    <div className="absolute -inset-20 bg-black/80 blur-2xl rounded-full" />
+                                    
+                                    <motion.h2 
+                                        className="text-[25vw] md:text-[20vw] font-black italic text-white leading-none tracking-tighter drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative"
+                                        style={{ fontFamily: "var(--font-display)" }}
+                                        animate={{ 
+                                            scale: [1, 1.1, 1],
+                                            rotate: [-2, 2, -2]
+                                        }}
+                                        transition={{ duration: 0.5, repeat: 4 }}
+                                    >
+                                        {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
+                                    </motion.h2>
+
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.3 }}
+                                        className="relative px-8 md:px-12 py-3 md:py-4 bg-white text-black font-black text-xl md:text-5xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl mt-4 md:mt-0"
+                                    >
+                                        {animationEvent.player}
+                                    </motion.div>
                                 </motion.div>
                             </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        )}
+                    </AnimatePresence>,
+                    document.body
+                )}
 
                 {/* Scorecard Overlay */}
                 <AnimatePresence>
@@ -668,15 +674,14 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </motion.div>
 
                         <div className="flex items-baseline justify-center gap-1 md:gap-3 mb-4">
-                            {/* Rolling Runs with Perspective */}
                             <motion.div 
                                 key={currentInningsData.runs}
                                 initial={{ y: 40, opacity: 0, rotateX: -45 }}
                                 animate={{ y: 0, opacity: 1, rotateX: 0 }}
                                 transition={{ type: 'spring', damping: 12, stiffness: 100 }}
-                                className="perspective-[1000px]"
+                                className="perspective-[1000px] flex items-center"
                             >
-                                <span className="text-9xl md:text-[14rem] font-black text-white leading-none tracking-tighter inline-block bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent tabular-nums" 
+                                <span className="text-[30vw] md:text-[14rem] font-black text-white leading-[0.8] tracking-tighter inline-block bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent tabular-nums" 
                                     style={{ fontFamily: "var(--font-display)" }}
                                 >
                                     {String(currentInningsData.runs)}
@@ -688,9 +693,9 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 initial={{ scale: 1.5, opacity: 0, x: 20 }}
                                 animate={{ scale: 1, opacity: 1, x: 0 }}
                                 transition={{ type: 'spring', damping: 15 }}
-                                className="flex items-baseline"
+                                className="flex items-end pb-[2vw] md:pb-4"
                             >
-                                <span className="text-6xl md:text-9xl font-black text-zinc-600 leading-none" 
+                                <span className="text-[15vw] md:text-9xl font-black text-zinc-600 leading-none" 
                                     style={{ fontFamily: "var(--font-display)" }}
                                 >
                                     -{currentInningsData.wickets}
@@ -702,22 +707,22 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.4 }}
-                            className="flex flex-col md:flex-row items-center gap-4 md:gap-10"
+                            className="flex flex-row items-center gap-4 md:gap-10"
                         >
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl md:text-3xl font-black tabular-nums text-white/90">
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <span className="text-xl md:text-3xl font-black tabular-nums text-white/90">
                                     {currentInningsData.overs.toFixed(1)}
                                 </span>
-                                <span className="text-xs font-black tracking-widest text-zinc-500 uppercase">OVERS COMPLETED</span>
+                                <span className="text-[10px] md:text-xs font-black tracking-widest text-zinc-500 uppercase">OVERS COMPLETED</span>
                             </div>
                             
-                            <div className="hidden md:block w-px h-6 bg-white/10" />
+                            <div className="w-px h-6 bg-white/10" />
 
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl md:text-3xl font-black tabular-nums text-amber-500">
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <span className="text-xl md:text-3xl font-black tabular-nums text-amber-500">
                                     {currentInningsData.lrr?.toFixed(2) || "0.00"}
                                 </span>
-                                <span className="text-xs font-black tracking-widest text-zinc-500 uppercase">RUN RATE</span>
+                                <span className="text-[10px] md:text-xs font-black tracking-widest text-zinc-500 uppercase">RUN RATE</span>
                             </div>
                         </motion.div>
 
