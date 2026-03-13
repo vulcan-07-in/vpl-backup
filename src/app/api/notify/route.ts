@@ -5,7 +5,7 @@ import { validateAdminRequest } from "@/lib/auth";
 const redis = new Redis(process.env.REDIS_URL || "");
 
 export async function POST(req: Request) {
-    if (!validateAdminRequest()) {
+    if (!(await validateAdminRequest())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     try {

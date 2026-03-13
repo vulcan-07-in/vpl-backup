@@ -21,6 +21,9 @@ export async function POST(request: Request) {
         // 3. Clear logs
         await redis.del('vpl_audit_logs');
 
+        // 4. Clear notifications
+        await redis.del('vpl_notifications');
+
         return NextResponse.json({ success: true, clearedKeys: keys.length + 2 });
     } catch (error) {
         console.error('reset-data POST Error:', error);
