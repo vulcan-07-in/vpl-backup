@@ -1,6 +1,9 @@
 import { fetchFixtures, fetchTeams } from "@/lib/tournament";
 import PointsClient from "./points-client";
 import { Metadata } from "next";
+import Redis from "ioredis";
+
+const redis = new Redis(process.env.REDIS_URL || "");
 
 export const metadata: Metadata = {
     title: "Standings | Varchasva Premier League",
@@ -12,19 +15,22 @@ export default async function PointsPage() {
     const teams = await fetchTeams();
     const fixtures = await fetchFixtures();
 
-    // Fetch live states from our internal API (Redis) to ensure ground truth
-    let liveStates = {};
+    // Fetch live states from our internal API (Redis) directly to bypass Vercel internal API limitations
+    let liveStates: Record<string, any> = {};
     try {
-        const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-        const host = process.env.VERCEL_URL || 'localhost:3000';
-        const baseUrl = `${protocol}://${host}`;
-        
-        const res = await fetch(`${baseUrl}/api/live-score/all`, { cache: 'no-store' });
-        if (res.ok) {
-            liveStates = await res.json();
+        const keys = await redis.keys('live_match_*');
+        if (keys.length > 0) {
+            const values = await redis.mget(...keys);
+            keys.forEach((key, i) => {
+                const matchId = key.replace('live_match_', '');
+                const data = values[i];
+                if (data) {
+                    liveStates[matchId] = JSON.parse(data);
+                }
+            });
         }
     } catch (e) {
-        console.error("Failed to fetch live states for points page", e);
+        console.error("Failed to fetch live states from Redis for points page", e);
     }
 
     return <PointsClient fixtures={fixtures} teams={teams} liveStates={liveStates} />;
