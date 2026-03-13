@@ -149,8 +149,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 </div>
 
                 <div className="space-y-6">
-                    <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
-                        <table className="w-full text-left text-xs min-w-[500px]">
+                    <div className="overflow-x-auto rounded-3xl border border-white/5 bg-black/20 pb-2 custom-scrollbar">
+                        <table className="w-full text-left text-xs min-w-[500px] whitespace-nowrap">
                             <thead>
                                 <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
                                     <th className="px-6 py-4">BATSMAN</th>
@@ -172,8 +172,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-black tracking-tight text-sm uppercase">{b.name}</span>
-                                                    {b.isOut && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-500 font-bold uppercase tracking-tighter">{b.dismissal}</span>}
-                                                    {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
+                                                    {b.isOut && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-500 font-bold uppercase tracking-tighter shrink-0">{b.dismissal}</span>}
+                                                    {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] shrink-0" />}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-black text-amber-500 text-sm">{b.runs}</td>
@@ -190,8 +190,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </table>
                     </div>
 
-                    <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
-                        <table className="w-full text-left text-xs min-w-[500px]">
+                    <div className="overflow-x-auto rounded-3xl border border-white/5 bg-black/20 pb-2 custom-scrollbar">
+                        <table className="w-full text-left text-xs min-w-[500px] whitespace-nowrap">
                             <thead>
                                 <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
                                     <th className="px-6 py-4">BOWLER</th>
@@ -417,6 +417,33 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </div>
                     </motion.div>
                 </div>
+
+                {/* Scorecard Overlay */}
+                <AnimatePresence>
+                    {showScorecard && liveMatch && (
+                        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, y: 40 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 40 }}
+                                className="w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+                            >
+                                <div className="p-8 space-y-12">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h2 className="text-4xl font-bold text-white tracking-widest uppercase italic" style={{ fontFamily: "var(--font-heading)" }}>SCORECARD</h2>
+                                        <button onClick={() => setShowScorecard(false)} className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all">
+                                            <X className="w-6 h-6" />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-12">
+                                        {renderInningsScorecard(liveMatch.innings1, 1)}
+                                        {renderInningsScorecard(liveMatch.innings2, 2)}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </main>
         );
     }
@@ -485,7 +512,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
+                            className="fixed inset-0 w-full h-[100dvh] z-[200] flex items-center justify-center pointer-events-none"
                         >
                             {/* Full-screen Flash Backdrop */}
                             <motion.div 

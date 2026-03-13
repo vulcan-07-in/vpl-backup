@@ -1926,7 +1926,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 {/* Match Report Modal */}
                 <AnimatePresence>
                     {showReport && liveState && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[250] flex items-center justify-center p-4">
                             <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={() => setShowReport(false)} />
                             <div className="relative w-full max-w-2xl max-h-[90vh]">
                                 <div className="flex flex-col items-center gap-6 overflow-y-auto max-h-full py-10 w-full custom-scrollbar">

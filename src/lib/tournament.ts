@@ -199,7 +199,8 @@ export function calculateStandings(
         ensureTeam(f.team1, group);
         ensureTeam(f.team2, group);
 
-        const liveMatch = liveStates[f.matchNo];
+        const normalizedMatchNo = String(f.matchNo).trim();
+        const liveMatch = liveStates[normalizedMatchNo] || liveStates[f.matchNo];
         const winner = f.winner || liveMatch?.winner;
 
         if (!winner && liveMatch?.status !== "COMPLETED") return; // not played yet
@@ -225,13 +226,13 @@ export function calculateStandings(
             const inn1 = liveMatch.innings1;
             const inn2 = liveMatch.innings2;
 
-            const normalize = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalize = (s: string) => String(s).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
             const t1Clean = normalize(f.team1);
             const t2Clean = normalize(f.team2);
             
             // Determine which innings belongs to f.team1
-            const t1Score = normalize(inn1.teamName) === t1Clean ? inn1 : inn2;
-            const t2Score = normalize(inn1.teamName) === t2Clean ? inn1 : inn2;
+            const t1Score = normalize(inn1.teamName) === t1Clean ? inn1 : (normalize(inn2.teamName) === t1Clean ? inn2 : null);
+            const t2Score = normalize(inn1.teamName) === t2Clean ? inn1 : (normalize(inn2.teamName) === t2Clean ? inn2 : null);
 
             // Update Team 1 Stats
             if (map[f.team1] && t1Score && t2Score) {

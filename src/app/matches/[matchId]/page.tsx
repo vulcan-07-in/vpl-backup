@@ -6,10 +6,11 @@ export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: { matchId: string } }): Promise<Metadata> {
     const fixtures = await fetchFixtures();
-    const fixture = fixtures.find(f => f.matchNo === params.matchId);
+    const decodedId = decodeURIComponent(params.matchId).trim();
+    const fixture = fixtures.find(f => String(f.matchNo).trim() === decodedId);
     const title = fixture
         ? `${fixture.team1} vs ${fixture.team2} – Match ${fixture.matchNo}`
-        : `Match ${params.matchId}`;
+        : `Match ${decodedId}`;
     return {
         title: `${title} | VPL`,
         description: `Full scorecard and match report for ${title} in the Varchasva Premier League.`,
@@ -19,7 +20,8 @@ export async function generateMetadata({ params }: { params: { matchId: string }
 export default async function MatchReportPage({ params }: { params: { matchId: string } }) {
     const fixtures = await fetchFixtures();
     const teams = await fetchTeams();
-    const fixture = fixtures.find(f => f.matchNo === params.matchId);
+    const decodedId = decodeURIComponent(params.matchId).trim();
+    const fixture = fixtures.find(f => String(f.matchNo).trim() === decodedId);
 
-    return <MatchReportClient matchId={params.matchId} fixture={fixture ?? null} teams={teams} />;
+    return <MatchReportClient matchId={decodedId} fixture={fixture ?? null} teams={teams} />;
 }
