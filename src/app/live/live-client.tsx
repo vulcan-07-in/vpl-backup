@@ -229,6 +229,24 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
         );
     };
 
+    const formatScheduledTime = (isoString?: string) => {
+        if (!isoString) return null;
+        try {
+            const date = new Date(isoString);
+            const day = date.getDate();
+            const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
+            const month = date.toLocaleString('en-US', { month: 'short' });
+            let hours = date.getHours();
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            return `${day}${suffix} ${month} ${hours}:${minutes} ${ampm}`;
+        } catch (e) {
+            return isoString;
+        }
+    };
+
     // SCHEDULED VIEW
     if (liveMatch.status === "SCHEDULED") {
         return (
@@ -241,8 +259,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 <div className="w-24 h-24 bg-black border border-blue-500/30 rounded-2xl flex items-center justify-center mb-8 shadow-[0_0_30px_rgba(59,130,246,0.2)]">
                     <Clock className="w-10 h-10 text-blue-400" />
                 </div>
-                <h2 className="text-6xl text-white font-bold mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
-                    {liveMatch.scheduledTime || "SOON"}
+                <h2 className="text-5xl md:text-6xl text-white font-bold mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
+                    {formatScheduledTime(liveMatch.scheduledTime) || "SOON"}
                 </h2>
                 <h3 className="text-2xl text-zinc-400 max-w-sm mt-4 font-medium" style={{ fontFamily: "var(--font-heading)" }}>
                     {liveMatch.innings1.teamName} <span className="text-zinc-600 mx-2 text-lg">vs</span> {liveMatch.innings2.teamName}
@@ -512,39 +530,38 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 w-full h-[100dvh] z-[200] flex items-center justify-center pointer-events-none"
+                            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none overflow-hidden"
+                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
                         >
-                            {/* Full-screen Flash Backdrop */}
-                            <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: [0, 0.4, 0.2] }}
-                                transition={{ duration: 0.5 }}
-                                className={`absolute inset-0 ${
-                                    animationEvent.type === 'W' ? 'bg-red-600' :
-                                    animationEvent.type === '6' ? 'bg-purple-600' :
-                                    'bg-amber-400'
-                                }`}
+                            <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
+                            
+                            {/* Flash Bang Effect - Removed mix-blend for iOS compatibility */}
+                            <motion.div
+                                initial={{ opacity: 0.8 }}
+                                animate={{ opacity: 0 }}
+                                transition={{ duration: 1 }}
+                                className="absolute inset-0 bg-white"
                             />
 
                             {/* Abstract Shapes/Particles Move */}
                             <div className="absolute inset-0 overflow-hidden">
-                                {[...Array(20)].map((_, i) => (
+                                {[...Array(12)].map((_, i) => (
                                     <motion.div
                                         key={i}
                                         initial={{ 
-                                            x: Math.random() * 100 - 50 + "%", 
-                                            y: Math.random() * 100 - 50 + "%",
+                                            x: typeof window !== 'undefined' ? Math.random() * 100 - 50 + "%" : "0%",
+                                            y: typeof window !== 'undefined' ? Math.random() * 100 - 50 + "%" : "0%",
                                             scale: 0,
-                                            rotate: Math.random() * 360
+                                            rotate: typeof window !== 'undefined' ? Math.random() * 360 : 0
                                         }}
                                         animate={{ 
-                                            x: [null, (Math.random() * 200 - 100) + "%"],
-                                            y: [null, (Math.random() * 200 - 100) + "%"],
+                                            x: typeof window !== 'undefined' ? [null, (Math.random() * 200 - 100) + "%"] : "0%",
+                                            y: typeof window !== 'undefined' ? [null, (Math.random() * 200 - 100) + "%"] : "0%",
                                             scale: [0, 2, 0],
                                             opacity: [0, 0.5, 0]
                                         }}
                                         transition={{ duration: 2, ease: "easeOut" }}
-                                        className="absolute w-64 h-64 border-2 border-white/20 rounded-full"
+                                        className="absolute w-32 md:w-64 h-32 md:h-64 border border-white/30 rounded-full"
                                     />
                                 ))}
                             </div>
@@ -554,13 +571,13 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 initial={{ scale: 0.5, opacity: 0, y: 100 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 1.5, opacity: 0, y: -100 }}
-                                transition={{ type: "spring", damping: 12, stiffness: 200 }}
-                                className="relative flex flex-col items-center"
+                                transition={{ type: "spring", damping: 15, stiffness: 200 }}
+                                className="relative flex flex-col items-center z-10"
                             >
-                                <div className="absolute -inset-20 bg-black/60 blur-3xl rounded-full" />
+                                <div className="absolute -inset-20 bg-black/80 blur-2xl rounded-full md:blur-3xl" />
                                 
                                 <motion.h2 
-                                    className="text-[20vw] font-black italic text-white leading-none tracking-tighter drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative"
+                                    className="text-[25vw] md:text-[20vw] font-black italic text-white leading-none tracking-tighter drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative"
                                     style={{ fontFamily: "var(--font-display)" }}
                                     animate={{ 
                                         scale: [1, 1.1, 1],
@@ -575,7 +592,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.3 }}
-                                    className="relative px-12 py-4 bg-white text-black font-black text-2xl md:text-5xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl"
+                                    className="relative px-8 md:px-12 py-3 md:py-4 bg-white text-black font-black text-xl md:text-5xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl mt-4 md:mt-0"
                                 >
                                     {animationEvent.player}
                                 </motion.div>
