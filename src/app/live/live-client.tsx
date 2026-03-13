@@ -436,7 +436,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.7)]" />
                         <span className="text-sm font-bold tracking-[0.3em] text-red-500 uppercase">
-                            {liveMatch.status === "COMPLETED" ? "MATCH OVER" : "LIVE"} {liveMatch.matchId}
+                            LIVE {liveMatch.matchId}
                         </span>
                         <span className="text-zinc-500 font-bold text-xs tracking-widest" style={{ fontFamily: "var(--font-display)" }}>
                             {shortNameOf(liveMatch.innings1.teamName)} vs {shortNameOf(liveMatch.innings2.teamName)}
@@ -576,7 +576,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                     </div>
                                     <div className="space-y-12">
                                         {renderInningsScorecard(liveMatch.innings1, 1)}
-                                        {(liveMatch.currentInnings === 2 || liveMatch.status === "COMPLETED") && (
+                                        {(liveMatch.currentInnings === 2) && (
                                             renderInningsScorecard(liveMatch.innings2, 2)
                                         )}
                                     </div>
@@ -678,7 +678,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </motion.div>
 
                         {/* 2nd Innings Chasing Info with Premium Banner */}
-                        {liveMatch.currentInnings === 2 && liveMatch.status !== "COMPLETED" && (() => {
+                        {liveMatch.currentInnings === 2 && (() => {
                             const runsNeeded = (liveMatch.innings1.runs + 1) - currentInningsData.runs;
                             const totalBalls = liveMatch.matchOvers * 6;
                             const ballsBowled = Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10);
