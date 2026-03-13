@@ -251,6 +251,14 @@ export function calculateStandings(
     };
 }
 
+/**
+ * Converts decimal overs (e.g. 1.3) to true fractional overs (e.g. 1.5)
+ * for correct mathematical operations like Run Rate and Economy.
+ */
+export function realOvers(v: number): number {
+    return Math.floor(v) + (Math.round((v % 1) * 10)) / 6;
+}
+
 export function resolveKnockouts(
     fixtures: Fixture[],
     teams: Team[],

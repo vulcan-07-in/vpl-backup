@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "1989";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "varchasva26";
 const SESSION_TOKEN = "vpl_admin_session";
 
 export async function POST(request: Request) {

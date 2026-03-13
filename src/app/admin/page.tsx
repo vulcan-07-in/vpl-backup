@@ -616,6 +616,26 @@ export default function AdminPage() {
                                             <span className="text-xl font-bold text-white tracking-wide block" style={{ fontFamily: "var(--font-heading)" }}>
                                                 {f.team1} <span className="text-zinc-600 mx-1">vs</span> {f.team2}
                                             </span>
+                                            
+                                            {/* Real-time Score Display */}
+                                            {liveMatchStates[f.matchNo] && liveMatchStates[f.matchNo].status !== 'SCHEDULED' && (
+                                                <div className="mt-2 p-2 rounded-lg bg-white/5 border border-white/5 inline-flex items-baseline gap-2">
+                                                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">LIVE SCORE:</span>
+                                                    <span className="text-lg font-bold text-amber-500 tabular-nums">
+                                                        {liveMatchStates[f.matchNo].currentInnings === 1 
+                                                            ? `${liveMatchStates[f.matchNo].innings1.runs}-${liveMatchStates[f.matchNo].innings1.wickets}`
+                                                            : `${liveMatchStates[f.matchNo].innings2.runs}-${liveMatchStates[f.matchNo].innings2.wickets}`
+                                                        }
+                                                    </span>
+                                                    <span className="text-[10px] text-zinc-500 font-medium tabular-nums">
+                                                        ({liveMatchStates[f.matchNo].currentInnings === 1 
+                                                            ? liveMatchStates[f.matchNo].innings1.overs.toFixed(1)
+                                                            : liveMatchStates[f.matchNo].innings2.overs.toFixed(1)
+                                                        } ov)
+                                                    </span>
+                                                </div>
+                                            )}
+
                                             {f.winner && (
                                                 <span className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1 block">
                                                     {['ABANDONED', 'TIE'].includes(f.winner) ? f.winner : `${f.winner} WON`}

@@ -1,4 +1,4 @@
-﻿VPL Scoring System
+VPL Scoring System
 Full Code Review & Bug Report
 Both audit passes combined - 14 files reviewed
 March 2025
@@ -210,13 +210,54 @@ scorer-client.tsx:1302-1327The top action bar has both a '← Back' button and 
 4.9 - Blocking alert() and confirm() used throughout (12+ occurrences)
 [UX]  Native dialogs freeze the main thread, break on iOS Safari in iframes
 scorer-client.tsx - multiple locationsNative alert() and confirm() block the entire UI. On iOS Safari they can be suppressed by the browser. Dangerous actions like 'Reset Match' transition UI state immediately on confirm press, before the async operation completes - if the network fails after navigation, the state is inconsistent.Fix: Replace alert/confirm with an inline toast notification system and a confirmation modal component. Wait for API success before navigating on destructive actions.
+scorer-client.tsx - multiple locationsNative alert() and confirm() block the entire UI. On iOS Safari they can be suppressed by the browser. Dangerous actions like 'Reset Match' transition UI state immediately on confirm press, before the async operation completes - if the network fails after navigation, the state is inconsistent.Fix: Replace alert/confirm with an inline toast notification system and a confirmation modal component. Wait for API success before navigating on destructive actions.
 4.10 - Artificial 500ms delay on every page load
 [UX]  Forces users to wait half a second before every login
-scorer-client.tsx:57-61setTimeout(..., 500) is used to 'prevent flash'. On a fast connection the scorer is ready instantly but users wait regardless. This is particularly frustrating mid-match when the scorer refreshes after a network drop.Fix: Remove the artificial delay. Use CSS transitions or Next.js font loading callbacks to prevent layout flash without blocking the UI.
+scorer-client.tsx:57-61setTimeout(..., 500) is used to 'prevent flash'. On a fast connection the scorer is ready instantly but users wait regardless. This is particularly frustrating mid-match when the scorer refreshes after a network drop.Fix: Remove the artificial delay. Use CSS transitions or Next.js font loading callbacks to prevent layout flash without blocking the UI.
 5. What Works Well
 These design decisions are genuinely good and should be preserved as the codebase is refactored.
-StrengthsTimeline-based event sourcing for UndoStoring the complete ball-by-ball timeline and rebuilding state from scratch via rebuildState is the correct architecture for a live scorer. Undo, edit, and delete are deterministic. Most hobby cricket apps get this wrong by storing only current state.applyBallEvent is a pure functionThe engine has no side effects and fully derives state from events. This means you can extract it to scorer-engine.ts and unit test every cricket rule independently - something you should do before the knockout stage.Offline sync queue with background retryThe vpl_pending_sync_* localStorage queue with a 5-second background retry is a good resilience pattern for a live-scoring context where network drops are common. The localStorage fallback on load is also smart.Edge caching on live-score GETThe s-maxage=1, stale-while-revalidate=1 header on the Redis GET reduces Redis reads significantly for concurrent public viewers while keeping data near real-time. Correct call for a public event.UI quality and scorer UXThe iPad-optimised two-column layout, the sync status indicator, the lock/unlock mechanism, the innings break overlay, and the amber/blue visual distinction between batting and bowling are all thoughtful decisions made with the actual scorer workflow in mind.Robust team name matching in getSquadForTeamThe case-insensitive toLowerCase comparison is a good default for a sheet-sourced dataset. Just needs the punctuation normalisation step added.
+StrengthsTimeline-based event sourcing for UndoStoring the complete ball-by-ball timeline and rebuilding state from scratch via rebuildState is the correct architecture for a live scorer. Undo, edit, and delete are deterministic. Most hobby cricket apps get this wrong by storing only current state.applyBallEvent is a pure functionThe engine has no side effects and fully derives state from events. This means you can extract it to scorer-engine.ts and unit test every cricket rule independently - something you should do before the knockout stage.Offline sync queue with background retryThe vpl_pending_sync_* localStorage queue with a 5-second background retry is a good resilience pattern for a live-scoring context where network drops are common. The localStorage fallback on load is also smart.Edge caching on live-score GETThe s-maxage=1, stale-while-revalidate=1 header on the Redis GET reduces Redis reads significantly for concurrent public viewers while keeping data near real-time. Correct call for a public event.UI quality and scorer UXThe iPad-optimised two-column layout, the sync status indicator, the lock/unlock mechanism, the innings break overlay, and the amber/blue visual distinction between batting and bowling are all thoughtful decisions made with the actual scorer workflow in mind.Robust team name matching in getSquadForTeamThe case-insensitive toLowerCase comparison is a good default for a sheet-sourced dataset. Just needs the punctuation normalisation step added.
 6. Fix Priority Checklist
 In rough order of risk vs. effort. Items marked BEFORE MATCH must be done before the next live game.
-PriorityIssueEffortP0 · NOWCall validateAdminRequest() in live-score, active-match, and logs POST handlers~15 minP0 · NOWMove PIN validation to a server route - client-side check is security theater~1 hourP0 · NOWRemove ADMIN_API_KEY from client code~1 hourP1 · BEFORE MATCHFix team name normalisation in getSquadForTeam (add punctuation strip)~20 minP1 · BEFORE MATCHFix t2BallsBowled variable on tournament.ts line 237~2 minP1 · BEFORE MATCHAdd economy rate conversion (realOvers) in scoreboard display~10 minP1 · BEFORE MATCHFilter dismissed players from inline CHANGE dropdowns~20 minP1 · BEFORE MATCHFix localStorage iteration bug in background sync loop~10 minP2 · SOONPoints page: fetch liveStates from Redis and pass to calculateStandings~2 hoursP2 · SOONMatches page: read winner from Redis, not just the Sheet CSV chain~2 hoursP2 · SOONAdd X-Frame-Options and CSP headers to next.config.ts~20 minP2 · SOONCreate shared src/lib/redis.ts with env check and error handler~20 minP2 · SOONAdd HIT_WICKET and RETIRED_HURT to wicket modal~30 minP2 · SOONAdd 5 run button to scoring pad~10 minP3 · REFACTORExtract applyBallEvent and rebuildState to scorer-engine.ts + write unit tests~1 dayP3 · REFACTORDecompose scorer-client.tsx into hooks and sub-components~2 daysP3 · REFACTORMerge fetchTeams/fetchSquads into a single fetchSquadData()~30 minP3 · REFACTORReplace all alert/confirm with toast notifications and modals~1 day
+PriorityIssueEffortP0 · NOWCall validateAdminRequest() in live-score, active-match, and logs POST handlers~15 minP0 · NOWMove PIN validation to a server route - client-side check is security theater~1 hourP0 · NOWRemove ADMIN_API_KEY from client code~1 hourP1 · BEFORE MATCHFix team name normalisation in getSquadForTeam (add punctuation strip)~20 minP1 · BEFORE MATCHFix t2BallsBowled variable on tournament.ts line 237~2 minP1 · BEFORE MATCHAdd economy rate conversion (realOvers) in scoreboard display~10 minP1 · BEFORE MATCHFilter dismissed players from inline CHANGE dropdowns~20 minP1 · BEFORE MATCHFix localStorage iteration bug in background sync loop~10 minP2 · SOONPoints page: fetch liveStates from Redis and pass to calculateStandings~2 hoursP2 · SOONMatches page: read winner from Redis, not just the Sheet CSV chain~2 hoursP2 · SOONAdd X-Frame-Options and CSP headers to next.config.ts~20 minP2 · SOONCreate shared src/lib/redis.ts with env check and error handler~20 minP2 · SOONAdd HIT_WICKET and RETIRED_HURT to wicket modal~30 minP2 · SOONAdd 5 run button to scoring pad~10 minP3 · REFACTORExtract applyBallEvent and rebuildState to scorer-engine.ts + write unit tests~1 dayP3 · REFACTORDecompose scorer-client.tsx into hooks and sub-components~2 daysP3 · REFACTORMerge fetchTeams/fetchSquads into a single fetchSquadData()~30 minP3 · REFACTORReplace all alert/confirm with toast notifications and modals~1 day
 Generated by Claude - VPL Code Audit, March 2025
+6. Pass 3: Scorer, Admin & Viewer Refinements (Current Audit)
+6.1 - Points Table ignores Redis "Ground Truth"
+[BUG]  Points page only uses Sheets data; NRR is stale until manual sync
+points/page.tsx:12-15The points page fetches Teams and Fixtures from Sheets/CSV but never fetches the matching LiveMatchState from Redis for completed matches. This means that even after a match is finished in the Scorer dashboard, the Points Table shows 0 NRR and 0 points until someone manually clicks "Sync" in Admin or Scorer.Fix: Fetch all match states from Redis in PointsPage and pass them to calculateStandings.
+
+6.2 - Viewer dashboard score jumps without animation
+[UX]  Static score updates feel "thin" compared to professional sports apps
+live-client.tsx:196The main score in the viewer dashboard just snaps to the new value. In a premium experience, the digits should animate or pulse on change to grab the viewer's attention.Fix: Use framer-motion's AnimatePresence or a dedicated RollingNumber component for the runs and wickets.
+
+6.3 - Admin lacks "Scorer Heartbeat" visibility
+[WORKFLOW]  No way to tell if the scorer is offline or just slow
+admin/page.tsxThe Admin dashboard shows which match is "LIVE" but doesn't show the last time the scorer actually pushed an update. If the scorer's internet drops, the admin (and viewers) stay in the dark.Fix: Add a `lastSyncedAt` timestamp to the Redis match state and display a "Last Update: 12s ago" status on the Admin match card.
+
+6.4 - Match Report shows Innings 2 prematurely
+[DISPLAY]  Empty scoreboard shown during Innings 1
+match-report-client.tsxSimilar to the public match report, the internal one renders both innings. This clutters the UI during the first half of the match.Fix: Conditional rendering for Innings 2 based on `currentInnings` or `status`.
+
+6.5 - Hardcoded "1989" Pin needs management
+[SECURITY]  Scorer PIN is now 4-digits but still hardcoded in multiple places
+auth.ts, login/route.ts while 1989 is better than a long string, it's still hardcoded as a fallback. If the PIN is compromised mid-tournament, a developer must redeploy.Fix: Allow the ADMIN_PASSWORD environment variable to be updated via a settings tab in the Admin dashboard (persisted to Redis).
+
+7. Updated Fix Priority Checklist (Pass 3)
+In addition to the previous checklist.
+
+Priority | Issue | Effort
+--- | --- | ---
+P0 · NOW | Fix Points Table: Fetch all Redis states to show real-time NRR | ~1 hour
+P1 · SOON | Add "Scorer Heartbeat" to Admin (lastSyncedAt display) | ~30 min
+P1 · SOON | Add Rolling Number animations to Live Viewer score | ~1 hour
+P1 · SOON | Conditional Innings 2 rendering on Match Reports | ~15 min
+P2 · NEXT | Add "5 Runs" button to Scorer UI (for penalties) | ~10 min
+P2 · NEXT | Implement "Quick Sync": Auto-push result to Sheets on completion | ~1 hour
+
+8. Strategic Ideas for "WOW" Factor
+1.  **Dynamic Backgrounds**: Change the ambient background color of the Public Viewer based on the batting team's primary color (already started, but can be much richer).
+2.  **Highlight Reel Link**: Allow Admin to paste a YouTube/Instagram link for a "Match Highlights" button on completed Match Reports.
+3.  **Wicket Animation**: A full-screen "OUT" animation that triggers for 3 seconds on the Viewer dash when a wicket is logged.
+4.  **Automatic Leaderboard**: Use the Redis data to automatically calculate "Highest Run Getter" and "Leading Wicket Taker" without any manual data entry.
+
+Generated by Claude - VPL Code Audit Refinement, March 2025

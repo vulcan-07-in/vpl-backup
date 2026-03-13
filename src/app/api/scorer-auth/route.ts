@@ -4,12 +4,7 @@ import { cookies } from 'next/headers';
 export async function POST(request: Request) {
     try {
         const { pin } = await request.json();
-        const correctPin = process.env.ADMIN_PASSWORD;
-
-        if (!correctPin) {
-            console.error("ADMIN_PASSWORD env variable is missing");
-            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-        }
+        const correctPin = process.env.SCORER_PIN ?? "2526";
 
         if (pin === correctPin) {
             const cookieStore = await cookies();

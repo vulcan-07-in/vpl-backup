@@ -116,8 +116,8 @@ function GroupTable({ standings, label, qualifiedSet, tiedForSecond }: { group: 
     );
 }
 
-export default function PointsClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
-    const { groupA, groupB } = calculateStandings(fixtures, teams);
+export default function PointsClient({ fixtures, teams, liveStates = {} }: { fixtures: Fixture[], teams: Team[], liveStates?: Record<string, any> }) {
+    const { groupA, groupB } = calculateStandings(fixtures, teams, liveStates);
 
     const groupAFixtures = fixtures.filter(f => f.group === "A");
     const groupBFixtures = fixtures.filter(f => f.group === "B");

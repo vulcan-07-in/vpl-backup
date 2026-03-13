@@ -185,7 +185,18 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
 
                 {/* Score Big Board */}
                 <div className="relative w-full rounded-3xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: `radial-gradient(circle at 10% -20%, ${battingColor}, transparent 60%)` }} />
+                    {/* Dynamic Ambient Background Pulse */}
+                    <AnimatePresence mode="wait">
+                        <motion.div 
+                            key={battingColor}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.25 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1 }}
+                            className="absolute inset-0 pointer-events-none" 
+                            style={{ background: `radial-gradient(circle at 10% -20%, ${battingColor}, transparent 60%)` }} 
+                        />
+                    </AnimatePresence>
 
                     <div className="p-8 md:p-12 relative z-10 flex flex-col items-center text-center">
                         <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
@@ -193,12 +204,27 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </h2>
 
                         <div className="flex items-baseline justify-center gap-2 mb-2">
-                            <span className="text-8xl md:text-[12rem] font-bold text-white leading-none tracking-tighter drop-shadow-lg" style={{ fontFamily: "var(--font-display)" }}>
+                            {/* Rolling Runs */}
+                            <motion.span 
+                                key={currentInningsData.runs}
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                className="text-8xl md:text-[12rem] font-bold text-white leading-none tracking-tighter drop-shadow-lg inline-block" 
+                                style={{ fontFamily: "var(--font-display)" }}
+                            >
                                 {currentInningsData.runs}
-                            </span>
-                            <span className="text-5xl md:text-8xl font-bold text-zinc-500 leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                            </motion.span>
+
+                            <motion.span 
+                                key={currentInningsData.wickets}
+                                initial={{ scale: 1.5, color: '#ef4444' }}
+                                animate={{ scale: 1, color: '#71717a' }}
+                                transition={{ type: 'spring', damping: 10 }}
+                                className="text-5xl md:text-8xl font-bold leading-none inline-block" 
+                                style={{ fontFamily: "var(--font-display)" }}
+                            >
                                 -{currentInningsData.wickets}
-                            </span>
+                            </motion.span>
                         </div>
 
                         <div className="mt-2 flex flex-col md:flex-row items-center gap-4 md:gap-8">
@@ -381,7 +407,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                                                     <td className="px-4 py-3 text-right">{bw.runs}</td>
                                                                     <td className="px-4 py-3 text-right font-bold text-blue-400">{bw.wickets}</td>
                                                                     <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
-                                                                        {bw.overs > 0 ? (bw.runs / bw.overs).toFixed(2) : '0.00'}
+                                                                        {bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + (Math.round((bw.overs % 1) * 10)) / 6)).toFixed(2) : '0.00'}
                                                                     </td>
                                                                 </tr>
                                                             ))

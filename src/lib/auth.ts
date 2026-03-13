@@ -4,9 +4,10 @@ export async function validateAdminRequest() {
     // 1. Check HTTP-only cookie set by /api/scorer-auth or /api/admin/login
     const cookieStore = await cookies();
     const token = cookieStore.get("vpl_scorer_token");
-    const adminPassword = process.env.ADMIN_PASSWORD ?? "1989";
+    const adminPassword = process.env.ADMIN_PASSWORD ?? "varchasva26";
+    const scorerPin = process.env.SCORER_PIN ?? "2526";
     
-    if (token && token.value === adminPassword) {
+    if (token && (token.value === adminPassword || token.value === scorerPin)) {
         return true;
     }
 
