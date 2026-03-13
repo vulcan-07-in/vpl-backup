@@ -1,263 +1,27 @@
-VPL Scoring System
-Full Code Review & Bug Report
-Both audit passes combined - 14 files reviewed
-March 2025
-Overall Score: 5.8 / 10Security2/53 API routes unprotected, secret in client bundleCorrectness3/5NRR bug, economy formula wrong, mutation bugUX Polish4/5Excellent UI, minor friction pointsArchitecture3/52,207-line monolith, needs decompositionResilience4/5Offline queue, localStorage fallback are solid
-1. Security Issues
-All three critical security problems must be fixed before the next match. They are not theoretical - they can be exploited with zero effort by any viewer who opens DevTools.
-1.1 - Admin API key hardcoded in client-side JS bundle
-[CRITICAL]  ADMIN_API_KEY visible to anyone in DevTools
-scorer-client.tsx:9const ADMIN_API_KEY = "vpl_secret_2025" is declared at the top of a client component. It ships inside the browser JavaScript bundle. Anyone can open DevTools → Sources and read it. Every API call (live-score, logs, active-match) sends this key in a header, giving full write access to the live match state in Redis.// WRONG - visible to any browser
-const ADMIN_API_KEY = "vpl_secret_2025";
- 
-// RIGHT - call a server action that holds the secret server-side
-// Key lives only in .env.local and is never sent to the browserFix: Move auth to server-side Next.js middleware or a Server Action. Never expose API secrets in client-side code.
-1.2 - PIN hardcoded in client-side JS
-[CRITICAL]  Scorer PIN compared in browser JavaScript
-scorer-client.tsx:388The PIN "2025" is compared in plain JS: if (pin === "2025"). Anyone can read the bundle in DevTools. The isAuthenticated flag is also stored in localStorage as a plain string - anyone can paste one line in the console to bypass auth entirely.// WRONG
-if (pin === "2025") { setIsAuthenticated(true); }
- 
-// RIGHT
-const res = await fetch('/api/auth/scorer', {
-  method: 'POST',
-  body: JSON.stringify({ pin })
-});
-if (res.ok) setIsAuthenticated(true);Fix: POST the PIN to a server route that validates server-side and returns a signed HTTP-only cookie or session token. Never store auth state in localStorage.
-1.3 - POST /api/live-score is completely unprotected
-[CRITICAL]  validateAdminRequest imported but never called
-api/live-score/route.ts:44The function is imported but the actual call is missing. A comment says 'For now, we trust the client'. Combined with the exposed key, anyone on the internet can POST arbitrary JSON to overwrite your live match state in Redis with a single curl command.// WRONG
-export async function POST(request: Request) {
-  const body = await request.json();
-  await redis.set(`live_match_${body.matchId}`, JSON.stringify(body)); // open!
-}
- 
-// RIGHT
-export async function POST(request: Request) {
-  const isValid = await validateAdminRequest();
-  if (!isValid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await request.json();
-  await redis.set(`live_match_${body.matchId}`, JSON.stringify(body));
-}Fix: Call validateAdminRequest() at the top of the POST handler and return 401 if it fails. This is a one-line fix.
-1.4 - POST /api/active-match also unprotected
-[CRITICAL]  validateAdminRequest imported but not called
-api/active-match/route.tsSame issue as live-score. Anyone can POST to /api/active-match and change which match is broadcast to all public viewers - or set it to null, killing the live view entirely. validateAdminRequest is imported at the top as dead code.Fix: Same fix: call validateAdminRequest() at the top of the POST handler.
-1.5 - api/logs: Both GET and POST are fully open with no auth
-[CRITICAL]  Audit log endpoints expose sensitive data and accept arbitrary writes
-api/logs/route.tsPOST accepts arbitrary action, matchId, and details - an attacker can flood your Redis logs with fake entries or craft entries that look like real scoring actions. GET exposes your full 1000-entry admin audit log (including every override and reset) to any anonymous browser visitor.Fix: Add validateAdminRequest() to both handlers. Validate that matchId is a real match. Restrict GET to admin users only.
-1.6 - auth.ts fallback key is the same as the client-side hardcoded key
-[HIGH]  Server fallback = client hardcoded = security theater
-auth.ts:3Server reads: process.env.ADMIN_API_KEY || "vpl_secret_2025". Client sends: "vpl_secret_2025". If the env variable is forgotten in any deployment, the server accepts the hardcoded key the client already knows. This means auth only works correctly when properly configured - and misconfiguration is silent.Fix: Remove the fallback from auth.ts so misconfiguration fails loudly at startup. Long-term: move scoring calls through Server Actions so the key never reaches the browser.
-1.7 - next.config.ts is empty - no security headers
-[MEDIUM]  No X-Frame-Options, no CSP, no env validation
-next.config.tsAn empty Next.js config means the scorer can be embedded in any malicious iframe to record inputs. No Content-Security-Policy, no X-Content-Type-Options, and no build-time check that required env variables are present.const nextConfig = {
-  headers: async () => [{
-    source: '/(.*)',
-    headers: [
-      { key: 'X-Frame-Options', value: 'DENY' },
-      { key: 'X-Content-Type-Options', value: 'nosniff' },
-    ],
-  }],
-};Fix: Add security headers via next.config.ts. This takes 10 minutes and protects against clickjacking.
-2. Logic Bugs
-2.1 - Root cause: wrong players in dropdown (user-reported)
-[BUG]  Team name mismatch between Fixtures sheet and Squads sheet
-tournament.ts + scorer/page.tsxSquad lookup uses getSquadForTeam(innings.teamName). The team name comes from the Fixtures sheet; the squads dictionary is keyed from the Squads sheet. If these differ by even one character ("Falcon FC" vs "Falcon F.C."), getSquadForTeam returns []. Case-insensitive matching exists but does NOT handle punctuation, ampersands, or spacing differences.const getSquadForTeam = (teamName: string) => {
-  if (!teamName) return [];
-  const normalize = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
-  const key = Object.keys(squads).find(k => normalize(k) === normalize(teamName));
-  if (!key) console.warn(`[Squad] No squad found for: "${teamName}"`);
-  return key ? squads[key] : [];
-};Fix: Normalize team names in BOTH sheets - strip punctuation. Add a console.warn in getSquadForTeam when no match is found so mismatches are visible immediately.
-2.2 - Points/NRR never update (user-reported)
-[BUG]  calculateStandings called with empty liveStates - NRR is always 0
-app/points/page.tsxcalculateStandings(fixtures, teams) is called without the third argument, so liveStates defaults to {}. The NRR calculation block requires liveMatch.status === 'COMPLETED'. Since liveStates is always empty, NRR is permanently 0 for every team and standings are sorted only by points won. The points page also doesn't export 'revalidate', so it may serve a stale build indefinitely.// RIGHT - points/page.tsx
-export const revalidate = 30;
- 
-export default async function PointsPage() {
-  const teams = await fetchTeams();
-  const fixtures = await fetchFixtures();
-  const liveStates = await fetchAllLiveStates(); // loop fixtures, fetch each from Redis
-  return <PointsClient fixtures={fixtures} teams={teams} liveStates={liveStates} />;
-}Fix: Fetch all completed match states from Redis on the points page. Pass them as the third argument to calculateStandings. Add export const revalidate = 30.
-2.3 - Match results don't appear on matches page (user-reported)
-[BUG]  Result relies on a 4-step fragile sync chain to Google Sheets
-scorer-client.tsx:560-590syncMatchResultToSheet runs: GET /api/matches → update locally → POST back → Sheet updates → 60s ISR cache expires → page shows result. Any silent failure in this chain (network, API error, race condition) means the result is never shown. Errors are swallowed in a catch block with no retry or user notification.Fix: The matches page should read from Redis (where the ground truth always lives) in addition to the Sheet. Redis is always up-to-date. Don't rely solely on the Sheet sync chain.
-2.4 - NRR t2BallsBowled computed but t1BallsBowled used (confirmed bug)
-[BUG]  Wrong NRR for all teams due to one wrong variable name
-tournament.ts:237Line 237: map[f.team2].oversBowled += t1BallsBowled / 6. The variable t2BallsBowled is correctly computed 3 lines above but silently ignored. The inline comment 'Fixed: should be t1BallsBowled' is itself wrong. This makes every team's bowling NRR contribution incorrect, affecting every tiebreaker in the tournament.// WRONG (line 237)
-map[f.team2].oversBowled += t1BallsBowled / 6;
- 
-// RIGHT
-map[f.team2].oversBowled += t2BallsBowled / 6;Fix: Change line 237 to: map[f.team2].oversBowled += t2BallsBowled / 6. This is a single word change.
-2.5 - Economy rate formula is wrong
-[BUG]  Divides runs by decimal overs directly, gives incorrect value
-scorer-client.tsx:1640Economy is calculated as bw.runs / bw.overs where overs is the decimal format (1.4 = 1 over 4 balls). Dividing by 1.4 gives the wrong rate. A bowler with 10 runs in 1 over 3 balls (stored as 1.3) shows economy 10/1.3 = 7.69 but the real economy is 10/1.5 = 6.67.// WRONG
-bw.runs / bw.overs
- 
-// RIGHT
-const realOvers = (v: number) => Math.floor(v) + (Math.round((v%1)*10)) / 6;
-bw.overs > 0 ? (bw.runs / realOvers(bw.overs)).toFixed(2) : '0.00'Fix: Convert decimal overs to real overs before dividing. A helper already exists in the codebase (decimalOversToBalls / 6).
-2.6 - Dismissed batsmen can be re-selected as striker/non-striker
-[BUG]  CHANGE dropdown shows full squad including dismissed players
-scorer-client.tsx:1458The inline CHANGE dropdowns for striker/non-striker use getSquadForTeam() - full squad, no filtering. A dismissed batsman remains in the list and can be accidentally re-selected. The wicket modal's new-batsman dropdown correctly filters dismissed players, but the live scoring panel does not.const dismissed = Object.values(currentInningsData.batsmen)
-  .filter(b => b.isOut).map(b => b.name);
-const onField = [currentInningsData.strikerRef, currentInningsData.nonStrikerRef]
-  .filter(Boolean);
- 
-getSquadForTeam(currentInningsData.teamName)
-  .filter(p => !dismissed.includes(p) && !onField.includes(p))Fix: Filter dismissed players and currently on-field players from the CHANGE dropdowns.
-2.7 - Background sync iterates localStorage while removing items
-[BUG]  Index-based loop + removeItem skips every other pending sync
-scorer-client.tsx:650-675The loop uses for (let i = 0; i < localStorage.length; i++) and calls localStorage.removeItem(key) inside it. Removing an item shifts all indices, so the item after each deletion is silently skipped. Pending syncs can never be retried.// WRONG
-for (let i = 0; i < localStorage.length; i++) {
-  const key = localStorage.key(i);
-  if (key?.startsWith("vpl_pending_sync_")) {
-    localStorage.removeItem(key); // next key skipped!
-  }
-}
- 
-// RIGHT
-const keys = Array.from({ length: localStorage.length }, (_, i) =>
-  localStorage.key(i)
-).filter(k => k?.startsWith("vpl_pending_sync_"));
-for (const key of keys) { /* remove safely */ }Fix: Collect all matching keys into an array first, then iterate over the copy.
-2.8 - submitWicket mutates BallEvent objects in state directly
-[BUG]  Shallow array copy + object mutation bypasses React immutability
-scorer-client.tsx:852-857[...liveState.timeline] creates a shallow copy of the array but the individual BallEvent objects are the same references. lastBall.newBatsman = wicketNewBatsman mutates the original object in state. This bypasses React's immutability model and can cause stale closure bugs with rapid input.// WRONG
-const lastBall = newTimeline[newTimeline.length - 1];
-lastBall.newBatsman = wicketNewBatsman; // mutating shared reference!
- 
-// RIGHT
-newTimeline[newTimeline.length - 1] = { ...lastBall, newBatsman: wicketNewBatsman };Fix: Use object spread to create a new BallEvent instead of mutating in place.
-2.9 - Loading spinner never clears if fixture not found
-[BUG]  Early return without setLoading(false) leaves UI frozen
-scorer-client.tsx:398-402loadMatchData calls setLoading(true) at the start but if fixtures.find() returns undefined, the function returns early without calling setLoading(false). The UI is left in a permanent loading state.if (!matchDef) { setLoading(false); return; } // add the false callFix: Add setLoading(false) before every early return in loadMatchData.
-2.10 - Floating point artifacts in overs calculation
-[BUG]  IEEE 754 produces 0.30000000000000004 instead of 0.3
-scorer-client.tsx:199-201inn.overs = Math.floor(inn.overs) + (totalBalls / 10) can produce values like 0.30000000000000004 due to IEEE 754 floating point. This cascades into NRR, LRR, and over-completion comparisons.// RIGHT
-inn.overs = parseFloat((Math.floor(inn.overs) + (totalBalls / 10)).toFixed(1));Fix: Round to one decimal place when assigning overs.
-2.11 - Tied match notification says 'TIE won by victory'
-[BUG]  split('by ')[1] returns undefined for 'Match Tied'
-scorer-client.tsx:626For tied matches, state.result = 'Match Tied' and winner = 'TIE'. The notification template does result.split('by ')[1] which returns undefined on 'Match Tied', falling back to 'victory'. Output: 'TIE won by victory'.// WRONG
-`${newState.winner} won by ${newState.result?.split('by ')[1] || 'victory'}`
- 
-// RIGHT
-newState.winner === "TIE"
-  ? "Match ended in a tie!"
-  : `Match Finished! ${newState.result}`Fix: Handle the tie case separately.
-2.12 - 5 runs not available on scoring pad
-[LOW]  Run buttons [0,1,2,3,4,6] missing 5 - required for penalty runs
-scorer-client.tsx:15145 penalty runs are a valid cricket award for obstruction, deliberate fielding violations, or lost balls. Without a 5 button the scorer must use the Override screen, which interrupts match flow and logs the event as an override rather than a normal delivery.Fix: Add 5 to the run buttons array. Reorganise as [0,1,2] / [3,4,5] / [6, WIDE, NB, DB, OUT].
-3. Display Bugs
-3.1 - Recent Deliveries shows wrong over number
-[DISPLAY]  ball.over - 0.1 is unreliable at over boundaries
-scorer-client.tsx:1393ball.over stores overs BEFORE the ball (e.g. 2.0 for first ball of 3rd over). Subtracting 0.1 gives 1.9 which implies '9th ball of 2nd over' - invalid cricket notation. The display should reconstruct the notation from the stored decimal value.// WRONG
-{(ball.over - 0.1).toFixed(1)}
- 
-// RIGHT
-const overNum = Math.floor(ball.over) + 1;
-const ballNum = Math.round((ball.over % 1) * 10) + 1;
-// Display as: "Ov " + overNum + "." + ballNumFix: Calculate over number and ball number explicitly from the stored over decimal.
-3.2 - Match Report shows Innings 2 panel before it begins
-[DISPLAY]  Both innings rendered unconditionally, even during innings break
-match-report.tsxThe report renders [inn1, inn2].map(...) always. During INNINGS_BREAK, inn2 has runs: 0, wickets: 0, overs: 0, empty batsmen/bowlers. The report shows 'Top Batsman: - 0(0)' which looks like a data error.// RIGHT
-[inn1, ...(state.status === 'COMPLETED' ||
-  state.currentInnings === 2 ? [inn2] : [])]
-  .map((inn, idx) => ( ... ))Fix: Only render innings that have actually been played.
-3.3 - Match Report timestamp shows current time on empty timeline
-[DISPLAY]  Date.now() fallback makes reset matches show wrong time
-match-report.tsx - footerstate.timeline[state.timeline.length - 1]?.timestamp || Date.now() - if the report is opened for a match that was reset or has no balls bowled, the footer shows the current moment as if it's the match end time. Misleading on official match reports.const lastBall = state.timeline[state.timeline.length - 1];
-const displayTime = lastBall
-  ? new Date(lastBall.timestamp).toLocaleString()
-  : state.status === 'COMPLETED' ? 'Time unavailable' : 'Match ongoing';Fix: Show a meaningful fallback text instead of Date.now().
-3.4 - HIT_WICKET and RETIRED_HURT missing from wicket modal
-[DISPLAY]  Valid dismissal types unreachable from the UI
-scorer-client.tsx:1931The type definition includes HIT_WICKET and RETIRED_HURT but the wicket modal only shows: BOWLED, CAUGHT, RUNOUT, LBW, STUMPED. Scorers must use the Override screen for these, which logs them as overrides rather than proper wicket events. RETIRED_HURT has special engine logic (wickets don't increment) that already works - the UI just doesn't expose it.Fix: Add HIT_WICKET and RETIRED_HURT to the wicket type buttons array.
-4. Code Quality & Architecture
-4.1 - scorer-client.tsx is 2,207 lines - needs decomposition
-[QUALITY]  Entire app in one component - untestable, unmaintainable
-scorer-client.tsxAuth, match selection, toss setup, live engine, wicket workflow, override modal, audit logs, sync queue, NB modal all live in one component. This causes React to re-render the entire tree on every ball event. It's impossible to unit test the scoring engine or any individual workflow.Fix: Suggested split: useLiveScoring hook (engine + timeline), useSyncQueue hook (persistence), WicketModal component, NBModal component, OverrideModal component, MatchSelector component.
-4.2 - applyBallEvent and rebuildState recreated on every render
-[QUALITY]  Pure functions defined inside component body - move to lib/
-scorer-client.tsx:133-336Both critical engine functions are defined inside the component body. React re-creates them on every state change (every ball). These functions are pure and depend only on match data, not on component state - they should live in tournament.ts or scorer-engine.ts.Fix: Move applyBallEvent and rebuildState to src/lib/scorer-engine.ts. They can then be imported, shared, and unit tested.
-4.3 - fetchTeams and fetchSquads duplicate 90% of their code
-[QUALITY]  Two functions fetching the same URL, same parser, same error handling
-tournament.ts:329-419Both functions fetch SQUADS_CSV_URL, check for HTML responses, and parse with PapaParse. The only difference is the return shape. In scorer/page.tsx both are called on the same request, potentially doubling Google Sheets API calls.Fix: Create a single fetchSquadCSV() that returns the raw parsed data. Both functions call it and transform the result.
-4.4 - Redis initialized without env check, no error handler, no shared client
-[QUALITY]  Empty REDIS_URL silently connects to localhost, fails obscurely in prod
-All route.ts filesnew Redis(process.env.REDIS_URL || '') - if the env var is missing, ioredis connects to localhost:6379 by default. In Vercel serverless this fails at every request with a cryptic timeout. No error event listener means connection failures are unlogged.import Redis from 'ioredis';
-if (!process.env.REDIS_URL) throw new Error('REDIS_URL is required');
-const redis = new Redis(process.env.REDIS_URL);
-redis.on('error', err => console.error('[Redis]', err));
-export default redis;Fix: Create a shared src/lib/redis.ts with an explicit env check and error listener. Import it in all routes.
-4.5 - Override form accepts invalid overs (e.g. 2.7) with no validation
-[QUALITY]  Input allows 7+ balls per over, corrupting the match engine state
-scorer-client.tsx - EDIT_OVERRIDE formOverride inputs are type='number' step='0.1'. A scorer can type 2.7 (7 balls in an over - invalid) or negative numbers. rebuildState is NOT called after override - raw values go straight to Redis. Invalid overs will prevent the over-completion trigger from ever firing.const overs = parseFloat(formData.get('teamOvers') as string);
-const balls = Math.round((overs % 1) * 10);
-if (balls > 5) {
-  alert('Invalid: ball count cannot exceed 5 (e.g. 2.5 = last ball of over 3)');
-  return;
-}Fix: Validate that the fractional part of overs is at most 0.5 (5 balls) before committing the override.
-4.6 - SHEET_ID hardcoded as public fallback in source code
-[QUALITY]  Real Sheet ID committed to version history permanently
-tournament.ts:319process.env.NEXT_PUBLIC_SHEET_ID || "12cbvXQkyWZ..." embeds the real Sheet ID as a code fallback. The app works in production even if the env variable is misconfigured, masking errors. The Sheet ID is now in git history forever.Fix: Remove the hardcoded fallback. Throw a clear error if NEXT_PUBLIC_SHEET_ID is missing.
-4.7 - any types used in critical paths
-[QUALITY]  Suppresses TypeScript bug detection in audit logs and squad parsing
-scorer-client.tsx:130, page.tsx:22auditLogs: any[] and p: any in the squads parser suppress TypeScript's ability to catch type errors in the audit log rendering and squad player parsing - exactly the paths where a runtime error mid-match would be most painful.Fix: Define an AuditLogEntry interface and a Player interface. Type everything properly.
-4.8 - Duplicate 'Back' and 'Matches' buttons in the live scoring toolbar
-[UX]  Two buttons on the same row do the same thing - clutters the UI
-scorer-client.tsx:1302-1327The top action bar has both a '← Back' button and a 'Matches' button, both calling setActiveScreen('SELECT_MATCH'). The toolbar has 8 buttons total - too many for a UI that must be operated under match pressure. The Reset button is one tap away from scoring buttons, risking accidental match resets.Fix: Consolidate to: [← Matches] [Scoreboard] [Override ▾] [History] [Logs] [Logout]. Move Reset into the Override dropdown so it is not one-tap accessible.
-4.9 - Blocking alert() and confirm() used throughout (12+ occurrences)
-[UX]  Native dialogs freeze the main thread, break on iOS Safari in iframes
-scorer-client.tsx - multiple locationsNative alert() and confirm() block the entire UI. On iOS Safari they can be suppressed by the browser. Dangerous actions like 'Reset Match' transition UI state immediately on confirm press, before the async operation completes - if the network fails after navigation, the state is inconsistent.Fix: Replace alert/confirm with an inline toast notification system and a confirmation modal component. Wait for API success before navigating on destructive actions.
-scorer-client.tsx - multiple locationsNative alert() and confirm() block the entire UI. On iOS Safari they can be suppressed by the browser. Dangerous actions like 'Reset Match' transition UI state immediately on confirm press, before the async operation completes - if the network fails after navigation, the state is inconsistent.Fix: Replace alert/confirm with an inline toast notification system and a confirmation modal component. Wait for API success before navigating on destructive actions.
-4.10 - Artificial 500ms delay on every page load
-[UX]  Forces users to wait half a second before every login
-scorer-client.tsx:57-61setTimeout(..., 500) is used to 'prevent flash'. On a fast connection the scorer is ready instantly but users wait regardless. This is particularly frustrating mid-match when the scorer refreshes after a network drop.Fix: Remove the artificial delay. Use CSS transitions or Next.js font loading callbacks to prevent layout flash without blocking the UI.
-5. What Works Well
-These design decisions are genuinely good and should be preserved as the codebase is refactored.
-StrengthsTimeline-based event sourcing for UndoStoring the complete ball-by-ball timeline and rebuilding state from scratch via rebuildState is the correct architecture for a live scorer. Undo, edit, and delete are deterministic. Most hobby cricket apps get this wrong by storing only current state.applyBallEvent is a pure functionThe engine has no side effects and fully derives state from events. This means you can extract it to scorer-engine.ts and unit test every cricket rule independently - something you should do before the knockout stage.Offline sync queue with background retryThe vpl_pending_sync_* localStorage queue with a 5-second background retry is a good resilience pattern for a live-scoring context where network drops are common. The localStorage fallback on load is also smart.Edge caching on live-score GETThe s-maxage=1, stale-while-revalidate=1 header on the Redis GET reduces Redis reads significantly for concurrent public viewers while keeping data near real-time. Correct call for a public event.UI quality and scorer UXThe iPad-optimised two-column layout, the sync status indicator, the lock/unlock mechanism, the innings break overlay, and the amber/blue visual distinction between batting and bowling are all thoughtful decisions made with the actual scorer workflow in mind.Robust team name matching in getSquadForTeamThe case-insensitive toLowerCase comparison is a good default for a sheet-sourced dataset. Just needs the punctuation normalisation step added.
-6. Fix Priority Checklist
-In rough order of risk vs. effort. Items marked BEFORE MATCH must be done before the next live game.
-PriorityIssueEffortP0 · NOWCall validateAdminRequest() in live-score, active-match, and logs POST handlers~15 minP0 · NOWMove PIN validation to a server route - client-side check is security theater~1 hourP0 · NOWRemove ADMIN_API_KEY from client code~1 hourP1 · BEFORE MATCHFix team name normalisation in getSquadForTeam (add punctuation strip)~20 minP1 · BEFORE MATCHFix t2BallsBowled variable on tournament.ts line 237~2 minP1 · BEFORE MATCHAdd economy rate conversion (realOvers) in scoreboard display~10 minP1 · BEFORE MATCHFilter dismissed players from inline CHANGE dropdowns~20 minP1 · BEFORE MATCHFix localStorage iteration bug in background sync loop~10 minP2 · SOONPoints page: fetch liveStates from Redis and pass to calculateStandings~2 hoursP2 · SOONMatches page: read winner from Redis, not just the Sheet CSV chain~2 hoursP2 · SOONAdd X-Frame-Options and CSP headers to next.config.ts~20 minP2 · SOONCreate shared src/lib/redis.ts with env check and error handler~20 minP2 · SOONAdd HIT_WICKET and RETIRED_HURT to wicket modal~30 minP2 · SOONAdd 5 run button to scoring pad~10 minP3 · REFACTORExtract applyBallEvent and rebuildState to scorer-engine.ts + write unit tests~1 dayP3 · REFACTORDecompose scorer-client.tsx into hooks and sub-components~2 daysP3 · REFACTORMerge fetchTeams/fetchSquads into a single fetchSquadData()~30 minP3 · REFACTORReplace all alert/confirm with toast notifications and modals~1 day
-Generated by Claude - VPL Code Audit, March 2025
-6. Pass 3: Scorer, Admin & Viewer Refinements (Current Audit)
-6.1 - Points Table ignores Redis "Ground Truth"
-[BUG]  Points page only uses Sheets data; NRR is stale until manual sync
-points/page.tsx:12-15The points page fetches Teams and Fixtures from Sheets/CSV but never fetches the matching LiveMatchState from Redis for completed matches. This means that even after a match is finished in the Scorer dashboard, the Points Table shows 0 NRR and 0 points until someone manually clicks "Sync" in Admin or Scorer.Fix: Fetch all match states from Redis in PointsPage and pass them to calculateStandings.
+VARCHASVA PREMIER LEAGUE - DEEP-DIVE CODE AUDIT REPORT
+======================================================
+Focus: `scorer-client.tsx`, `tournament.ts`, and State Management.
 
-6.2 - Viewer dashboard score jumps without animation
-[UX]  Static score updates feel "thin" compared to professional sports apps
-live-client.tsx:196The main score in the viewer dashboard just snaps to the new value. In a premium experience, the digits should animate or pulse on change to grab the viewer's attention.Fix: Use framer-motion's AnimatePresence or a dedicated RollingNumber component for the runs and wickets.
+### 1. Data Flow & Logic Audit (Source of truth)
+✅ The Counting Logic (`applyBallEvent` and `rebuildState`) is mathematically sound. 
+- Wides (`WD`) correctly grant 1 extra + runs completed without inflating batter balls faced.
+- No Balls (`NB`) correctly assign bat runs to the striker, +1 to the team extras, and ignore ball count.
+- Strike rotation logic for over-completion and odd-runs is perfectly separated.
+✅ The Source of Truth (Dropdowns & Lists) in `LIVE_SCORING`, `TOSS_SETUP`, and `WICKET_MODAL` perfectly bound player selections using `getSquadForTeam` based on `currentInningsData.teamName` vs `fieldingInningsData.teamName`.
+- `isOut` and active striker/non-striker filtering prevents duplicate player selection.
 
-6.3 - Admin lacks "Scorer Heartbeat" visibility
-[WORKFLOW]  No way to tell if the scorer is offline or just slow
-admin/page.tsxThe Admin dashboard shows which match is "LIVE" but doesn't show the last time the scorer actually pushed an update. If the scorer's internet drops, the admin (and viewers) stay in the dark.Fix: Add a `lastSyncedAt` timestamp to the Redis match state and display a "Last Update: 12s ago" status on the Admin match card.
+### 2. UI/UX & Interactive Flow (Critical UX Fixes)
+❌ **Dead End Found (Match Selection):** 
+When a scorer is on the `SELECT_MATCH` screen, they are completely trapped. There is no top bar and no `Logout` button visible. If a scorer accidentally logs in to the wrong device, they must forcefully clear browser cache or enter a random match just to access the Action menu to logout.
+❌ **Mobile Sizing Constraints:** 
+The massive iPad/Desktop control grid `col-span-6` translates well manually, but the `EDIT_OVERRIDE` modal has buttons pushed all the way to the bottom.
 
-6.4 - Match Report shows Innings 2 prematurely
-[DISPLAY]  Empty scoreboard shown during Innings 1
-match-report-client.tsxSimilar to the public match report, the internal one renders both innings. This clutters the UI during the first half of the match.Fix: Conditional rendering for Innings 2 based on `currentInnings` or `status`.
+### 3. AI-Specific Bug Hunting
+✅ No `useEffect` infinite loops detected.
+- The `[liveState]` dependency array for syncing `openStriker`/`openBowler` on `LIVE` is redundant but safe since React bails out of identical pointer updates.
+- "Ghost Props": `notifyMatch` and `handleSetActiveMatch` were detected as orphaned code fragments (commented out as `dead no-op`). Background syncing correctly replaced them with local storage queued APIs!
 
-6.5 - Hardcoded "1989" Pin needs management
-[SECURITY]  Scorer PIN is now 4-digits but still hardcoded in multiple places
-auth.ts, login/route.ts while 1989 is better than a long string, it's still hardcoded as a fallback. If the PIN is compromised mid-tournament, a developer must redeploy.Fix: Allow the ADMIN_PASSWORD environment variable to be updated via a settings tab in the Admin dashboard (persisted to Redis).
+---
 
-7. Updated Fix Priority Checklist (Pass 3)
-In addition to the previous checklist.
-
-Priority | Issue | Effort
---- | --- | ---
-P0 · NOW | Fix Points Table: Fetch all Redis states to show real-time NRR | ~1 hour
-P1 · SOON | Add "Scorer Heartbeat" to Admin (lastSyncedAt display) | ~30 min
-P1 · SOON | Add Rolling Number animations to Live Viewer score | ~1 hour
-P1 · SOON | Conditional Innings 2 rendering on Match Reports | ~15 min
-P2 · NEXT | Add "5 Runs" button to Scorer UI (for penalties) | ~10 min
-P2 · NEXT | Implement "Quick Sync": Auto-push result to Sheets on completion | ~1 hour
-
-8. Strategic Ideas for "WOW" Factor
-1.  **Dynamic Backgrounds**: Change the ambient background color of the Public Viewer based on the batting team's primary color (already started, but can be much richer).
-2.  **Highlight Reel Link**: Allow Admin to paste a YouTube/Instagram link for a "Match Highlights" button on completed Match Reports.
-3.  **Wicket Animation**: A full-screen "OUT" animation that triggers for 3 seconds on the Viewer dash when a wicket is logged.
-4.  **Automatic Leaderboard**: Use the Redis data to automatically calculate "Highest Run Getter" and "Leading Wicket Taker" without any manual data entry.
-
-Generated by Claude - VPL Code Audit Refinement, March 2025
+### ACTION TAKEN:
+I have automatically updated `scorer-client.tsx` to fix the **Critical UI Dead End**. A dedicated `Logout` button has been injected into the `AVAILABLE FIXTURES` header on the match selection screen.

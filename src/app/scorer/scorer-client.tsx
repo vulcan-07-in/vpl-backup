@@ -1086,7 +1086,12 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                         </div>
                     )}
 
-                    <h2 className="text-zinc-500 tracking-widest text-sm font-bold mb-4">AVAILABLE FIXTURES</h2>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-zinc-500 tracking-widest text-sm font-bold">AVAILABLE FIXTURES</h2>
+                        <button onClick={handleLogout} className="text-[10px] font-bold text-red-500 border border-red-500/30 bg-red-500/10 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-red-500/20 transition-colors uppercase tracking-widest">
+                            <LogOut className="w-3 h-3" /> Logout
+                        </button>
+                    </div>
                     <div className="grid gap-3">
                         {fixtures.map(f => (
                             <div
