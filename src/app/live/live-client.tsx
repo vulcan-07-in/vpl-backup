@@ -10,6 +10,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [showScorecard, setShowScorecard] = useState(false);
+    const [animationEvent, setAnimationEvent] = useState<{ type: '4' | '6' | 'W', player: string } | null>(null);
 
     const colorOf = (name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
 
@@ -30,7 +31,23 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 // 2. Fetch that specific match state
                 const res = await fetch(`/api/live-score?matchId=${activeMatchId}`);
                 if (res.ok) {
-                    const data = await res.json();
+                    const data: LiveMatchState = await res.json();
+                    
+                    // Check for new boundary or wicket for animation
+                    if (liveMatch && data.timeline.length > liveMatch.timeline.length) {
+                        const lastBall = data.timeline[data.timeline.length - 1];
+                        if (lastBall.isWicket) {
+                            setAnimationEvent({ type: 'W', player: lastBall.playerOut || lastBall.striker });
+                            setTimeout(() => setAnimationEvent(null), 4000);
+                        } else if (lastBall.runs === 4) {
+                            setAnimationEvent({ type: '4', player: lastBall.striker });
+                            setTimeout(() => setAnimationEvent(null), 4000);
+                        } else if (lastBall.runs === 6) {
+                            setAnimationEvent({ type: '6', player: lastBall.striker });
+                            setTimeout(() => setAnimationEvent(null), 4000);
+                        }
+                    }
+                    
                     setLiveMatch(data);
                 } else {
                     setLiveMatch(null);
@@ -183,242 +200,473 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     </AnimatePresence>
                 </div>
 
-                {/* Score Big Board */}
-                <div className="relative w-full rounded-3xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                    {/* Dynamic Ambient Background Pulse */}
+                {/* Big Event Animation Banner (Wicket, 4, 6) */}
+                <AnimatePresence>
+                    {animationEvent && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 1.1, y: -20 }}
+                            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none p-4"
+                        >
+                            <div className={`relative overflow-hidden rounded-[3rem] p-1 shadow-[0_0_100px_rgba(0,0,0,0.5)] ${
+                                animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-600 to-red-900' :
+                                animationEvent.type === '6' ? 'bg-gradient-to-br from-purple-600 to-indigo-900' :
+                                'bg-gradient-to-br from-amber-400 to-amber-700'
+                            }`}>
+                                <div className="bg-black/20 backdrop-blur-sm px-12 py-8 rounded-[2.8rem] flex flex-col items-center text-center border border-white/20">
+                                    <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ type: 'spring', delay: 0.2 }}
+                                        className="text-7xl md:text-9xl font-black text-white italic tracking-tighter mb-2 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
+                                        style={{ fontFamily: 'var(--font-display)' }}
+                                    >
+                                        {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
+                                    </motion.div>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.4 }}
+                                        className="text-white font-bold text-xl md:text-3xl uppercase tracking-[0.3em]"
+                                    >
+                                        {animationEvent.player}
+                                    </motion.div>
+                                    
+                                    {/* Particles/Lines effect */}
+                                    <div className="absolute inset-0 opacity-30">
+                                        {[...Array(6)].map((_, i) => (
+                                            <motion.div
+                                                key={i}
+                                                animate={{ 
+                                                    x: [0, (i % 2 === 0 ? 100 : -100)],
+                                                    y: [0, (i < 3 ? 100 : -100)],
+                                                    opacity: [0, 1, 0]
+                                                }}
+                                                transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
+                                                className="absolute top-1/2 left-1/2 w-1 h-20 bg-white rounded-full blur-sm"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Score Big Board with Glassmorphism and 3D Depth */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative w-full rounded-[2.5rem] overflow-hidden bg-zinc-900/40 border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+                >
+                    {/* Multi-layered Ambient Backgrounds */}
                     <AnimatePresence mode="wait">
                         <motion.div 
                             key={battingColor}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.25 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 1 }}
-                            className="absolute inset-0 pointer-events-none" 
-                            style={{ background: `radial-gradient(circle at 10% -20%, ${battingColor}, transparent 60%)` }} 
-                        />
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.1 }}
+                            transition={{ duration: 1.5, ease: "easeOut" }}
+                            className="absolute inset-0 pointer-events-none"
+                        >
+                            <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full blur-[120px] mix-blend-screen opacity-20" style={{ backgroundColor: battingColor }} />
+                            <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full blur-[120px] mix-blend-screen opacity-10" style={{ backgroundColor: battingColor }} />
+                        </motion.div>
                     </AnimatePresence>
 
-                    <div className="p-8 md:p-12 relative z-10 flex flex-col items-center text-center">
-                        <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
-                            {currentInningsData.teamName}
-                        </h2>
+                    {/* Mesh Gradient Overlay */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150" />
 
-                        <div className="flex items-baseline justify-center gap-2 mb-2">
-                            {/* Rolling Runs */}
-                            <motion.span 
+                    <div className="p-8 md:p-14 relative z-10 flex flex-col items-center text-center">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="flex flex-col items-center mb-6"
+                        >
+                            <span className="text-[10px] font-black tracking-[0.5em] text-zinc-500 uppercase mb-3">NOW BATTING</span>
+                            <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight drop-shadow-2xl" style={{ fontFamily: "var(--font-display)" }}>
+                                {currentInningsData.teamName}
+                            </h2>
+                        </motion.div>
+
+                        <div className="flex items-baseline justify-center gap-1 md:gap-3 mb-4">
+                            {/* Rolling Runs with Perspective */}
+                            <motion.div 
                                 key={currentInningsData.runs}
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                className="text-8xl md:text-[12rem] font-bold text-white leading-none tracking-tighter drop-shadow-lg inline-block" 
-                                style={{ fontFamily: "var(--font-display)" }}
+                                initial={{ y: 40, opacity: 0, rotateX: -45 }}
+                                animate={{ y: 0, opacity: 1, rotateX: 0 }}
+                                transition={{ type: 'spring', damping: 12, stiffness: 100 }}
+                                className="perspective-[1000px]"
                             >
-                                {currentInningsData.runs}
-                            </motion.span>
+                                <span className="text-9xl md:text-[14rem] font-black text-white leading-none tracking-tighter inline-block bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent" 
+                                    style={{ fontFamily: "var(--font-display)" }}
+                                >
+                                    {currentInningsData.runs}
+                                </span>
+                            </motion.div>
 
-                            <motion.span 
+                            <motion.div 
                                 key={currentInningsData.wickets}
-                                initial={{ scale: 1.5, color: '#ef4444' }}
-                                animate={{ scale: 1, color: '#71717a' }}
-                                transition={{ type: 'spring', damping: 10 }}
-                                className="text-5xl md:text-8xl font-bold leading-none inline-block" 
-                                style={{ fontFamily: "var(--font-display)" }}
+                                initial={{ scale: 1.5, opacity: 0, x: 20 }}
+                                animate={{ scale: 1, opacity: 1, x: 0 }}
+                                transition={{ type: 'spring', damping: 15 }}
+                                className="flex items-baseline"
                             >
-                                -{currentInningsData.wickets}
-                            </motion.span>
+                                <span className="text-6xl md:text-9xl font-black text-zinc-600 leading-none" 
+                                    style={{ fontFamily: "var(--font-display)" }}
+                                >
+                                    -{currentInningsData.wickets}
+                                </span>
+                            </motion.div>
                         </div>
 
-                        <div className="mt-2 flex flex-col md:flex-row items-center gap-4 md:gap-8">
-                            <span className="text-2xl md:text-3xl font-medium text-zinc-400 tabular-nums">
-                                OVERS: {currentInningsData.overs.toFixed(1)} <span className="text-zinc-600 text-lg">/ {liveMatch.matchOvers}</span>
-                            </span>
-                            <div className="hidden md:block w-px h-4 bg-zinc-800" />
-                            <span className="text-lg md:text-xl font-bold tracking-[0.2em] text-amber-500/80 uppercase">
-                                LRR: {currentInningsData.lrr?.toFixed(2) || "0.00"}
-                            </span>
-                        </div>
-
-                        {/* 2nd Innings Chasing Info */}
-                        {liveMatch.currentInnings === 2 && liveMatch.status !== "COMPLETED" && (
-                            <div className="mt-8 flex flex-col items-center gap-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                <div className="text-amber-500 font-bold tracking-[0.3em] text-[10px] md:text-xs uppercase mb-1">
-                                    THE CHASE IS ON
-                                </div>
-                                <div className="text-2xl md:text-4xl font-bold text-white tracking-widest uppercase">
-                                    NEED {(liveMatch.innings1.runs + 1) - currentInningsData.runs} RUNS IN {(liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))} BALLS
-                                </div>
-                                <div className="text-[10px] md:text-xs text-zinc-500 tracking-[0.2em] font-medium uppercase mt-1">
-                                    Target: {liveMatch.innings1.runs + 1} • Required: {(((liveMatch.innings1.runs + 1) - currentInningsData.runs) / (((liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))) / 6)).toFixed(2)} RPO
-                                </div>
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="flex flex-col md:flex-row items-center gap-4 md:gap-10"
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl md:text-3xl font-black tabular-nums text-white/90">
+                                    {currentInningsData.overs.toFixed(1)}
+                                </span>
+                                <span className="text-xs font-black tracking-widest text-zinc-500 uppercase">OVERS COMPLETED</span>
                             </div>
+                            
+                            <div className="hidden md:block w-px h-6 bg-white/10" />
+
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl md:text-3xl font-black tabular-nums text-amber-500">
+                                    {currentInningsData.lrr?.toFixed(2) || "0.00"}
+                                </span>
+                                <span className="text-xs font-black tracking-widest text-zinc-500 uppercase">RUN RATE</span>
+                            </div>
+                        </motion.div>
+
+                        {/* 2nd Innings Chasing Info with Premium Banner */}
+                        {liveMatch.currentInnings === 2 && liveMatch.status !== "COMPLETED" && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.6 }}
+                                className="mt-12 w-full max-w-2xl px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/20 backdrop-blur-lg"
+                            >
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="text-amber-500 font-black tracking-[0.4em] text-[10px] uppercase mb-1 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                                        TARGET REACHABLE
+                                    </div>
+                                    <div className="text-2xl md:text-4xl font-black text-white tracking-tight uppercase" style={{ fontFamily: "var(--font-display)" }}>
+                                        NEED {(liveMatch.innings1.runs + 1) - currentInningsData.runs} <span className="text-amber-500">RUNS</span> IN {(liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))} <span className="text-zinc-500">BALLS</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">TARGET</span>
+                                            <span className="text-sm font-black text-white">{liveMatch.innings1.runs + 1}</span>
+                                        </div>
+                                        <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">REQUIRED RATE</span>
+                                            <span className="text-sm font-black text-amber-500">{(((liveMatch.innings1.runs + 1) - currentInningsData.runs) / (((liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))) / 6)).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
                         )}
                     </div>
-                </div>
+                </motion.div>
 
-                {/* Player Stats Grid */}
+                {/* Player Stats Grid with Glassmorphism */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     {/* BATSMEN */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl pointer-events-none" />
-                        <h3 className="text-xs font-bold tracking-[0.2em] text-zinc-500 mb-4 border-b border-zinc-800 pb-3 uppercase">BATSMEN</h3>
-                        <div className="space-y-3 relative z-10">
-                            <div className={`flex justify-between items-center p-3 rounded-xl border ${activeStriker ? 'border-amber-500/30 bg-amber-500/10' : 'border-zinc-800 bg-black/50'} transition-all`}>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-white font-bold text-lg">{activeStriker ? activeStriker.name : "Waiting..."}</span>
-                                    {activeStriker && <span className="text-amber-500 text-xl leading-none -mt-1">*</span>}
+                    <motion.div 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-3xl pointer-events-none" />
+                        <h3 className="text-[10px] font-black tracking-[0.3em] text-zinc-500 mb-6 border-b border-white/5 pb-3 uppercase">PROJECTED BATSMEN</h3>
+                        <div className="space-y-4 relative z-10">
+                            <div className={`group flex justify-between items-center p-4 rounded-2xl border transition-all duration-500 ${activeStriker ? 'border-amber-500/30 bg-amber-500/5 shadow-[0_0_20px_rgba(245,158,11,0.05)]' : 'border-white/5 bg-black/20'}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-1 h-8 rounded-full transition-all ${activeStriker ? 'bg-amber-500' : 'bg-zinc-800'}`} />
+                                    <div className="flex flex-col">
+                                        <span className="text-white font-black text-xl tracking-tight leading-none mb-1">
+                                            {activeStriker ? activeStriker.name : "WAITING..."}
+                                            {activeStriker && <span className="text-amber-500 ml-1 italic">*</span>}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">ON STRIKE</span>
+                                    </div>
                                 </div>
-                                <span className="text-white font-bold text-lg tabular-nums">
-                                    {activeStriker ? `${activeStriker.runs}` : "0"}<span className="text-zinc-500 font-normal ml-2">({activeStriker?.balls || 0})</span>
-                                </span>
+                                <div className="text-right">
+                                    <span className="text-white font-black text-2xl tabular-nums block leading-none">
+                                        {activeStriker ? activeStriker.runs : "0"}
+                                    </span>
+                                    <span className="text-zinc-500 font-bold text-[10px] tabular-nums">
+                                        {activeStriker ? activeStriker.balls : "0"} BALLS
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className={`flex justify-between items-center p-3 rounded-xl border text-zinc-300 ${activeNonStriker ? 'border-zinc-700 bg-black' : 'border-zinc-800 bg-black/50'}`}>
-                                <span>{activeNonStriker ? activeNonStriker.name : "Waiting..."}</span>
-                                <span className="tabular-nums font-bold">
-                                    {activeNonStriker ? `${activeNonStriker.runs}` : "0"}<span className="text-zinc-600 font-normal ml-2">({activeNonStriker?.balls || 0})</span>
-                                </span>
+                            <div className={`flex justify-between items-center p-4 rounded-2xl border transition-all duration-500 ${activeNonStriker ? 'border-white/10 bg-black/40' : 'border-white/5 bg-black/20 text-zinc-600'}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1 h-8 rounded-full bg-zinc-800" />
+                                    <div className="flex flex-col">
+                                        <span className="text-zinc-300 font-black text-lg tracking-tight leading-none mb-1">
+                                            {activeNonStriker ? activeNonStriker.name : "WAITING..."}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">NON-STRIKER</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-zinc-300 font-black text-xl tabular-nums block leading-none">
+                                        {activeNonStriker ? activeNonStriker.runs : "0"}
+                                    </span>
+                                    <span className="text-zinc-600 font-bold text-[10px] tabular-nums">
+                                        {activeNonStriker ? activeNonStriker.balls : "0"} BALLS
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* BOWLER */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl pointer-events-none" />
-                        <h3 className="text-xs font-bold tracking-[0.2em] text-zinc-500 mb-4 border-b border-zinc-800 pb-3 uppercase">CURRENT BOWLER</h3>
-                        <div className={`flex justify-between items-center p-3 rounded-xl border ${activeBowler ? 'border-blue-500/30 bg-blue-500/10' : 'border-zinc-800 bg-black/50'} transition-all mt-2`}>
-                            <span className="text-blue-100 font-bold text-lg">{activeBowler ? activeBowler.name : "Waiting..."}</span>
-                            <div className="flex items-center gap-4 text-white font-bold text-lg tabular-nums">
-                                <span>{activeBowler ? `${activeBowler.wickets}-${activeBowler.runs}` : "0-0"}</span>
-                                <span className="text-zinc-500 font-normal text-sm">({activeBowler ? activeBowler.overs.toFixed(1) : "0.0"})</span>
+                    <motion.div 
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl pointer-events-none" />
+                        <h3 className="text-[10px] font-black tracking-[0.3em] text-zinc-500 mb-6 border-b border-white/5 pb-3 uppercase">ACTIVE BOWLER</h3>
+                        <div className="flex-1 flex flex-col justify-center">
+                            <div className={`flex justify-between items-center p-5 rounded-2xl border transition-all duration-500 ${activeBowler ? 'border-blue-500/30 bg-blue-500/5 shadow-[0_0_20px_rgba(59,130,246,0.05)]' : 'border-white/5 bg-black/20'}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-1 h-10 rounded-full transition-all ${activeBowler ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-zinc-800'}`} />
+                                    <div className="flex flex-col">
+                                        <span className="text-blue-50 font-black text-2xl tracking-tight leading-none mb-1">
+                                            {activeBowler ? activeBowler.name : "WAITING..."}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-blue-500/70 tracking-widest uppercase italic">PELTING SPEED</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="flex items-baseline justify-end gap-1">
+                                        <span className="text-white font-black text-3xl tabular-nums leading-none">
+                                            {activeBowler ? activeBowler.wickets : "0"}
+                                        </span>
+                                        <span className="text-zinc-500 font-bold text-xl tabular-nums leading-none">-</span>
+                                        <span className="text-white font-black text-3xl tabular-nums leading-none">
+                                            {activeBowler ? activeBowler.runs : "0"}
+                                        </span>
+                                    </div>
+                                    <span className="text-blue-500/50 font-black text-[10px] tabular-nums tracking-widest mt-1 block">
+                                        {activeBowler ? activeBowler.overs.toFixed(1) : "0.0"} OVERS
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
 
-                {/* Recent Balls Timeline */}
-                <div className="mt-8 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                {/* Recent Balls Timeline with Glassmorphism */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 }}
+                    className="mt-10 bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[2rem] p-8 shadow-inner overflow-hidden relative"
+                >
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                    
                     {liveMatch.status === "COMPLETED" ? (
-                        <div className="text-center py-4">
-                            <h3 className="text-xs font-bold tracking-[0.3em] text-amber-500 mb-2 uppercase">MATCH RESULT</h3>
-                            <p className="text-2xl md:text-4xl font-bold text-white tracking-widest uppercase" style={{ fontFamily: "var(--font-display)" }}>
+                        <div className="text-center py-6">
+                            <h3 className="text-[10px] font-black tracking-[0.5em] text-amber-500/70 mb-3 uppercase">MATCH CONCLUSION</h3>
+                            <p className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase drop-shadow-lg" style={{ fontFamily: "var(--font-display)" }}>
                                 {liveMatch.result}
                             </p>
+                            <div className="mt-4 flex justify-center gap-2">
+                                {[...Array(3)].map((_, i) => (
+                                    <motion.div 
+                                        key={i}
+                                        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                                        transition={{ duration: 2, repeat: Infinity, delay: i * 0.4 }}
+                                        className="w-1.5 h-1.5 rounded-full bg-amber-500"
+                                    />
+                                ))}
+                            </div>
                         </div>
                     ) : (
                         <>
-                            <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 mb-4 uppercase">Recent Deliveries</h3>
-                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-[10px] font-black tracking-[0.4em] text-zinc-500 uppercase">RECENT DELIVERIES</h3>
+                                <div className="flex gap-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                                        <span className="text-[8px] font-bold text-zinc-500 tracking-widest uppercase">WICKET</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                        <span className="text-[8px] font-bold text-zinc-500 tracking-widest uppercase">BOUNDARY</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
                                 {liveMatch.timeline.length === 0 ? (
-                                    <span className="text-zinc-600 text-xs italic tracking-widest">Awaiting first delivery...</span>
+                                    <div className="flex flex-col items-center justify-center w-full py-4 opacity-30">
+                                        <div className="w-10 h-10 rounded-full border-2 border-dashed border-zinc-500 animate-spin mb-2" />
+                                        <span className="text-zinc-500 text-[10px] font-bold tracking-[0.2em] uppercase">Awaiting first delivery</span>
+                                    </div>
                                 ) : (
-                                    [...liveMatch.timeline].reverse().slice(0, 10).map((ball) => (
-                                        <div key={ball.id} className="flex flex-col items-center gap-1 min-w-[48px]">
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-2 shadow-inner transition-all ${ball.isWicket ? 'bg-red-500 border-red-400 text-white shadow-red-900/40' : ball.runs >= 4 ? 'bg-amber-500 border-amber-400 text-black shadow-amber-900/20' : 'bg-zinc-800 border-zinc-700 text-zinc-300'}`}>
+                                    [...liveMatch.timeline].reverse().slice(0, 12).map((ball, idx) => (
+                                        <motion.div 
+                                            key={ball.id} 
+                                            initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                                            transition={{ delay: idx * 0.05, type: 'spring', damping: 12 }}
+                                            className="flex flex-col items-center gap-2 min-w-[56px]"
+                                        >
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border-2 shadow-2xl transition-all duration-300 transform hover:scale-110 ${
+                                                ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/40 rotate-3' : 
+                                                ball.runs >= 4 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/20 -rotate-3' : 
+                                                'bg-white/5 border-white/10 text-zinc-100'
+                                            }`}>
                                                 {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
                                             </div>
-                                            <span className="text-[9px] font-bold text-zinc-500 font-mono">{(ball.over - 0.1).toFixed(1)}</span>
-                                        </div>
+                                            <span className="text-[9px] font-black text-zinc-500 font-mono tracking-tighter">
+                                                {(ball.over - 0.1).toFixed(1)}
+                                            </span>
+                                        </motion.div>
                                     ))
                                 )}
                             </div>
                         </>
                     )}
-                </div>
+                </motion.div>
 
-                {/* Scorecard Overlay */}
+                {/* Scorecard Overlay with Ultra-premium Glassmorphism */}
                 <AnimatePresence>
                     {showScorecard && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-xl p-4 md:p-8 flex items-center justify-center">
-                            <div className="bg-zinc-950 border border-zinc-800 w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl">
-                                <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-                                    <h2 className="text-xl font-bold tracking-tight uppercase" style={{ fontFamily: "var(--font-display)" }}>Full Scorecard</h2>
-                                    <button onClick={() => setShowScorecard(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-500 hover:text-white">
+                        <motion.div 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }} 
+                            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-2xl p-4 md:p-8 flex items-center justify-center"
+                        >
+                            <motion.div 
+                                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                className="bg-zinc-900/80 border border-white/10 w-full max-w-5xl max-h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-[0_64px_128px_-32px_rgba(0,0,0,0.8)]"
+                            >
+                                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-zinc-800/20 backdrop-blur-md">
+                                    <div className="flex flex-col">
+                                        <h2 className="text-2xl font-black tracking-tight text-white uppercase leading-none" style={{ fontFamily: "var(--font-display)" }}>BATTLE SUMMARY</h2>
+                                        <span className="text-[10px] font-bold text-zinc-500 tracking-[0.4em] mt-1">FULL MATCH SCORECARD</span>
+                                    </div>
+                                    <button onClick={() => setShowScorecard(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-zinc-400 hover:text-white border border-white/5">
                                         <X className="w-6 h-6" />
                                     </button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                                <div className="flex-1 overflow-y-auto p-8 space-y-12 custom-scrollbar">
                                     {[liveMatch.innings1, liveMatch.innings2].map((inn, innIdx) => (
-                                        <div key={innIdx} className="space-y-4">
-                                            <div className="flex justify-between items-end border-b border-zinc-800 pb-2">
-                                                <h3 className="text-amber-500 font-bold tracking-widest text-[10px] uppercase">{inn.teamName} Innings</h3>
-                                                <span className="text-2xl font-bold text-white tabular-nums">{inn.runs}-{inn.wickets} <span className="text-zinc-500 text-sm font-normal">({inn.overs.toFixed(1)})</span></span>
+                                        <div key={innIdx} className="space-y-6">
+                                            <div className="flex justify-between items-end border-b border-white/5 pb-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-2 h-10 rounded-full bg-gradient-to-b from-amber-500 to-amber-700 shadow-[0_0_15px_rgba(245,158,11,0.3)]" />
+                                                    <div className="flex flex-col">
+                                                        <h3 className="text-white font-black tracking-[0.2em] text-lg uppercase leading-none">{inn.teamName}</h3>
+                                                        <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase mt-1">{innIdx === 0 ? 'FIRST' : 'SECOND'} INNINGS</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-4xl font-black text-white tabular-nums leading-none">{inn.runs}-{inn.wickets}</span>
+                                                    <span className="text-zinc-500 text-sm font-bold tracking-widest uppercase">({inn.overs.toFixed(1)})</span>
+                                                </div>
                                             </div>
 
-                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20">
-                                                <table className="w-full text-left text-xs min-w-[500px]">
-                                                    <thead>
-                                                        <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
-                                                            <th className="px-4 py-2.5">Batter</th>
-                                                            <th className="px-4 py-2.5 text-right">R</th>
-                                                            <th className="px-4 py-2.5 text-right">B</th>
-                                                            <th className="px-4 py-2.5 text-right">4s</th>
-                                                            <th className="px-4 py-2.5 text-right">6s</th>
-                                                            <th className="px-4 py-2.5 text-right">SR</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-zinc-900">
-                                                        {Object.values(inn.batsmen).length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={6} className="px-4 py-4 text-center text-zinc-600 italic">Yet to bat</td>
+                                            <div className="space-y-6">
+                                                <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
+                                                    <table className="w-full text-left text-xs min-w-[500px]">
+                                                        <thead>
+                                                            <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
+                                                                <th className="px-6 py-4">BATSMAN</th>
+                                                                <th className="px-6 py-4 text-right">RUNS</th>
+                                                                <th className="px-6 py-4 text-right">BALLS</th>
+                                                                <th className="px-6 py-4 text-right">4s</th>
+                                                                <th className="px-6 py-4 text-right">6s</th>
+                                                                <th className="px-6 py-4 text-right">SR</th>
                                                             </tr>
-                                                        ) : (
-                                                            Object.values(inn.batsmen).map((b, bIdx) => (
-                                                                <tr key={bIdx} className={b.isOut ? 'text-zinc-600' : 'text-zinc-300'}>
-                                                                    <td className="px-4 py-3 font-medium">
-                                                                        {b.name} {b.isOut && <span className="text-[10px] ml-1 opacity-60">({b.dismissal})</span>}
-                                                                        {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <span className="text-amber-500 ml-1 italic font-bold">*</span>}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-right font-bold text-white">{b.runs}</td>
-                                                                    <td className="px-4 py-3 text-right">{b.balls}</td>
-                                                                    <td className="px-4 py-3 text-right">{b.fours}</td>
-                                                                    <td className="px-4 py-3 text-right">{b.sixes}</td>
-                                                                    <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
-                                                                        {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
-                                                                    </td>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-white/5">
+                                                            {Object.values(inn.batsmen).length === 0 ? (
+                                                                <tr>
+                                                                    <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Innings not started</td>
                                                                 </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                                            ) : (
+                                                                Object.values(inn.batsmen).map((b, bIdx) => (
+                                                                    <tr key={bIdx} className={`transition-colors h-12 ${b.isOut ? 'text-zinc-500 opacity-60' : 'text-zinc-100'}`}>
+                                                                        <td className="px-6 py-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="font-black tracking-tight text-sm uppercase">{b.name}</span>
+                                                                                {b.isOut && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-500 font-bold uppercase tracking-tighter">{b.dismissal}</span>}
+                                                                                {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-6 py-4 text-right font-black text-amber-500 text-sm">{b.runs}</td>
+                                                                        <td className="px-6 py-4 text-right font-bold tabular-nums">{b.balls}</td>
+                                                                        <td className="px-6 py-4 text-right font-bold tabular-nums">{b.fours}</td>
+                                                                        <td className="px-6 py-4 text-right font-bold tabular-nums">{b.sixes}</td>
+                                                                        <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
+                                                                            {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
 
-                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20">
-                                                <table className="w-full text-left text-xs min-w-[500px]">
-                                                    <thead>
-                                                        <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
-                                                            <th className="px-4 py-2.5">Bowler</th>
-                                                            <th className="px-4 py-2.5 text-right">O</th>
-                                                            <th className="px-4 py-2.5 text-right">M</th>
-                                                            <th className="px-4 py-2.5 text-right">R</th>
-                                                            <th className="px-4 py-2.5 text-right">W</th>
-                                                            <th className="px-4 py-2.5 text-right">Econ</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-zinc-900">
-                                                        {Object.values(inn.bowlers).length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={6} className="px-4 py-4 text-center text-zinc-600 italic">Yet to bowl</td>
+                                                <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
+                                                    <table className="w-full text-left text-xs min-w-[500px]">
+                                                        <thead>
+                                                            <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
+                                                                <th className="px-6 py-4">BOWLER</th>
+                                                                <th className="px-6 py-4 text-right">O</th>
+                                                                <th className="px-6 py-4 text-right">M</th>
+                                                                <th className="px-6 py-4 text-right">R</th>
+                                                                <th className="px-6 py-4 text-right">W</th>
+                                                                <th className="px-6 py-4 text-right">ECON</th>
                                                             </tr>
-                                                        ) : (
-                                                            Object.values(inn.bowlers).map((bw, bwIdx) => (
-                                                                <tr key={bwIdx} className="text-zinc-300">
-                                                                    <td className="px-4 py-3 font-medium">{bw.name}</td>
-                                                                    <td className="px-4 py-3 text-right font-bold text-white">{bw.overs.toFixed(1)}</td>
-                                                                    <td className="px-4 py-3 text-right">{bw.maidens || 0}</td>
-                                                                    <td className="px-4 py-3 text-right">{bw.runs}</td>
-                                                                    <td className="px-4 py-3 text-right font-bold text-blue-400">{bw.wickets}</td>
-                                                                    <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
-                                                                        {bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + (Math.round((bw.overs % 1) * 10)) / 6)).toFixed(2) : '0.00'}
-                                                                    </td>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-white/5">
+                                                            {Object.values(inn.bowlers).length === 0 ? (
+                                                                <tr>
+                                                                    <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Yet to bowl</td>
                                                                 </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
+                                                            ) : (
+                                                                Object.values(inn.bowlers).map((bw, bwIdx) => (
+                                                                    <tr key={bwIdx} className="text-zinc-200 transition-colors h-12">
+                                                                        <td className="px-6 py-4 font-black tracking-tight text-sm uppercase">{bw.name}</td>
+                                                                        <td className="px-6 py-4 text-right font-black text-white">{bw.overs.toFixed(1)}</td>
+                                                                        <td className="px-6 py-4 text-right font-bold">{bw.maidens || 0}</td>
+                                                                        <td className="px-6 py-4 text-right font-bold">{bw.runs}</td>
+                                                                        <td className="px-6 py-4 text-right font-black text-blue-400 text-sm">{bw.wickets}</td>
+                                                                        <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
+                                                                            {bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + (Math.round((bw.overs % 1) * 10)) / 6)).toFixed(2) : '0.00'}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
+                            </motion.div>
                         </motion.div>
                     )}
                 </AnimatePresence>

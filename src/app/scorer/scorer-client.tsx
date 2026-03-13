@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check, AlertCircle, ChevronDown, MoreVertical } from "lucide-react";
+import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check, AlertCircle, ChevronDown, MoreVertical, Clock } from "lucide-react";
 import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 import { MatchReport } from "@/components/match-report";
 
@@ -114,6 +114,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [wicketType, setWicketType] = useState<BallEvent["wicketType"] | null>(null);
     const [wicketExtraRuns, setWicketExtraRuns] = useState(0);
     const [wicketStrikeSwapped, setWicketStrikeSwapped] = useState(false);
+    const [wicketFielder, setWicketFielder] = useState("");
     const [wicketNewBatsman, setWicketNewBatsman] = useState<string | null>(null);
 
     // Scheduling States
@@ -214,7 +215,17 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                 const outPlayer = ball.playerOut || ball.striker;
                 inn.batsmen[outPlayer].isOut = true;
-                inn.batsmen[outPlayer].dismissal = ball.wicketType;
+                if (ball.wicketType === 'CAUGHT' || ball.wicketType === 'STUMPED') {
+                    inn.batsmen[outPlayer].dismissal = `${ball.wicketType === 'CAUGHT' ? 'ct' : 'st'} ${ball.caughtBy || '?' } b ${ball.bowler}`;
+                } else if (ball.wicketType === 'RUNOUT') {
+                    inn.batsmen[outPlayer].dismissal = `run out (${ball.runOutBy || '?'})`;
+                } else if (ball.wicketType === 'BOWLED') {
+                    inn.batsmen[outPlayer].dismissal = `b ${ball.bowler}`;
+                } else if (ball.wicketType === 'LBW') {
+                    inn.batsmen[outPlayer].dismissal = `lbw b ${ball.bowler}`;
+                } else {
+                    inn.batsmen[outPlayer].dismissal = ball.wicketType;
+                }
 
                 if (inn.strikerRef === outPlayer) inn.strikerRef = ball.newBatsman;
                 else inn.nonStrikerRef = ball.newBatsman;
@@ -839,6 +850,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             isWicket: true,
             wicketType: wicketType,
             playerOut: wicketPlayerOut,
+            caughtBy: (wicketType === 'CAUGHT' || wicketType === 'STUMPED') ? wicketFielder : undefined,
+            runOutBy: wicketType === 'RUNOUT' ? wicketFielder : undefined,
             swapped
         };
 
@@ -1564,27 +1577,27 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                                 <div className="grid grid-cols-3 gap-2 h-full">
                                     {[0, 1, 2, 3, 4, 6].map(run => (
-                                        <button key={run} onClick={() => handleRun(run)} className={`rounded-xl font-bold transition-all active:scale-95 text-2xl ${run >= 4 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700'}`}>{run}</button>
+                                        <button key={run} onClick={() => handleRun(run)} className={`rounded-xl font-bold transition-all active:scale-95 text-lg md:text-2xl ${run >= 4 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700'}`}>{run}</button>
                                     ))}
                                     <div className="col-span-3 grid grid-cols-4 gap-2">
                                         <button 
                                             onClick={() => handleExtra("WD")} 
-                                            className="w-full h-full bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center py-3"
+                                            className="w-full bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center py-2 md:py-3"
                                         >
                                             WIDE
                                         </button>
                                         <button 
                                             onClick={() => handleExtra("NB")} 
-                                            className="w-full h-full bg-blue-600/20 text-blue-300 border border-blue-500/40 rounded-xl text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center py-3"
+                                            className="w-full bg-blue-600/20 text-blue-300 border border-blue-500/40 rounded-xl text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center py-2 md:py-3"
                                         >
                                             NO BALL
                                         </button>
-                                        <button onClick={handleDeadBall} className="bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-xl text-xs font-bold uppercase transition-all">DB</button>
-                                        <button onClick={handleWicket} className="bg-red-500 text-white rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-red-500/20">Out</button>
+                                        <button onClick={handleDeadBall} className="bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-xl text-[9px] font-bold uppercase transition-all">DB</button>
+                                        <button onClick={handleWicket} className="bg-red-500 text-white rounded-xl text-[9px] font-bold uppercase transition-all shadow-lg shadow-red-500/20">Out</button>
                                     </div>
 
-                                    <button onClick={handleSwapStrike} className="col-span-2 bg-zinc-800 text-zinc-300 rounded-xl text-[10px] uppercase font-bold transition-all">Swap</button>
-                                    <button onClick={handleUndo} className="bg-zinc-800 text-zinc-500 rounded-xl text-[10px] uppercase font-bold transition-all">Undo</button>
+                                    <button onClick={handleSwapStrike} className="col-span-2 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] uppercase font-bold transition-all py-2">Swap</button>
+                                    <button onClick={handleUndo} className="bg-zinc-800 text-zinc-500 rounded-xl text-[9px] uppercase font-bold transition-all py-2">Undo</button>
                                 </div>
                             </div>
                         </div>
@@ -1705,55 +1718,79 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                 {/* Innings Break / Match Finished Overlays */}
                 <AnimatePresence>
-                    {(liveState.status === "INNINGS_BREAK" || liveState.status === "COMPLETED") && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-center">
-                            <div className="max-w-md w-full">
+                    {liveState && (liveState.status === "INNINGS_BREAK" || liveState.status === "COMPLETED") && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 text-center">
+                            <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-10 shadow-2xl">
                                 {liveState.status === "COMPLETED" ? (
                                     <>
-                                        <div className="w-24 h-24 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_50px_rgba(245,158,11,0.4)]">
-                                            <CheckCircle className="w-12 h-12 text-black" />
+                                        <div className="w-24 h-24 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_80px_rgba(245,158,11,0.3)]">
+                                            <Trophy className="w-12 h-12 text-black" strokeWidth={2.5} />
                                         </div>
-                                        <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>Match Finished</h2>
-                                        <p className="text-amber-500 text-xl font-bold mb-8 uppercase tracking-widest">{liveState.result}</p>
-                                        <div className="grid gap-3">
-                                            <button onClick={() => setShowReport(true)} className="w-full bg-amber-500 text-black font-bold py-4 rounded-2xl hover:scale-[1.02] transition-all uppercase tracking-widest text-xs">
-                                                View Match Report
+                                        <h2 className="text-5xl font-black text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>Match Over!</h2>
+                                        <p className="text-amber-500 font-black uppercase tracking-[0.2em] text-sm mb-10">{liveState.result}</p>
+                                        
+                                        <div className="grid grid-cols-2 gap-4 mb-10">
+                                            <div className="bg-black/40 rounded-2xl p-4 border border-zinc-800">
+                                                <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-widest mb-1">{liveState.innings1.teamName}</p>
+                                                <p className="text-xl font-bold text-white">{liveState.innings1.runs}/{liveState.innings1.wickets}</p>
+                                            </div>
+                                            <div className="bg-black/40 rounded-2xl p-4 border border-zinc-800">
+                                                <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-widest mb-1">{liveState.innings2.teamName}</p>
+                                                <p className="text-xl font-bold text-white">{liveState.innings2.runs}/{liveState.innings2.wickets}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <button 
+                                                onClick={() => setShowReport(true)}
+                                                className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl border border-white/10 transition-all uppercase tracking-widest text-xs"
+                                            >
+                                                View Full Report
                                             </button>
-                                            <button onClick={() => setShowFullScoreboard(true)} className="w-full bg-zinc-800 text-white font-bold py-4 rounded-2xl border border-zinc-700 hover:bg-zinc-700 transition-all uppercase tracking-widest text-xs">
-                                                View Full Scorecard
-                                            </button>
-                                            <button onClick={() => setActiveScreen("SELECT_MATCH")} className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all uppercase tracking-widest text-xs">
-                                                Return to Fixtures
+                                            <button 
+                                                onClick={() => {
+                                                    setLiveState(null);
+                                                    setSelectedMatch(null);
+                                                    setActiveScreen("SELECT_MATCH");
+                                                }}
+                                                className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest"
+                                            >
+                                                Back to Dashboard
                                             </button>
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-zinc-700">
-                                            <LogOut className="w-10 h-10 text-amber-500 rotate-90" />
+                                        <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <Clock className="w-10 h-10 text-amber-500" />
                                         </div>
-                                        <h2 className="text-4xl font-bold text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>Innings Break</h2>
-                                        <p className="text-zinc-500 mb-8 uppercase tracking-widest text-sm">
-                                            {liveState.innings1.teamName} finished at {liveState.innings1.runs}-{liveState.innings1.wickets}<br />
-                                            Target for {liveState.innings2.teamName} is <span className="text-white font-bold">{liveState.innings1.runs + 1}</span>
-                                        </p>
+                                        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>Innings Break</h2>
+                                        <p className="text-zinc-500 mb-8 uppercase tracking-widest text-xs font-bold">{liveState.innings1.teamName} has completed their innings</p>
+                                        
+                                        <div className="bg-black/40 rounded-2xl p-6 mb-8 border border-zinc-800">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Final Score</span>
+                                                <span className="text-white font-bold">{liveState.innings1.runs}/{liveState.innings1.wickets}</span>
+                                            </div>
+                                            <div className="h-px bg-zinc-800 mb-4" />
+                                            <div className="text-center">
+                                                <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">Target for {liveState.innings2.teamName}</p>
+                                                <p className="text-3xl font-black text-amber-500 tracking-tighter">{liveState.innings1.runs + 1}</p>
+                                                <p className="text-zinc-500 text-[9px] mt-1 font-medium">From {liveState.matchOvers} overs</p>
+                                            </div>
+                                        </div>
+
                                         <button
                                             onClick={() => {
                                                 if (!liveState) return;
                                                 const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
-                                                
                                                 state.currentInnings = 2;
                                                 state.status = "LIVE";
-                                                
-                                                // Reset setup states for 2nd innings
                                                 setOpenStriker("");
                                                 setOpenNonStriker("");
                                                 setOpenBowler("");
-                                                
-                                                // We don't pushUpdate here yet, we just switch screen to 2nd innings setup
-                                                // which will then build the first ball or initial state for 2nd innings
                                                 setLiveState(state);
-                                                setActiveScreen("TOSS_SETUP"); // Still using setup but we should filter it
+                                                setActiveScreen("TOSS_SETUP");
                                             }}
                                             className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-[0_10px_30px_rgba(245,158,11,0.2)] hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest"
                                         >
@@ -1953,7 +1990,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-red-600 via-red-500 to-red-600" />
 
                     <div className="mt-4 bg-red-500/10 text-red-500 px-4 py-1 rounded-full text-[10px] font-bold tracking-widest border border-red-500/20 mb-4">
-                        WICKET STEP {wicketStep}/2
+                        WICKET STEP {wicketStep}/{wicketType === 'CAUGHT' || wicketType === 'RUNOUT' || wicketType === 'STUMPED' ? '3' : '2'}
                     </div>
 
                     <h2 className="text-3xl font-bold text-white tracking-widest mb-2" style={{ fontFamily: "var(--font-display)" }}>
@@ -1997,7 +2034,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 <div className="text-left">
                                     <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">ANY RUNS?</label>
                                     <div className="flex gap-2">
-                                        {[0, 1, 2].map(r => (
+                                        {[0, 1, 2, 3].map(r => (
                                             <button
                                                 key={r}
                                                 onClick={() => setWicketExtraRuns(r)}
@@ -2018,6 +2055,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Fielder Selection for Caught/Run Out/Stumped */}
+                            {(wicketType === 'CAUGHT' || wicketType === 'RUNOUT' || wicketType === 'STUMPED') && (
+                                <div className="text-left animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block uppercase">3. {wicketType === 'RUNOUT' ? 'FIELDER WHO RUN OUT' : 'FIELDER WHO CAUGHT/STUMPED'}</label>
+                                    <select
+                                        value={wicketFielder}
+                                        onChange={(e) => setWicketFielder(e.target.value)}
+                                        className="w-full bg-black border border-zinc-800 text-white rounded-xl p-4 font-bold outline-none focus:border-red-500 transition-colors"
+                                    >
+                                        <option value="">SELECT FIELDER (OPTIONAL)</option>
+                                        {getSquadForTeam(liveState.currentInnings === 1 ? liveState.innings2.teamName : liveState.innings1.teamName).map(p => (
+                                            <option key={p} value={p}>{p}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <button
                                 onClick={() => handleDeclareWicket(wicketExtraRuns, wicketStrikeSwapped)}

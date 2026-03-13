@@ -70,6 +70,8 @@ export interface BallEvent {
     wicketType?: "BOWLED" | "CAUGHT" | "RUNOUT" | "LBW" | "STUMPED" | "HIT_WICKET" | "RETIRED_HURT";
     playerOut?: string;
     newBatsman?: string;
+    caughtBy?: string; // Fielder name for CAUGHT/STUMPED
+    runOutBy?: string; // Fielder name for RUNOUT
     swapped?: boolean; // If strike was swapped during this ball (e.g. crossing)
 }
 
@@ -210,32 +212,38 @@ export function calculateStandings(
             const inn1 = liveMatch.innings1;
             const inn2 = liveMatch.innings2;
 
-            const isTeam1BattingFirst = (liveMatch.tossWinner === f.team1 && liveMatch.tossDecision === "BAT") ||
-                (liveMatch.tossWinner === f.team2 && liveMatch.tossDecision === "BOWL");
+            const normalize = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const t1Clean = normalize(f.team1);
+            const t2Clean = normalize(f.team2);
+            
+            // Determine which innings belongs to f.team1
+            const t1Score = normalize(inn1.teamName) === t1Clean ? inn1 : inn2;
+            const t2Score = normalize(inn1.teamName) === t2Clean ? inn1 : inn2;
 
-            const t1Score = isTeam1BattingFirst ? inn1 : inn2;
-            const t2Score = isTeam1BattingFirst ? inn2 : inn1;
+            // Update Team 1 Stats
+            if (map[f.team1] && t1Score && t2Score) {
+                map[f.team1].runsScored += t1Score.runs;
+                map[f.team1].runsAgainst += t2Score.runs;
 
-            // Team 1
-            map[f.team1].runsScored += t1Score.runs;
-            map[f.team1].runsAgainst += t2Score.runs;
+                // For NRR, if a team is all out, they are considered to have faced their full overs quota
+                const t1BallsFaced = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                const t1BallsBowled = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
 
-            // If all out, use full overs quota
-            const t1BallsFaced = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
-            const t1BallsBowled = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                map[f.team1].oversFaced += t1BallsFaced / 6;
+                map[f.team1].oversBowled += t1BallsBowled / 6;
+            }
 
-            map[f.team1].oversFaced += t1BallsFaced / 6;
-            map[f.team1].oversBowled += t1BallsBowled / 6;
+            // Update Team 2 Stats
+            if (map[f.team2] && t1Score && t2Score) {
+                map[f.team2].runsScored += t2Score.runs;
+                map[f.team2].runsAgainst += t1Score.runs;
 
-            // Team 2
-            map[f.team2].runsScored += t2Score.runs;
-            map[f.team2].runsAgainst += t1Score.runs;
+                const t2BallsFaced = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                const t2BallsBowled = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
 
-            const t2BallsFaced = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
-            const t2BallsBowled = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
-
-            map[f.team2].oversFaced += t2BallsFaced / 6;
-            map[f.team2].oversBowled += t2BallsBowled / 6;
+                map[f.team2].oversFaced += t2BallsFaced / 6;
+                map[f.team2].oversBowled += t2BallsBowled / 6;
+            }
         }
     });
 

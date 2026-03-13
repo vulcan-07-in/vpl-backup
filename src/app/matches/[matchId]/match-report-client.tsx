@@ -117,11 +117,19 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
                                 batsmen.map((b, i) => (
                                     <tr key={i} className={b.isOut ? 'text-zinc-600' : 'text-zinc-300'}>
                                         <td className="px-4 py-3 font-medium">
-                                            {b.name}
-                                            {b.isOut && <span className="text-[10px] ml-1 opacity-60">({b.dismissal})</span>}
-                                            {!b.isOut && (b.name === innings.strikerRef || b.name === innings.nonStrikerRef) && (
-                                                <span className="text-amber-500 ml-1 italic font-bold">*</span>
-                                            )}
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-white">{b.name}</span>
+                                                    {!b.isOut && (b.name === innings.strikerRef || b.name === innings.nonStrikerRef) && (
+                                                        <span className="text-amber-500 italic font-bold text-[10px]">*</span>
+                                                    )}
+                                                </div>
+                                                {b.isOut && (
+                                                    <span className="text-[10px] text-zinc-500 font-medium italic mt-0.5">
+                                                        {b.dismissal || "out"}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-right font-bold text-white">{b.runs}</td>
                                         <td className="px-4 py-3 text-right">{b.balls}</td>

@@ -83,6 +83,16 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
             containerClasses = "relative overflow-hidden rounded-2xl border border-white/[0.08] bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] hover:bg-black/60 group block";
         }
 
+        const formatScheduledTime = (isoString?: string) => {
+            if (!isoString) return "SOON";
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            } catch (e) {
+                return "SOON";
+            }
+        };
+
         const InnerContent = (
             <>
                 {/* Background gradient slash */}
@@ -131,10 +141,10 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                         <span className="text-[8px] animate-pulse">LIVE</span>
                                     </div>
                                 ) : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? (
-                                    <>
-                                        <Clock className="w-3 h-3" />
-                                        {liveMatches[fixture.matchNo]?.scheduledTime || "SOON"}
-                                    </>
+                                    <div className="flex items-center gap-1.5 py-0.5">
+                                        <Clock className="w-3 h-3 text-blue-400" />
+                                        <span className="text-[10px]">{formatScheduledTime(liveMatches[fixture.matchNo]?.scheduledTime)}</span>
+                                    </div>
                                 ) : (
                                     "VS"
                                 )}
@@ -158,128 +168,120 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             {win2 && <Trophy className={`relative z-10 w-4 h-4 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'mt-1 w-6 h-6' : ''}`} strokeWidth={2.5} />}
                         </div>
                     </div>
-                    {/* Result Text Mobile */}
-                    {played && (
-                        <div className="text-center mt-2 flex justify-center items-center gap-1">
-                            <span className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest">
-                                {liveMatches[fixture.matchNo]?.result || "Match Completed"}
-                            </span>
-                            <ChevronRight className="w-3 h-3 text-amber-500/80" />
-                        </div>
-                    )}
-                    {isLive && !played && (
-                        <div className="text-center mt-2 flex justify-center items-center gap-1">
-                            <span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">
-                                Watch Live
-                            </span>
-                            <ChevronRight className="w-3 h-3 text-red-500" />
-                        </div>
-                    )}
                 </div>
 
                 {/* Desktop layout (md+) */}
-                <div className={`hidden md:grid items-center px-6 relative z-10 ${isFeaturedKnockout ? 'py-8' : 'py-5'}`} style={{ gridTemplateColumns: "4rem 6rem 1fr 5rem 1fr" }}>
-                    <span className={`text-sm tabular-nums font-medium ${isFeaturedKnockout ? 'text-amber-500 font-bold' : 'text-zinc-500'}`} style={{ fontFamily: "var(--font-mono)" }}>
-                        {fixture.matchNo}
-                    </span>
-                    <span className={`text-[10px] tracking-widest pr-2 ${isFeaturedKnockout ? 'text-amber-400 font-bold text-xs' : 'text-zinc-500'}`} style={{ fontFamily: "var(--font-body)" }}>
-                        {isKnockout ? fixture.stage.toUpperCase() : "GROUP " + fixture.group}
-                    </span>
-                    <div className={`relative flex items-center gap-4 justify-end min-w-0 transition-opacity ${played && !win1 ? "opacity-40" : ""}`}>
+                <div className={`hidden md:grid items-center px-10 relative z-10 ${isFeaturedKnockout ? 'py-10' : 'py-7'}`} style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+                    {/* Left: Team 1 */}
+                    <div className={`relative flex items-center gap-6 justify-end min-w-0 transition-opacity ${played && !win1 ? "opacity-20" : ""}`}>
                         {win1 && (
-                            <div className="absolute right-0 w-3/4 h-full bg-gradient-to-l from-white/5 to-transparent blur-xl" style={{ borderRight: `2px solid ${c1}30`, backgroundImage: `linear-gradient(to left, ${c1}15, transparent)` }} />
+                            <div className="absolute right-0 w-4/5 h-full bg-gradient-to-l from-white/5 to-transparent blur-2xl" style={{ borderRight: `2px solid ${c1}30`, backgroundImage: `linear-gradient(to left, ${c1}15, transparent)` }} />
                         )}
-                        {win1 && <Trophy className={`relative z-10 w-6 h-6 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'w-8 h-8' : ''}`} strokeWidth={2.5} />}
-                        <span className={`${isFeaturedKnockout ? 'text-5xl tracking-widest text-amber-50' : 'text-4xl tracking-wide'} font-bold text-right transition-colors py-2 px-1 relative z-10`}
-                            style={{
-                                fontFamily: "var(--font-display)",
-                                color: 'white',
-                                textShadow: win1
-                                    ? `0 0 20px ${c1}50`
-                                    : "none",
-                                paddingTop: "0.2rem"
-                            }}>
-                            {fixture.team1}
-                        </span>
-                        <div className={`relative z-10 rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
+                        <div className="flex flex-col items-end">
+                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10 leading-none`}
+                                style={{
+                                    fontFamily: "var(--font-display)",
+                                    color: 'white',
+                                    textShadow: win1 ? `0 0 30px ${c1}50` : "none"
+                                }}>
+                                {fixture.team1}
+                            </span>
+                            {played && liveMatches[fixture.matchNo] && (
+                                <span className="text-zinc-500 font-mono text-xs mt-1 tracking-widest relative z-10">
+                                    {liveMatches[fixture.matchNo].innings1.teamName === fixture.team1 ? 
+                                        `${liveMatches[fixture.matchNo].innings1.runs}/${liveMatches[fixture.matchNo].innings1.wickets}` : 
+                                        `${liveMatches[fixture.matchNo].innings2.runs}/${liveMatches[fixture.matchNo].innings2.wickets}`}
+                                </span>
+                            )}
+                        </div>
+                        <div className={`relative z-10 rounded-full shrink-0 shadow-2xl ${isFeaturedKnockout ? 'w-8 h-8' : 'w-6 h-6'}`} style={{ backgroundColor: c1, border: `2px solid ${c1}40` }} />
+                        {win1 && <Trophy className={`relative z-10 w-8 h-8 shrink-0 text-amber-400 drop-shadow-2xl ${isFeaturedKnockout ? 'w-10 h-10' : ''}`} strokeWidth={2.5} />}
                     </div>
-                    <div className="text-center flex flex-col items-center justify-center w-24">
-                        <span className={`text-[10px] sm:text-xs font-bold tracking-widest px-3 py-1 rounded border whitespace-nowrap ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : isLive ? "text-red-500 border-red-500/30 bg-red-500/10 flex items-center justify-center gap-2" : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? "text-blue-400 border-blue-500/30 bg-blue-500/10 flex items-center justify-center gap-2" : "text-zinc-500 border-white/10 bg-white/5"} ${isFeaturedKnockout && !played && !liveMatches[fixture.matchNo] ? '!text-amber-300 !border-amber-500/50 !bg-amber-900/10' : ''}`} style={{ fontFamily: "var(--font-body)" }}>
+
+                    {/* Center: Info/Score */}
+                    <div className="text-center flex flex-col items-center justify-center px-4">
+                        <div className="flex items-center gap-2 mb-2">
+                             <span className={`text-[10px] tabular-nums font-bold tracking-[0.2em] ${isFeaturedKnockout ? 'text-amber-500' : 'text-zinc-500'}`} style={{ fontFamily: "var(--font-mono)" }}>
+                                #{fixture.matchNo}
+                            </span>
+                            <div className="w-1 h-1 rounded-full bg-white/10" />
+                            <span className={`text-[9px] tracking-[0.3em] font-black uppercase ${isFeaturedKnockout ? 'text-amber-400' : 'text-zinc-600'}`} style={{ fontFamily: "var(--font-body)" }}>
+                                {isKnockout ? fixture.stage : "GROUP " + fixture.group}
+                            </span>
+                        </div>
+
+                        <div className={`min-w-[120px] px-6 py-2 rounded-xl border transition-all duration-300 ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/5 shadow-[0_0_20px_rgba(245,158,11,0.05)]" : isLive ? "text-red-500 border-red-500/30 bg-red-500/10" : "text-zinc-500 border-white/5 bg-white/[0.02]"}`}>
                             {played ? (
-                                liveMatches[fixture.matchNo] ? (
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-white text-base font-bold tracking-tight">
-                                            {liveMatches[fixture.matchNo].innings1.runs}-{liveMatches[fixture.matchNo].innings1.wickets}
-                                            <span className="mx-2 text-zinc-600">&</span>
-                                            {liveMatches[fixture.matchNo].innings2.runs}-{liveMatches[fixture.matchNo].innings2.wickets}
-                                        </span>
-                                        <span className="text-[9px] text-amber-500/50 font-bold tracking-[0.2em] mt-0.5">FINAL SCORE</span>
-                                    </div>
-                                ) : "FT"
+                                <span className="text-xl font-black tracking-tight text-white" style={{ fontFamily: "var(--font-mono)" }}>FT</span>
                             ) : isLive ? (
                                 <div className="flex flex-col items-center">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                        <span className="text-red-500 font-bold">LIVE</span>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgb(239,68,68)]" />
+                                        <span className="text-[10px] font-black tracking-[0.2em]">LIVE</span>
                                     </div>
-                                    <span className="text-white font-bold text-lg">
-                                        {liveMatches[fixture.matchNo]?.currentInnings === 1 ? liveMatches[fixture.matchNo].innings1.runs : liveMatches[fixture.matchNo].innings2.runs}-
-                                        {liveMatches[fixture.matchNo]?.currentInnings === 1 ? liveMatches[fixture.matchNo].innings1.wickets : liveMatches[fixture.matchNo].innings2.wickets}
+                                    <span className="text-2xl font-black text-white tabular-nums">
+                                        {liveMatches[fixture.matchNo]?.innings1.runs + (liveMatches[fixture.matchNo]?.innings2?.runs || 0)}
                                     </span>
-                                    <span className="text-[9px] text-zinc-500 font-medium">({liveMatches[fixture.matchNo]?.currentInnings === 1 ? liveMatches[fixture.matchNo].innings1.overs.toFixed(1) : liveMatches[fixture.matchNo].innings2.overs.toFixed(1)})</span>
                                 </div>
                             ) : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? (
-                                <>
-                                    <Clock className="w-3 h-3" />
-                                    {liveMatches[fixture.matchNo]?.scheduledTime || "SOON"}
-                                </>
+                                <div className="flex flex-col items-center gap-1">
+                                    <Clock className="w-4 h-4 text-blue-400 mb-1" />
+                                    <span className="text-xs font-black tracking-widest text-blue-400 uppercase">
+                                        {formatScheduledTime(liveMatches[fixture.matchNo]?.scheduledTime)}
+                                    </span>
+                                </div>
                             ) : (
-                                "VS"
+                                <span className="text-sm font-black tracking-[0.5em] opacity-40">VS</span>
                             )}
-                        </span>
+                        </div>
+
                         {played && (
-                            <span className="text-[8px] text-amber-500/60 font-bold uppercase tracking-wider mt-1 block max-w-[80px] leading-tight">
-                                {fixture.winner ? (
-                                    fixture.winner === fixture.team1 ? `${fixture.team1} WON` : `${fixture.team2} WON`
-                                ) : (liveMatches[fixture.matchNo]?.result || "COMPLETED")}
-                            </span>
+                            <div className="mt-3 flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                <span className="text-[10px] text-amber-500 font-black uppercase tracking-[0.3em] bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 shadow-lg shadow-amber-500/5">
+                                    {fixture.winner ? (
+                                        fixture.winner === fixture.team1 ? `${fixture.team1} WON` : `${fixture.team2} WON`
+                                    ) : (liveMatches[fixture.matchNo]?.result || "COMPLETED")}
+                                </span>
+                                {liveMatches[fixture.matchNo]?.result && (
+                                    <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest mt-2 px-4 italic text-center leading-relaxed">
+                                        {liveMatches[fixture.matchNo].result}
+                                    </span>
+                                )}
+                            </div>
                         )}
                     </div>
-                    <div className={`relative flex items-center gap-4 min-w-0 transition-opacity ${played && !win2 ? "opacity-40" : ""}`}>
+
+                    {/* Right: Team 2 */}
+                    <div className={`relative flex items-center gap-6 justify-start min-w-0 transition-opacity ${played && !win2 ? "opacity-20" : ""}`}>
                         {win2 && (
-                            <div className="absolute left-0 w-3/4 h-full bg-gradient-to-r from-white/5 to-transparent blur-xl" style={{ borderLeft: `2px solid ${c2}30`, backgroundImage: `linear-gradient(to right, ${c2}15, transparent)` }} />
+                            <div className="absolute left-0 w-4/5 h-full bg-gradient-to-r from-white/5 to-transparent blur-2xl" style={{ borderLeft: `2px solid ${c2}30`, backgroundImage: `linear-gradient(to right, ${c2}15, transparent)` }} />
                         )}
-                        <div className={`relative z-10 rounded-full shrink-0 shadow-lg ${isFeaturedKnockout ? 'w-6 h-6' : 'w-4 h-4'}`} style={{ backgroundColor: c2, border: `1px solid ${c2}40` }} />
-                        <span className={`${isFeaturedKnockout ? 'text-5xl tracking-widest text-amber-50' : 'text-4xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10`}
-                            style={{
-                                fontFamily: "var(--font-display)",
-                                color: 'white',
-                                textShadow: win2
-                                    ? `0 0 20px ${c2}50`
-                                    : "none",
-                                paddingTop: "0.2rem"
-                            }}>
-                            {fixture.team2}
-                        </span>
-                        {win2 && <Trophy className={`relative z-10 w-6 h-6 shrink-0 text-amber-400 drop-shadow-md ${isFeaturedKnockout ? 'w-8 h-8' : ''}`} strokeWidth={2.5} />}
+                        <div className={`relative z-10 rounded-full shrink-0 shadow-2xl ${isFeaturedKnockout ? 'w-8 h-8' : 'w-6 h-6'}`} style={{ backgroundColor: c2, border: `2px solid ${c2}40` }} />
+                        <div className="flex flex-col items-start">
+                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10 leading-none`}
+                                style={{
+                                    fontFamily: "var(--font-display)",
+                                    color: 'white',
+                                    textShadow: win2 ? `0 0 30px ${c2}50` : "none"
+                                }}>
+                                {fixture.team2}
+                            </span>
+                             {played && liveMatches[fixture.matchNo] && (
+                                <span className="text-zinc-500 font-mono text-xs mt-1 tracking-widest relative z-10">
+                                    {liveMatches[fixture.matchNo].innings2.teamName === fixture.team2 ? 
+                                        `${liveMatches[fixture.matchNo].innings2.runs}/${liveMatches[fixture.matchNo].innings2.wickets}` : 
+                                        `${liveMatches[fixture.matchNo].innings1.runs}/${liveMatches[fixture.matchNo].innings1.wickets}`}
+                                </span>
+                            )}
+                        </div>
+                        {win2 && <Trophy className={`relative z-10 w-8 h-8 shrink-0 text-amber-400 drop-shadow-2xl ${isFeaturedKnockout ? 'w-10 h-10' : ''}`} strokeWidth={2.5} />}
                     </div>
                 </div>
 
-                {/* Result Link Desktop Overlay Content */}
-                {played && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-12 hidden md:flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                        <span className={`text-[10px] font-bold uppercase tracking-[0.3em] px-3 py-1 rounded-full border border-white/10 ${isFeaturedKnockout ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-zinc-400'}`}>
-                            View Match Report
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
-                    </div>
-                )}
-                {isLive && !played && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-12 hidden md:flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                        <span className="text-[10px] text-red-400 font-bold uppercase tracking-[0.3em] px-3 py-1 rounded-full border border-red-500/20 bg-red-500/10">
-                            Watch Live
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-red-500 group-hover:text-red-400 transition-colors" />
+                {/* Desktop Link Indicaton Overlay */}
+                {(played || isLive) && (
+                    <div className="absolute top-4 right-4 text-zinc-800 group-hover:text-amber-500/40 transition-colors">
+                        <ChevronRight className="w-5 h-5" />
                     </div>
                 )}
             </>
