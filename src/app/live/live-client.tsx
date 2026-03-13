@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { Clock, Bell, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,51 +12,55 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
     const [showScorecard, setShowScorecard] = useState(false);
     const [animationEvent, setAnimationEvent] = useState<{ type: '4' | '6' | 'W', player: string } | null>(null);
 
-    const colorOf = (name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
+    // C4 FIX: Use a ref to track the latest match state for animation detection
+    // This avoids the stale closure problem in the polling useEffect
+    const liveMatchRef = useRef<LiveMatchState | null>(null);
+    useEffect(() => { liveMatchRef.current = liveMatch; }, [liveMatch]);
+
+    const colorOf = useCallback((name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308", [teams]);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchLiveStatus = async () => {
             try {
-                // 1. Get active match ID from scorer dashboard control
                 const activeRes = await fetch("/api/active-match");
                 if (!activeRes.ok) throw new Error();
                 const { activeMatchId } = await activeRes.json();
 
                 if (!activeMatchId) {
-                    setLiveMatch(null);
-                    setLoading(false);
+                    if (isMounted) { setLiveMatch(null); setLoading(false); }
                     return;
                 }
 
-                // 2. Fetch that specific match state
                 const res = await fetch(`/api/live-score?matchId=${activeMatchId}`);
                 if (res.ok) {
                     const data: LiveMatchState = await res.json();
                     
-                    // Check for new boundary or wicket for animation
-                    if (liveMatch && data.timeline.length > liveMatch.timeline.length) {
+                    // C4 FIX: Read from ref to get the LATEST state, not the stale closure value
+                    const prev = liveMatchRef.current;
+                    if (prev && data.timeline.length > prev.timeline.length) {
                         const lastBall = data.timeline[data.timeline.length - 1];
                         if (lastBall.isWicket) {
                             setAnimationEvent({ type: 'W', player: lastBall.playerOut || lastBall.striker });
                             setTimeout(() => setAnimationEvent(null), 4000);
-                        } else if (lastBall.runs === 4) {
-                            setAnimationEvent({ type: '4', player: lastBall.striker });
-                            setTimeout(() => setAnimationEvent(null), 4000);
                         } else if (lastBall.runs === 6) {
                             setAnimationEvent({ type: '6', player: lastBall.striker });
+                            setTimeout(() => setAnimationEvent(null), 4000);
+                        } else if (lastBall.runs === 4) {
+                            setAnimationEvent({ type: '4', player: lastBall.striker });
                             setTimeout(() => setAnimationEvent(null), 4000);
                         }
                     }
                     
-                    setLiveMatch(data);
+                    if (isMounted) setLiveMatch(data);
                 } else {
-                    setLiveMatch(null);
+                    if (isMounted) setLiveMatch(null);
                 }
             } catch (e) {
                 console.error("Live fetch error", e);
-                setLiveMatch(null);
+                if (isMounted) setLiveMatch(null);
             }
-            setLoading(false);
+            if (isMounted) setLoading(false);
         };
 
         const fetchNotifications = async () => {
@@ -64,7 +68,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 const res = await fetch("/api/notify");
                 if (res.ok) {
                     const data = await res.json();
-                    setNotifications(data);
+                    if (isMounted) setNotifications(data);
                 }
             } catch (e) { }
         };
@@ -72,12 +76,11 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
         fetchLiveStatus();
         fetchNotifications();
 
-        // Refresh exactly every 2 seconds for a fast, snappy real-time experience!
         const interval = setInterval(() => {
             fetchLiveStatus();
             fetchNotifications();
-        }, 2000);
-        return () => clearInterval(interval);
+        }, 3000); // Slightly relaxed polling to reduce load
+        return () => { isMounted = false; clearInterval(interval); };
     }, [fixtures]);
 
     if (loading) {
@@ -346,7 +349,14 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </motion.div>
 
                         {/* 2nd Innings Chasing Info with Premium Banner */}
-                        {liveMatch.currentInnings === 2 && liveMatch.status !== "COMPLETED" && (
+                        {liveMatch.currentInnings === 2 && liveMatch.status !== "COMPLETED" && (() => {
+                            const runsNeeded = (liveMatch.innings1.runs + 1) - currentInningsData.runs;
+                            const totalBalls = liveMatch.matchOvers * 6;
+                            const ballsBowled = Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10);
+                            const ballsRemaining = totalBalls - ballsBowled;
+                            // C5 FIX: Guard against division by zero
+                            const reqRate = ballsRemaining > 0 ? (runsNeeded / (ballsRemaining / 6)).toFixed(2) : '∞';
+                            return (
                             <motion.div 
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -358,7 +368,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                         TARGET REACHABLE
                                     </div>
                                     <div className="text-2xl md:text-4xl font-black text-white tracking-tight uppercase" style={{ fontFamily: "var(--font-display)" }}>
-                                        NEED {(liveMatch.innings1.runs + 1) - currentInningsData.runs} <span className="text-amber-500">RUNS</span> IN {(liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))} <span className="text-zinc-500">BALLS</span>
+                                        NEED {runsNeeded} <span className="text-amber-500">RUNS</span> IN {ballsRemaining} <span className="text-zinc-500">BALLS</span>
                                     </div>
                                     <div className="flex items-center gap-4 mt-2">
                                         <div className="flex items-center gap-2">
@@ -368,12 +378,13 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                         <div className="w-1 h-1 rounded-full bg-zinc-700" />
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">REQUIRED RATE</span>
-                                            <span className="text-sm font-black text-amber-500">{(((liveMatch.innings1.runs + 1) - currentInningsData.runs) / (((liveMatch.matchOvers * 6) - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))) / 6)).toFixed(2)}</span>
+                                            <span className="text-sm font-black text-amber-500">{reqRate}</span>
                                         </div>
                                     </div>
                                 </div>
                             </motion.div>
-                        )}
+                            );
+                        })()}
                     </div>
                 </motion.div>
 

@@ -114,7 +114,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                 <div className="absolute inset-0 bg-white/5 blur-2xl rounded-full" style={{ backgroundColor: `${c1}15` }} />
                             )}
                             <div className="w-5 h-5 rounded-full shrink-0 shadow-lg relative z-10" style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
-                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 relative z-10`}
+                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 relative z-10 truncate max-w-[120px]`}
                                 style={{
                                     fontFamily: "var(--font-display)",
                                     color: win1 ? 'white' : "white",
@@ -155,7 +155,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                 <div className="absolute inset-0 bg-white/5 blur-2xl rounded-full" style={{ backgroundColor: `${c2}15` }} />
                             )}
                             <div className="w-5 h-5 rounded-full shrink-0 shadow-lg relative z-10" style={{ backgroundColor: c2, border: `1px solid ${c2}40` }} />
-                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 relative z-10`}
+                            <span className={`${isFeaturedKnockout ? 'text-3xl tracking-wider text-amber-50' : 'text-2xl'} font-bold text-center w-full mt-1 py-1 px-1 relative z-10 truncate max-w-[120px]`}
                                 style={{
                                     fontFamily: "var(--font-display)",
                                     color: win2 ? 'white' : "white",
@@ -178,7 +178,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             <div className="absolute right-0 w-4/5 h-full bg-gradient-to-l from-white/5 to-transparent blur-2xl" style={{ borderRight: `2px solid ${c1}30`, backgroundImage: `linear-gradient(to left, ${c1}15, transparent)` }} />
                         )}
                         <div className="flex flex-col items-end">
-                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10 leading-none`}
+                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10 leading-none truncate max-w-full`}
                                 style={{
                                     fontFamily: "var(--font-display)",
                                     color: 'white',
@@ -258,7 +258,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         )}
                         <div className={`relative z-10 rounded-full shrink-0 shadow-2xl ${isFeaturedKnockout ? 'w-8 h-8' : 'w-6 h-6'}`} style={{ backgroundColor: c2, border: `2px solid ${c2}40` }} />
                         <div className="flex flex-col items-start">
-                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10 leading-none`}
+                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold transition-colors py-2 px-1 relative z-10 leading-none truncate max-w-full`}
                                 style={{
                                     fontFamily: "var(--font-display)",
                                     color: 'white',
@@ -288,12 +288,21 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         );
 
         const targetHref = isLive ? "/live" : `/matches/${fixture.matchNo}`;
+        const canView = played || isLive;
 
         return (
             <motion.div variants={itemVariants} key={fixture.matchNo}>
-                {(played || isLive) ? (
+                {canView ? (
                     <Link href={targetHref} className={containerClasses}>
                         {InnerContent}
+                        {/* Hover Indicator */}
+                        <div className="absolute inset-0 bg-amber-500/0 group-hover:bg-amber-500/5 transition-colors pointer-events-none flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                                <span className="bg-amber-500 text-black text-[9px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-2xl">
+                                    View Scorecard
+                                </span>
+                            </div>
+                        </div>
                     </Link>
                 ) : (
                     <div className={containerClasses}>

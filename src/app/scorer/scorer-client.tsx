@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check, AlertCircle, ChevronDown, MoreVertical, Clock } from "lucide-react";
+import { Loader2, Plus, ArrowRightLeft, Undo2, LogOut, ShieldAlert, X, Trophy, Zap, AlertCircle, ChevronDown, Clock } from "lucide-react";
 import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 import { MatchReport } from "@/components/match-report";
 
@@ -169,10 +169,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         let strikerObj = inn.batsmen[ball.striker];
         let bowlerObj = inn.bowlers[ball.bowler];
 
-        // 2. Handle Scoring
-        inn.runs += (ball.runs + ball.extras);
-        bowlerObj.runs += (ball.runs + ball.extras);
-
+        // C3 FIX: SWAP and DB must return BEFORE any score increment
         if (ball.extraType === "SWAP") {
             if (inn.nonStrikerRef) {
                 const temp = inn.strikerRef;
@@ -186,6 +183,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             // Dead ball records in timeline but doesn't change runs/balls/overs
             return;
         }
+
+        // 2. Handle Scoring (only for real deliveries)
+        inn.runs += (ball.runs + ball.extras);
+        bowlerObj.runs += (ball.runs + ball.extras);
 
         if (ball.extraType !== "WD" && ball.extraType !== "NB") {
             strikerObj.runs += ball.runs;
@@ -326,35 +327,51 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
     };
 
-    const rebuildState = (match: Fixture, timeline: BallEvent[]): LiveMatchState => {
-        // Find the current innings from the timeline or default to the state's currentinnings
-        let maxInnings: 1 | 2 = liveState?.currentInnings || 1;
+    const rebuildState = (match: Fixture, timeline: BallEvent[], baseLiveState?: LiveMatchState | null): LiveMatchState => {
+        // EDIT RESET FIX: Use baseLiveState (the state AT CALL TIME) instead of the closure `liveState`
+        // This prevents rebuildState from using stale liveState when called from handlers.
+        const ref = baseLiveState !== undefined ? baseLiveState : liveState;
+        
+        // Find the current innings from the timeline
+        let maxInnings: 1 | 2 = ref?.currentInnings || 1;
         timeline.forEach(b => {
             if (b.innings > maxInnings) maxInnings = b.innings as 1 | 2;
         });
         
-        const batFirst = liveState?.innings1.teamName || match.team1;
-        const bowlFirst = liveState?.innings2.teamName || match.team2;
+        const batFirst = ref?.innings1.teamName || match.team1;
+        const bowlFirst = ref?.innings2.teamName || match.team2;
 
         let state = getInitialState(match, batFirst, bowlFirst, maxInnings);
-        state.tossWinner = liveState?.tossWinner || "";
-        state.tossDecision = liveState?.tossDecision || "BAT";
+        state.tossWinner = ref?.tossWinner || "";
+        state.tossDecision = ref?.tossDecision || "BAT";
 
         // Re-apply timeline
         timeline.forEach(event => applyBallEvent(state, event));
         state.timeline = timeline;
         
-        // Final status adjustment based on timeline and currentInnings
+        // C3 FIX: Final status adjustment (single source of truth)
         if (state.currentInnings === 1) {
             const inn = state.innings1;
             if (inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
                 state.status = "INNINGS_BREAK";
+            } else {
+                state.status = "LIVE";
             }
         } else {
             const inn = state.innings2;
             const target = state.innings1.runs + 1;
             if (inn.runs >= target || inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
                 state.status = "COMPLETED";
+                if (inn.runs >= target) {
+                    state.winner = inn.teamName;
+                    state.result = `${inn.teamName} won by ${MAX_WICKETS - inn.wickets} wickets`;
+                } else if (inn.runs === target - 1) {
+                    state.winner = "TIE";
+                    state.result = "Match Tied";
+                } else {
+                    state.winner = state.innings1.teamName;
+                    state.result = `${state.innings1.teamName} won by ${state.innings1.runs - inn.runs} runs`;
+                }
             } else {
                 state.status = "LIVE";
             }
@@ -575,10 +592,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
     };
 
-    const notifyMatch = async (message: string, type: "INFO" | "SUCCESS" = "INFO") => {
-        // Notification system disabled by request
-        return;
-    };
+    // H2: notifyMatch removed (dead no-op)
 
     const syncMatchResultToSheet = async (finalState: LiveMatchState) => {
         if (!finalState.winner || !finalState.matchId) return;
@@ -723,23 +737,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
     };
 
-    const handleSetActiveMatch = async (matchId: string | null) => {
-        try {
-            const res = await fetch("/api/active-match", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ activeMatchId: matchId })
-            });
-            if (res.ok) {
-                setActiveLiveMatchId(matchId);
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Failed to update active match.");
-        }
-    };
+    // H3: handleSetActiveMatch removed (orphaned, broadcast done inline)
 
     const handleDeadBall = async () => {
         if (!liveState || isScoringLocked || !selectedMatch) return;
@@ -958,6 +956,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         setWicketType(null);
         setWicketExtraRuns(0);
         setWicketStrikeSwapped(false);
+        setWicketFielder(""); // H5: Reset fielder to prevent stale name
         setWicketNewBatsman(null);
         setActiveScreen("WICKET_MODAL");
     };
@@ -1056,8 +1055,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                             <span className="text-xs text-zinc-500 font-bold tracking-widest uppercase">MATCH {f.matchNo}</span>
                                             {f.winner ? (
                                                 <span className="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">COMPLETED</span>
+                                            ) : activeLiveMatchId === f.matchNo ? (
+                                                <span className="text-[9px] bg-red-500/20 text-red-500 border border-red-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter shadow-[0_0_10px_rgba(239,68,68,0.2)] animate-pulse">LIVE</span>
                                             ) : (
-                                                <span className="text-[9px] bg-red-500/20 text-red-500 border border-red-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter shadow-[0_0_10px_rgba(239,68,68,0.2)]">LIVE</span>
+                                                <span className="text-[9px] bg-zinc-700/30 text-zinc-400 border border-zinc-600/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">PENDING</span>
                                             )}
                                         </div>
                                         <span className="text-xl font-bold text-white tracking-wide block" style={{ fontFamily: "var(--font-heading)" }}>
@@ -1559,7 +1560,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                         setIsScoringLocked(false);
                                                         pushUpdate(state);
                                                     }}
-                                                    className="w-full bg-zinc-800 text-white p-3 rounded-xl border-2 border-amber-500/50 outline-none text-center font-bold text-xs"
+                                                    className="w-full bg-zinc-800 text-white p-4 rounded-xl border-2 border-amber-500/50 outline-none text-center font-bold text-sm min-h-[56px]"
                                                 >
                                                     <option value="">NEXT BOWLER</option>
                                                     {getSquadForTeam(fieldingInningsData.teamName).map(p => (
