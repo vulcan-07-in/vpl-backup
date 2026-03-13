@@ -119,9 +119,17 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         <div className="text-center flex flex-col items-center justify-center pt-1">
                             <span className={`text-[10px] font-bold tracking-widest px-2 py-0.5 rounded-full border ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : isLive ? "text-red-500 border-red-500/30 bg-red-500/10 animate-pulse" : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? "text-blue-400 border-blue-500/30 bg-blue-500/10 flex items-center gap-1" : "text-zinc-500 border-white/10 bg-white/5"}`} style={{ fontFamily: "var(--font-body)" }}>
                                 {played ? (
-                                    "FT"
+                                    liveMatches[fixture.matchNo] ? (
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-white font-bold">{liveMatches[fixture.matchNo].currentInnings === 2 ? liveMatches[fixture.matchNo].innings2.runs : liveMatches[fixture.matchNo].innings1.runs}-{liveMatches[fixture.matchNo].currentInnings === 2 ? liveMatches[fixture.matchNo].innings2.wickets : liveMatches[fixture.matchNo].innings1.wickets}</span>
+                                            <span className="text-[8px] opacity-60">FT</span>
+                                        </div>
+                                    ) : "FT"
                                 ) : isLive ? (
-                                    "LIVE"
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-red-500 font-bold">{liveMatches[fixture.matchNo].currentInnings === 2 ? liveMatches[fixture.matchNo].innings2.runs : liveMatches[fixture.matchNo].innings1.runs}-{liveMatches[fixture.matchNo].currentInnings === 2 ? liveMatches[fixture.matchNo].innings2.wickets : liveMatches[fixture.matchNo].innings1.wickets}</span>
+                                        <span className="text-[8px] animate-pulse">LIVE</span>
+                                    </div>
                                 ) : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? (
                                     <>
                                         <Clock className="w-3 h-3" />
@@ -198,12 +206,28 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                     <div className="text-center flex flex-col items-center justify-center w-24">
                         <span className={`text-[10px] sm:text-xs font-bold tracking-widest px-3 py-1 rounded border whitespace-nowrap ${played ? "text-amber-400 border-amber-500/30 bg-amber-500/10 shadow-[0_0_10px_rgba(245,158,11,0.2)]" : isLive ? "text-red-500 border-red-500/30 bg-red-500/10 flex items-center justify-center gap-2" : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? "text-blue-400 border-blue-500/30 bg-blue-500/10 flex items-center justify-center gap-2" : "text-zinc-500 border-white/10 bg-white/5"} ${isFeaturedKnockout && !played && !liveMatches[fixture.matchNo] ? '!text-amber-300 !border-amber-500/50 !bg-amber-900/10' : ''}`} style={{ fontFamily: "var(--font-body)" }}>
                             {played ? (
-                                "FT"
+                                liveMatches[fixture.matchNo] ? (
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-white text-base font-bold tracking-tight">
+                                            {liveMatches[fixture.matchNo].innings1.runs}-{liveMatches[fixture.matchNo].innings1.wickets}
+                                            <span className="mx-2 text-zinc-600">&</span>
+                                            {liveMatches[fixture.matchNo].innings2.runs}-{liveMatches[fixture.matchNo].innings2.wickets}
+                                        </span>
+                                        <span className="text-[9px] text-amber-500/50 font-bold tracking-[0.2em] mt-0.5">FINAL SCORE</span>
+                                    </div>
+                                ) : "FT"
                             ) : isLive ? (
-                                <>
-                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                    LIVE
-                                </>
+                                <div className="flex flex-col items-center">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                        <span className="text-red-500 font-bold">LIVE</span>
+                                    </div>
+                                    <span className="text-white font-bold text-lg">
+                                        {liveMatches[fixture.matchNo]?.currentInnings === 1 ? liveMatches[fixture.matchNo].innings1.runs : liveMatches[fixture.matchNo].innings2.runs}-
+                                        {liveMatches[fixture.matchNo]?.currentInnings === 1 ? liveMatches[fixture.matchNo].innings1.wickets : liveMatches[fixture.matchNo].innings2.wickets}
+                                    </span>
+                                    <span className="text-[9px] text-zinc-500 font-medium">({liveMatches[fixture.matchNo]?.currentInnings === 1 ? liveMatches[fixture.matchNo].innings1.overs.toFixed(1) : liveMatches[fixture.matchNo].innings2.overs.toFixed(1)})</span>
+                                </div>
                             ) : liveMatches[fixture.matchNo]?.status === "SCHEDULED" ? (
                                 <>
                                     <Clock className="w-3 h-3" />

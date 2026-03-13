@@ -731,9 +731,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             timestamp: Date.now(),
             innings: liveState.currentInnings,
             over: currentInn.overs,
-            striker: currentInn.strikerRef || "Unknown",
-            nonStriker: currentInn.nonStrikerRef || "Unknown",
-            bowler: currentInn.currentBowlerRef || "Unknown",
+            striker: currentInn.strikerRef || "",
+            nonStriker: currentInn.nonStrikerRef || "",
+            bowler: currentInn.currentBowlerRef || "",
             runs: 0,
             extras: 0,
             extraType: "DB" as any,
@@ -761,7 +761,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 innings: liveState.currentInnings,
                 over: currentInn.overs,
                 striker: currentInn.strikerRef,
-                nonStriker: currentInn.nonStrikerRef || "Unknown",
+                nonStriker: currentInn.nonStrikerRef || "",
                 bowler: currentInn.currentBowlerRef,
                 runs: 0,
                 extras: 1,
@@ -796,7 +796,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef,
-            nonStriker: currentInn.nonStrikerRef || "Unknown",
+            nonStriker: currentInn.nonStrikerRef || "",
             bowler: currentInn.currentBowlerRef,
             runs: runs,
             extras: fromNB ? 1 : 0,
@@ -824,7 +824,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef,
-            nonStriker: currentInn.nonStrikerRef || "Unknown",
+            nonStriker: currentInn.nonStrikerRef || "",
             bowler: currentInn.currentBowlerRef,
             runs: extraRuns,
             extras: 0,
@@ -883,7 +883,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings: liveState.currentInnings,
             over: currentInn.overs,
             striker: currentInn.strikerRef,
-            nonStriker: currentInn.nonStrikerRef || "Unknown",
+            nonStriker: currentInn.nonStrikerRef || "",
             bowler: currentInn.currentBowlerRef,
             runs: 0,
             extras: 0,
@@ -1033,8 +1033,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-xs text-zinc-500 font-bold tracking-widest uppercase">MATCH {f.matchNo}</span>
-                                            {f.winner && (
-                                                <span className="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">FIN</span>
+                                            {f.winner ? (
+                                                <span className="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">COMPLETED</span>
+                                            ) : (
+                                                <span className="text-[9px] bg-red-500/20 text-red-500 border border-red-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter shadow-[0_0_10px_rgba(239,68,68,0.2)]">LIVE</span>
                                             )}
                                         </div>
                                         <span className="text-xl font-bold text-white tracking-wide block" style={{ fontFamily: "var(--font-heading)" }}>
