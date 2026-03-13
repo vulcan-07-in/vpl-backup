@@ -400,13 +400,22 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     };
 
     const handleAuth = async () => {
-        if (pin === "2025") { // Mock check for instant UI unlock
-            setIsAuthenticated(true);
-            setActiveScreen("SELECT_MATCH");
-            localStorage.setItem("isScorerAuthenticated", "true");
-        } else {
-            alert("Incorrect PIN.");
-            setPin("");
+        try {
+            const res = await fetch("/api/scorer-auth", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pin }),
+            });
+            if (res.ok) {
+                setIsAuthenticated(true);
+                setActiveScreen("SELECT_MATCH");
+                localStorage.setItem("isScorerAuthenticated", "true");
+            } else {
+                alert("Incorrect PIN.");
+                setPin("");
+            }
+        } catch (e) {
+            alert("Connection error.");
         }
     };
 

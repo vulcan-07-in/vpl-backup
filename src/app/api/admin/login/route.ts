@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ ok: true });
-    response.cookies.set(SESSION_TOKEN, "authenticated", {
+    response.cookies.set("vpl_scorer_token", ADMIN_PASSWORD, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",

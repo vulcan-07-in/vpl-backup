@@ -15,7 +15,7 @@ import { GripVertical, Check, LogOut, ChevronRight, X } from "lucide-react";
 import { generateFixtures, resolveKnockouts, calculateStandings, SQUADS_CSV_URL, type Fixture, type Team } from "@/lib/tournament";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-const ADMIN_API_KEY = "vpl_secret_2025";
+// ADMIN_API_KEY removed from client - using session cookies
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Tab = "live" | "groups" | "fixtures" | "teams" | "players" | "logs";
@@ -217,7 +217,7 @@ export default function AdminPage() {
         try {
             await fetch("/api/active-match", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "x-vpl-internal-key": ADMIN_API_KEY },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ activeMatchId: matchId })
             });
             setActiveLiveMatchId(matchId);
@@ -364,8 +364,7 @@ export default function AdminPage() {
             const sheetRes = await fetch("/api/matches", {
                 method: "POST",
                 headers: { 
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify([]), // Empty array clears the sheet
             });
@@ -374,8 +373,7 @@ export default function AdminPage() {
             const redisRes = await fetch("/api/reset-data", {
                 method: "POST",
                 headers: { 
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 }
             });
 
@@ -416,8 +414,7 @@ export default function AdminPage() {
             const res = await fetch("/api/matches", {
                 method: "POST",
                 headers: { 
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(renumbered),
             });
@@ -442,8 +439,7 @@ export default function AdminPage() {
             const res = await fetch("/api/squads", {
                 method: "POST",
                 headers: { 
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(fullSquads),
             });

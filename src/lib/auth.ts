@@ -1,10 +1,10 @@
 import { headers, cookies } from "next/headers";
 
 export async function validateAdminRequest() {
-    // 1. Check HTTP-only cookie set by /api/scorer-auth
+    // 1. Check HTTP-only cookie set by /api/scorer-auth or /api/admin/login
     const cookieStore = await cookies();
-    const scorerToken = cookieStore.get("vpl_scorer_token");
-    if (scorerToken && scorerToken.value === process.env.ADMIN_PASSWORD) {
+    const token = cookieStore.get("vpl_scorer_token");
+    if (token && token.value === process.env.ADMIN_PASSWORD) {
         return true;
     }
 
