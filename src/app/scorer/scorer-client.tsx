@@ -427,6 +427,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         if (!matchDef) return;
 
         setSelectedMatch(matchDef);
+        
+        // Reset setup states to prevent data carry-over from previous match
+        setTossWinner("");
+        setTossDecision(null);
+        setOpenStriker("");
+        setOpenNonStriker("");
+        setOpenBowler("");
+
         try {
             const res = await fetch(`/api/live-score?matchId=${matchId}`);
             if (res.ok) {
@@ -1173,7 +1181,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             </div>
                         )}
 
-                        {(tossDecision || (liveState && liveState.currentInnings === 2)) && (
+                        {tossWinner && tossDecision && (
                             <div className="space-y-4 border-t border-zinc-800 pt-6 animate-in fade-in slide-in-from-top-4 duration-500">
                                 <label className="text-xs tracking-widest text-zinc-500 block font-bold uppercase">INITIAL PLAYERS</label>
 
@@ -1211,7 +1219,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             </div>
                         )}
 
-                        {tossWinner && tossDecision && openStriker && openNonStriker && openBowler && (
+                        {tossWinner && tossDecision && openStriker && openNonStriker && openBowler ? (
                             <button
                                 onClick={() => {
                                     if (openStriker === openNonStriker) {
@@ -1240,6 +1248,12 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             >
                                 {liveState ? "SAVE & RETURN TO MATCH" : "START LIVE MATCH"}
                             </button>
+                        ) : (
+                            <div className="mt-8 p-6 border border-zinc-800 border-dashed rounded-xl text-center">
+                                <p className="text-zinc-600 text-sm tracking-widest uppercase">
+                                    {!(tossWinner && tossDecision) ? "Complete Toss Result" : "Select Opening Players"}
+                                </p>
+                            </div>
                         )}
                     </div>
                 </div>
