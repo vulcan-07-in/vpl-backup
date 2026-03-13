@@ -81,7 +81,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const hasLiveState = !!lm;
         const isScheduled = lm?.status === "SCHEDULED";
         const canView = true; // All matches are now clickable
-        const targetHref = (isLive || isInningsBreak) ? "/live" : `/matches/${fixture.matchNo}`;
+        const targetHref = (isLive || isInningsBreak) ? `/live?matchId=${encodeURIComponent(fixture.matchNo)}` : `/matches/${encodeURIComponent(fixture.matchNo)}`;
 
         // Get score info
         const getTeamScore = (teamName: string) => {

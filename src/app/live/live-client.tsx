@@ -9,7 +9,7 @@ import { Scorecard } from "@/components/scorecard";
 import { InningsBreakOverlay } from "@/components/innings-break-overlay";
 import { MatchOverOverlay } from "@/components/match-over-overlay";
 
-export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
+export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { fixtures: Fixture[], teams: Team[], initialMatchId?: string }) {
     const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -31,16 +31,21 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
         let isMounted = true;
         const fetchLiveStatus = async () => {
             try {
-                const activeRes = await fetch("/api/active-match");
-                if (!activeRes.ok) throw new Error();
-                const { activeMatchId } = await activeRes.json();
+                let matchIdToFetch = initialMatchId;
+                
+                if (!matchIdToFetch) {
+                    const activeRes = await fetch("/api/active-match");
+                    if (!activeRes.ok) throw new Error();
+                    const { activeMatchId } = await activeRes.json();
+                    matchIdToFetch = activeMatchId;
+                }
 
-                if (!activeMatchId) {
+                if (!matchIdToFetch) {
                     if (isMounted) { setLiveMatch(null); setLoading(false); }
                     return;
                 }
 
-                const res = await fetch(`/api/live-score?matchId=${activeMatchId}`);
+                const res = await fetch(`/api/live-score?matchId=${encodeURIComponent(matchIdToFetch)}`);
                 if (res.ok) {
                     const data: LiveMatchState = await res.json();
                     
@@ -190,22 +195,93 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
         );
     }
 
-    // INNINGS BREAK VIEW
-    if (liveMatch.status === "INNINGS_BREAK") {
+    // STARTING SOON / TOSS VIEW (LIVE status but no balls bowled)
+    if (liveMatch.status === "LIVE" && liveMatch.timeline.length === 0 && !showScorecard) {
         return (
-            <InningsBreakOverlay 
-                teamName={liveMatch.innings1.teamName}
-                runs={liveMatch.innings1.runs}
-                wickets={liveMatch.innings1.wickets}
-                overs={liveMatch.innings1.overs}
-                targetTeam={liveMatch.innings2.teamName}
-                teamColor={colorOf(liveMatch.innings1.teamName)}
-            />
+            <main className="min-h-screen pt-32 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+                
+                <p className="text-[12px] tracking-[0.6em] text-amber-500 mb-8 font-black uppercase" style={{ fontFamily: "var(--font-body)" }}>
+                    MATCH {liveMatch.matchId} · STARTING SOON
+                </p>
+                
+                <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16 mb-12">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-20 h-20 rounded-3xl shadow-2xl border-4 border-white/5" style={{ backgroundColor: colorOf(liveMatch.innings1.teamName) }} />
+                        <h2 className="text-4xl font-black text-white uppercase italic" style={{ fontFamily: "var(--font-display)" }}>{liveMatch.innings1.teamName}</h2>
+                    </div>
+                    <div className="text-zinc-800 text-4xl font-black italic tracking-tighter">VS</div>
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-20 h-20 rounded-3xl shadow-2xl border-4 border-white/5" style={{ backgroundColor: colorOf(liveMatch.innings2.teamName) }} />
+                        <h2 className="text-4xl font-black text-white uppercase italic" style={{ fontFamily: "var(--font-display)" }}>{liveMatch.innings2.teamName}</h2>
+                    </div>
+                </div>
+
+                {liveMatch.tossWinner ? (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-zinc-900/60 backdrop-blur-xl border border-amber-500/20 rounded-3xl p-8 max-w-sm w-full shadow-2xl"
+                    >
+                        <Trophy className="w-8 h-8 text-amber-500 mx-auto mb-4" />
+                        <p className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-2">TOSS UPDATE</p>
+                        <h3 className="text-xl font-black text-white uppercase tracking-tight mb-1">
+                            {liveMatch.tossWinner} WON THE TOSS
+                        </h3>
+                        <p className="text-amber-500 font-bold tracking-widest text-xs uppercase">
+                            OPTED TO {liveMatch.tossDecision === 'BAT' ? 'BAT' : 'BOWL'} FIRST
+                        </p>
+                        <button
+                            onClick={() => setShowScorecard(true)}
+                            className="mt-6 text-[10px] font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em]"
+                        >
+                            View Teams
+                        </button>
+                    </motion.div>
+                ) : (
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="flex items-center gap-3 text-zinc-600 bg-white/5 px-6 py-3 rounded-full border border-white/5">
+                            <div className="w-2 h-2 rounded-full bg-zinc-600 animate-pulse" />
+                            <span className="text-[10px] font-bold tracking-[0.2em] uppercase">Waiting for Toss</span>
+                        </div>
+                        <button
+                            onClick={() => setShowScorecard(true)}
+                            className="text-[10px] font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em]"
+                        >
+                            View Teams
+                        </button>
+                    </div>
+                )}
+            </main>
+        );
+    }
+
+    // INNINGS BREAK VIEW
+    if (liveMatch.status === "INNINGS_BREAK" && !showScorecard) {
+        return (
+            <div className="relative min-h-screen">
+                <InningsBreakOverlay 
+                    teamName={liveMatch.innings1.teamName}
+                    runs={liveMatch.innings1.runs}
+                    wickets={liveMatch.innings1.wickets}
+                    overs={liveMatch.innings1.overs}
+                    targetTeam={liveMatch.innings2.teamName}
+                    teamColor={colorOf(liveMatch.innings1.teamName)}
+                />
+                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[250]">
+                    <button
+                        onClick={() => setShowScorecard(true)}
+                        className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-[10px] font-bold tracking-[0.3em] px-8 py-4 rounded-full border border-white/20 transition-all uppercase"
+                    >
+                        View Scorecard
+                    </button>
+                </div>
+            </div>
         );
     }
 
     // MATCH OVER VIEW
-    if (liveMatch.status === "COMPLETED") {
+    if (liveMatch.status === "COMPLETED" && !showScorecard) {
         return (
             <MatchOverOverlay 
                 result={liveMatch.result || ""}
@@ -259,7 +335,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 className={`p-4 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-xl ${n.type === 'SUCCESS' ? 'bg-amber-500/90 border-amber-400 text-black' : 'bg-blue-600/90 border-blue-500 text-white'}`}
                             >
                                 <div className="bg-white/20 p-2 rounded-full">
-                                    <Bell className="w-4 h-4" />
+                                    < Bell className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs font-bold leading-tight uppercase tracking-wide">
@@ -354,26 +430,33 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     document.body
                 )}
 
-                {/* Scorecard Overlay */}
+                {/* Standardized Scorecard Overlay */}
                 <AnimatePresence>
                     {showScorecard && liveMatch && (
-                        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4">
+                        <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4">
                             <motion.div 
-                                initial={{ opacity: 0, y: 40 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 40 }}
-                                className="w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-zinc-950 border border-zinc-800 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.8)]"
                             >
-                                <div className="p-8 space-y-12">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <h2 className="text-4xl font-bold text-white tracking-widest uppercase italic" style={{ fontFamily: "var(--font-heading)" }}>SCORECARD</h2>
-                                        <button onClick={() => setShowScorecard(false)} className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all">
-                                            <X className="w-6 h-6" />
-                                        </button>
+                                <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                                    <div>
+                                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight" style={{ fontFamily: "var(--font-display)" }}>MATCH SCORECARD</h2>
+                                        <p className="text-[10px] text-zinc-500 font-bold tracking-[0.3em] uppercase mt-1">Full Summary</p>
                                     </div>
-                                    <div className="space-y-12">
+                                    <button 
+                                        onClick={() => setShowScorecard(false)} 
+                                        className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white transition-all border border-white/5 group"
+                                    >
+                                        <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+                                    </button>
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-10 custom-scrollbar">
+                                    <div className="space-y-8">
                                         {renderInningsScorecard(liveMatch.innings1, 1)}
-                                        {(liveMatch.currentInnings === 2) && (
+                                        {(liveMatch.currentInnings === 2 || (liveMatch.status as string) === "COMPLETED") && (
                                             renderInningsScorecard(liveMatch.innings2, 2)
                                         )}
                                     </div>
@@ -651,133 +734,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                         </>
                     )}
                 </motion.div>
-
-                {/* Scorecard Overlay with Ultra-premium Glassmorphism */}
-                <AnimatePresence>
-                    {showScorecard && (
-                        <motion.div 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-2xl p-4 md:p-8 flex items-center justify-center"
-                        >
-                            <motion.div 
-                                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                                className="bg-zinc-900/80 border border-white/10 w-full max-w-5xl max-h-[90vh] rounded-[3rem] overflow-hidden flex flex-col shadow-[0_64px_128px_-32px_rgba(0,0,0,0.8)]"
-                            >
-                                <div className="p-8 border-b border-white/5 flex justify-between items-center bg-zinc-800/20 backdrop-blur-md">
-                                    <div className="flex flex-col">
-                                        <h2 className="text-2xl font-black tracking-tight text-white uppercase leading-none" style={{ fontFamily: "var(--font-display)" }}>BATTLE SUMMARY</h2>
-                                        <span className="text-[10px] font-bold text-zinc-500 tracking-[0.4em] mt-1">FULL MATCH SCORECARD</span>
-                                    </div>
-                                    <button onClick={() => setShowScorecard(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all text-zinc-400 hover:text-white border border-white/5">
-                                        <X className="w-6 h-6" />
-                                    </button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-8 space-y-12 custom-scrollbar">
-                                    {[liveMatch.innings1, liveMatch.innings2].map((inn, innIdx) => (
-                                        <div key={innIdx} className="space-y-6">
-                                            <div className="flex justify-between items-end border-b border-white/5 pb-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-2 h-10 rounded-full bg-gradient-to-b from-amber-500 to-amber-700 shadow-[0_0_15px_rgba(245,158,11,0.3)]" />
-                                                    <div className="flex flex-col">
-                                                        <h3 className="text-white font-black tracking-[0.2em] text-lg uppercase leading-none">{inn.teamName}</h3>
-                                                        <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase mt-1">{innIdx === 0 ? 'FIRST' : 'SECOND'} INNINGS</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-black text-white tabular-nums leading-none">{inn.runs}-{inn.wickets}</span>
-                                                    <span className="text-zinc-500 text-sm font-bold tracking-widest uppercase">({inn.overs.toFixed(1)})</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-6">
-                                                <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
-                                                    <table className="w-full text-left text-xs min-w-[500px]">
-                                                        <thead>
-                                                            <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
-                                                                <th className="px-6 py-4">BATSMAN</th>
-                                                                <th className="px-6 py-4 text-right">RUNS</th>
-                                                                <th className="px-6 py-4 text-right">BALLS</th>
-                                                                <th className="px-6 py-4 text-right">4s</th>
-                                                                <th className="px-6 py-4 text-right">6s</th>
-                                                                <th className="px-6 py-4 text-right">SR</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-white/5">
-                                                            {Object.values(inn.batsmen).length === 0 ? (
-                                                                <tr>
-                                                                    <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Innings not started</td>
-                                                                </tr>
-                                                            ) : (
-                                                                Object.values(inn.batsmen).map((b, bIdx) => (
-                                                                    <tr key={bIdx} className={`transition-colors h-12 ${b.isOut ? 'text-zinc-500 opacity-60' : 'text-zinc-100'}`}>
-                                                                        <td className="px-6 py-4">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="font-black tracking-tight text-sm uppercase">{b.name}</span>
-                                                                                {b.isOut && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-500 font-bold uppercase tracking-tighter">{b.dismissal}</span>}
-                                                                                {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
-                                                                            </div>
-                                                                        </td>
-                                                                        <td className="px-6 py-4 text-right font-black text-amber-500 text-sm">{b.runs}</td>
-                                                                        <td className="px-6 py-4 text-right font-bold tabular-nums">{b.balls}</td>
-                                                                        <td className="px-6 py-4 text-right font-bold tabular-nums">{b.fours}</td>
-                                                                        <td className="px-6 py-4 text-right font-bold tabular-nums">{b.sixes}</td>
-                                                                        <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
-                                                                            {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-
-                                                <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
-                                                    <table className="w-full text-left text-xs min-w-[500px]">
-                                                        <thead>
-                                                            <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
-                                                                <th className="px-6 py-4">BOWLER</th>
-                                                                <th className="px-6 py-4 text-right">O</th>
-                                                                <th className="px-6 py-4 text-right">M</th>
-                                                                <th className="px-6 py-4 text-right">R</th>
-                                                                <th className="px-6 py-4 text-right">W</th>
-                                                                <th className="px-6 py-4 text-right">ECON</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-white/5">
-                                                            {Object.values(inn.bowlers).length === 0 ? (
-                                                                <tr>
-                                                                    <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Yet to bowl</td>
-                                                                </tr>
-                                                            ) : (
-                                                                Object.values(inn.bowlers).map((bw, bwIdx) => (
-                                                                    <tr key={bwIdx} className="text-zinc-200 transition-colors h-12">
-                                                                        <td className="px-6 py-4 font-black tracking-tight text-sm uppercase">{bw.name}</td>
-                                                                        <td className="px-6 py-4 text-right font-black text-white">{bw.overs.toFixed(1)}</td>
-                                                                        <td className="px-6 py-4 text-right font-bold">{bw.maidens || 0}</td>
-                                                                        <td className="px-6 py-4 text-right font-bold">{bw.runs}</td>
-                                                                        <td className="px-6 py-4 text-right font-black text-blue-400 text-sm">{bw.wickets}</td>
-                                                                        <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
-                                                                            {bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + (Math.round((bw.overs % 1) * 10)) / 6)).toFixed(2) : '0.00'}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </div>
         </main >
     );
 }
+

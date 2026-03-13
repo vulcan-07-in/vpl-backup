@@ -30,17 +30,17 @@ export function MatchOverOverlay({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 text-center overflow-hidden"
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex items-start justify-center p-6 text-center overflow-y-auto custom-scrollbar"
         >
             {/* Winner Ambient Glow */}
             <motion.div
                 animate={{ opacity: [0.1, 0.2, 0.1] }}
                 transition={{ duration: 4, repeat: Infinity }}
-                className="absolute inset-0 pointer-events-none"
+                className="fixed inset-0 pointer-events-none"
                 style={{ background: `radial-gradient(circle at center, ${winnerColor}50 0%, transparent 70%)` }}
             />
 
-            <div className="relative z-10 flex flex-col items-center max-w-4xl w-full">
+            <div className="relative z-10 flex flex-col items-center max-w-4xl w-full py-12">
                 <motion.div
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}

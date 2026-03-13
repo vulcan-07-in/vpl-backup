@@ -9,9 +9,10 @@ export const metadata: Metadata = {
     description: "Watch live scores from the ongoing Varchasva Premier League match.",
 };
 
-export default async function LivePage() {
+export default async function LivePage({ searchParams }: { searchParams: Promise<{ matchId?: string }> }) {
     const fixtures = await fetchFixtures();
     const teams = await fetchTeams();
+    const params = await searchParams;
 
-    return <LiveViewerClient fixtures={fixtures} teams={teams} />;
+    return <LiveViewerClient fixtures={fixtures} teams={teams} initialMatchId={params.matchId} />;
 }
