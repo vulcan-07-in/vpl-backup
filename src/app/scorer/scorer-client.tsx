@@ -468,10 +468,16 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             if (res.ok) {
                 const data = await res.json();
 
-                if (data.status === "SCHEDULED") {
+                if (data.status === "SCHEDULED" && !data.tossWinner) {
+                    // Match scheduled but toss not done yet
                     setLiveState(data);
                     setActiveScreen("TOSS_SETUP");
+                } else if (data.status === "SCHEDULED" && data.tossWinner) {
+                    // Toss done but scoring not started yet — go straight to live scoring
+                    setLiveState(data);
+                    setActiveScreen("LIVE_SCORING");
                 } else {
+                    // LIVE, INNINGS_BREAK, COMPLETED — resume directly
                     setLiveState(data);
                     setActiveScreen("LIVE_SCORING");
                 }

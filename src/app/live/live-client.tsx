@@ -18,6 +18,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
     useEffect(() => { liveMatchRef.current = liveMatch; }, [liveMatch]);
 
     const colorOf = useCallback((name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308", [teams]);
+    const shortNameOf = useCallback((name?: string) => teams.find(t => t.teamName === name)?.shortName ?? (name || "???").substring(0, 3).toUpperCase(), [teams]);
 
     useEffect(() => {
         let isMounted = true;
@@ -142,11 +143,41 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     <Clock className="w-10 h-10 text-blue-400" />
                 </div>
                 <h2 className="text-6xl text-white font-bold mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
-                    {liveMatch.scheduledTime}
+                    {liveMatch.scheduledTime || "SOON"}
                 </h2>
                 <h3 className="text-2xl text-zinc-400 max-w-sm mt-4 font-medium" style={{ fontFamily: "var(--font-heading)" }}>
                     {liveMatch.innings1.teamName} <span className="text-zinc-600 mx-2 text-lg">vs</span> {liveMatch.innings2.teamName}
                 </h3>
+            </main>
+        );
+    }
+
+    // INNINGS BREAK VIEW
+    if (liveMatch.status === "INNINGS_BREAK") {
+        const target = liveMatch.innings1.runs + 1;
+        return (
+            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none opacity-20" style={{ backgroundColor: colorOf(liveMatch.innings1.teamName) }} />
+                <p className="text-[12px] tracking-[0.5em] text-blue-400 mb-4 font-bold uppercase">Match {liveMatch.matchId}</p>
+                <h2 className="text-5xl md:text-7xl text-white font-bold mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
+                    INNINGS 1 OVER
+                </h2>
+                <div className="mt-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 max-w-md w-full">
+                    <p className="text-xl font-bold text-white mb-2" style={{ fontFamily: "var(--font-heading)" }}>
+                        {liveMatch.innings1.teamName}: <span className="text-amber-500">{liveMatch.innings1.runs}/{liveMatch.innings1.wickets}</span>
+                        <span className="text-zinc-500 text-sm ml-2">({liveMatch.innings1.overs.toFixed(1)} ov)</span>
+                    </p>
+                    <div className="h-px bg-zinc-800 my-3" />
+                    <p className="text-lg text-zinc-300 font-bold">
+                        {liveMatch.innings2.teamName} needs <span className="text-amber-500 text-2xl font-black">{target}</span> runs to win
+                    </p>
+                    <p className="text-[10px] text-zinc-500 tracking-widest uppercase mt-3 font-bold">2nd Innings will resume shortly</p>
+                </div>
+                <div className="mt-6 flex gap-2">
+                    {[...Array(3)].map((_, i) => (
+                        <motion.div key={i} animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }} className="w-2 h-2 rounded-full bg-blue-400" />
+                    ))}
+                </div>
             </main>
         );
     }
@@ -165,7 +196,12 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.7)]" />
-                        <span className="text-sm font-bold tracking-[0.3em] text-red-500 uppercase">LIVE MATCH {liveMatch.matchId}</span>
+                        <span className="text-sm font-bold tracking-[0.3em] text-red-500 uppercase">
+                            {liveMatch.status === "COMPLETED" ? "MATCH OVER" : "LIVE"} {liveMatch.matchId}
+                        </span>
+                        <span className="text-zinc-500 font-bold text-xs tracking-widest" style={{ fontFamily: "var(--font-display)" }}>
+                            {shortNameOf(liveMatch.innings1.teamName)} vs {shortNameOf(liveMatch.innings2.teamName)}
+                        </span>
                     </div>
 
                     <button
@@ -303,10 +339,10 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 transition={{ type: 'spring', damping: 12, stiffness: 100 }}
                                 className="perspective-[1000px]"
                             >
-                                <span className="text-9xl md:text-[14rem] font-black text-white leading-none tracking-tighter inline-block bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent" 
+                                <span className="text-9xl md:text-[14rem] font-black text-white leading-none tracking-tighter inline-block bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent tabular-nums" 
                                     style={{ fontFamily: "var(--font-display)" }}
                                 >
-                                    {currentInningsData.runs}
+                                    {String(currentInningsData.runs)}
                                 </span>
                             </motion.div>
 
@@ -507,6 +543,9 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                     />
                                 ))}
                             </div>
+                            <a href={`/matches/${liveMatch.matchId}`} className="mt-6 inline-block bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-bold tracking-widest px-6 py-2.5 rounded-full border border-amber-500/30 transition-all uppercase">
+                                VIEW FULL MATCH REPORT
+                            </a>
                         </div>
                     ) : (
                         <>
