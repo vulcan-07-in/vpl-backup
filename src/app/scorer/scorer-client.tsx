@@ -1807,10 +1807,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 <Trophy className="w-4 h-4" /> View Full Scorecard
                                             </button>
                                             <button 
-                                                onClick={handleResetMatch}
-                                                className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-4 rounded-2xl border border-red-500/20 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                                                onClick={() => {
+                                                    const url = `${window.location.origin}/matches/${liveState.matchId}`;
+                                                    navigator.clipboard.writeText(url);
+                                                    alert("Scorecard Link Copied!");
+                                                }}
+                                                className="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold py-4 rounded-2xl border border-blue-500/20 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                                             >
-                                                <AlertCircle className="w-4 h-4" /> Reset Match
+                                                <AlertCircle className="w-4 h-4 rotate-180" /> Copy Public Scorecard Link
                                             </button>
                                             <button 
                                                 onClick={() => {
