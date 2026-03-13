@@ -13,10 +13,11 @@ export async function POST(request: Request) {
         await redis.del('active_live_match_id');
 
         // 2. Find and clear all match state keys
-        // We clear both live_match_* (engine) and vpl_live_state_* (legacy/alternative)
+        // We clear live_match_*, vpl_live_state_*, and completed_match_* (archives)
         const matchKeys = await redis.keys('live_match_*');
         const vplKeys = await redis.keys('vpl_live_state_*');
-        const allMatchKeys = [...matchKeys, ...vplKeys];
+        const archiveKeys = await redis.keys('completed_match_*');
+        const allMatchKeys = [...matchKeys, ...vplKeys, ...archiveKeys];
         
         if (allMatchKeys.length > 0) {
             await redis.del(...allMatchKeys);
