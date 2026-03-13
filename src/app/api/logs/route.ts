@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import Redis from "ioredis";
+import { validateAdminRequest } from "@/lib/auth";
 
 const redis = new Redis(process.env.REDIS_URL || "");
 
 export async function POST(req: Request) {
     try {
+        const isValid = await validateAdminRequest();
+        if (!isValid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { action, matchId, details } = body;
 
@@ -30,6 +34,9 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
     try {
+        const isValid = await validateAdminRequest();
+        if (!isValid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { searchParams } = new URL(req.url);
         const matchId = searchParams.get("matchId");
         

@@ -38,14 +38,14 @@ export async function GET(request: Request) {
 // Update the live match state (Admin Only)
 export async function POST(request: Request) {
     try {
+        const isValid = await validateAdminRequest();
+        if (!isValid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body: LiveMatchState = await request.json();
 
         if (!body.matchId) {
             return NextResponse.json({ error: 'Match ID is required in payload' }, { status: 400 });
         }
-
-        // Validate admin token (to be implemented via headers/cookies)
-        // For now, we trust the client as this route will be protected by Next.js middleware or simple auth check.
 
         // Save state to Redis. It overwrites the existing state instantly.
         await redis.set(`live_match_${body.matchId}`, JSON.stringify(body));

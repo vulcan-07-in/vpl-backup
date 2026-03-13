@@ -13,11 +13,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Check, LogOut, ChevronRight, X } from "lucide-react";
 import { generateFixtures, resolveKnockouts, calculateStandings, SQUADS_CSV_URL, type Fixture, type Team } from "@/lib/tournament";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const ADMIN_API_KEY = "vpl_secret_2025";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Tab = "groups" | "fixtures" | "teams" | "players" | "logs";
+type Tab = "live" | "groups" | "fixtures" | "teams" | "players" | "logs";
 type Overrides = Partial<Record<"A" | "B", string>>;
 
 // ── Sortable fixture row ──────────────────────────────────────────────────────
@@ -75,23 +76,41 @@ function SortableRow({
 
             {/* Winner picker (only for group matches or if teams are known) */}
             {(!isKnockout || (!fixture.team1.includes("Group") && !fixture.team2.includes("Group") && fixture.team1 !== "TBD" && fixture.team2 !== "TBD")) ? (
-                <div className="flex items-center gap-1 shrink-0">
-                    {[fixture.team1, fixture.team2].map(team => (
+                <div className="flex flex-col gap-1 shrink-0 items-end">
+                    <div className="flex items-center gap-1">
+                        {[fixture.team1, fixture.team2].map(team => (
+                            <button
+                                key={team}
+                                disabled={saving}
+                                onClick={() => onSetWinner(fixture.matchNo, fixture.winner === team ? "" : team)}
+                                className="text-[10px] px-2 py-1 rounded font-bold tracking-wider transition-all"
+                                style={{
+                                    fontFamily: "var(--font-body)",
+                                    color: colorOf(team),
+                                    backgroundColor: fixture.winner === team ? `${colorOf(team)}25` : "transparent",
+                                    border: `1px solid ${fixture.winner === team ? colorOf(team) + "40" : "rgba(255,255,255,0.06)"}`,
+                                }}
+                            >
+                                {shortNameOf(team)}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex gap-1">
                         <button
-                            key={team}
                             disabled={saving}
-                            onClick={() => onSetWinner(fixture.matchNo, fixture.winner === team ? "" : team)}
-                            className="text-[10px] px-2 py-1 rounded font-bold tracking-wider transition-all"
-                            style={{
-                                fontFamily: "var(--font-body)",
-                                color: colorOf(team),
-                                backgroundColor: fixture.winner === team ? `${colorOf(team)}25` : "transparent",
-                                border: `1px solid ${fixture.winner === team ? colorOf(team) + "40" : "rgba(255,255,255,0.06)"}`,
-                            }}
+                            onClick={() => onSetWinner(fixture.matchNo, fixture.winner === "TIE" ? "" : "TIE")}
+                            className={`text-[9px] px-2 py-0.5 rounded font-bold tracking-widest border transition-all ${fixture.winner === "TIE" ? 'bg-amber-500/20 text-amber-500 border-amber-500/40' : 'text-zinc-500 hover:text-white border-white/5 hover:border-white/20'}`}
                         >
-                            {shortNameOf(team)}
+                            TIE
                         </button>
-                    ))}
+                        <button
+                            disabled={saving}
+                            onClick={() => onSetWinner(fixture.matchNo, fixture.winner === "ABANDONED" ? "" : "ABANDONED")}
+                            className={`text-[9px] px-2 py-0.5 rounded font-bold tracking-widest border transition-all ${fixture.winner === "ABANDONED" ? 'bg-red-500/20 text-red-500 border-red-500/40' : 'text-zinc-500 hover:text-white border-white/5 hover:border-white/20'}`}
+                        >
+                            ABD
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <span className="text-[10px] text-zinc-800 shrink-0 tracking-widest w-28 text-right"
@@ -145,6 +164,10 @@ export default function AdminPage() {
     };
     const [logs, setLogs] = useState<any[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+    
+    // Broadcast / Live State
+    const [activeLiveMatchId, setActiveLiveMatchId] = useState<string | null>(null);
+    const [liveMatchStates, setLiveMatchStates] = useState<Record<string, any>>({});
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -169,8 +192,37 @@ export default function AdminPage() {
     useEffect(() => {
         if (tab === "logs") {
             fetchLogs();
+        } else if (tab === "live") {
+            fetch("/api/active-match").then(r => r.json()).then(d => setActiveLiveMatchId(d.activeMatchId)).catch(console.error);
+            const fetchStatuses = async () => {
+                const liveIds = fixtures.filter(f => !f.winner || (f.winner !== "ABANDONED" && f.winner !== "TIE" && !teams.some(t => t.teamName === f.winner))).map(f => f.matchNo);
+                const newStates: Record<string, any> = {};
+                for (const id of liveIds) {
+                    try {
+                        const r = await fetch(`/api/live-score?matchId=${id}`);
+                        if (r.ok) {
+                            newStates[id] = await r.json();
+                        }
+                    } catch {}
+                }
+                setLiveMatchStates(prev => ({ ...prev, ...newStates }));
+            };
+            fetchStatuses();
+            const interval = setInterval(fetchStatuses, 10000);
+            return () => clearInterval(interval);
         }
-    }, [tab, fetchLogs]);
+    }, [tab, fetchLogs, fixtures, teams]);
+
+    const handleSetActiveMatch = async (matchId: string | null) => {
+        try {
+            await fetch("/api/active-match", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-vpl-internal-key": ADMIN_API_KEY },
+                body: JSON.stringify({ activeMatchId: matchId })
+            });
+            setActiveLiveMatchId(matchId);
+        } catch (e) { console.error(e); }
+    };
 
     // Load teams from Squads sheet
     useEffect(() => {
@@ -412,8 +464,9 @@ export default function AdminPage() {
     // ── Login screen ─────────────────────────────────────────────────────────
     if (!authed) {
         return (
-            <main className="min-h-screen flex items-center justify-center px-4">
-                <div className="w-full max-w-sm">
+            <ErrorBoundary>
+                <main className="min-h-screen flex items-center justify-center px-4">
+                    <div className="w-full max-w-sm">
                     <div className="mb-10 text-center">
                         <h1 className="text-5xl text-white mb-2" style={{ fontFamily: "var(--font-display)" }}>
                             ADMIN
@@ -448,13 +501,15 @@ export default function AdminPage() {
                     </form>
                 </div>
             </main>
+        </ErrorBoundary>
         );
     }
 
     // ── Admin panel ───────────────────────────────────────────────────────────
     return (
-        <main className="min-h-screen pt-24 pb-16 px-4 md:pt-28">
-            <div className="max-w-4xl mx-auto">
+        <ErrorBoundary>
+            <main className="min-h-screen pt-24 pb-16 px-4 md:pt-28">
+                <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="relative z-10 mb-10 flex items-end justify-between">
                     <div>
@@ -501,12 +556,12 @@ export default function AdminPage() {
                 )}
 
                 {/* Tabs */}
-                <div className="flex gap-6 mb-8 border-b border-white/[0.05]">
-                    {(["groups", "fixtures", "teams", "players", "logs"] as Tab[]).map(t => (
+                <div className="flex gap-6 mb-8 border-b border-white/[0.05] overflow-x-auto custom-scrollbar">
+                    {(["live", "fixtures", "groups", "teams", "players", "logs"] as Tab[]).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
-                            className="pb-3 text-xs tracking-[0.3em] transition-colors"
+                            className="pb-3 text-xs tracking-[0.3em] transition-colors whitespace-nowrap"
                             style={{
                                 fontFamily: "var(--font-body)",
                                 color: tab === t ? "#F59E0B" : "#52525B",
@@ -518,6 +573,60 @@ export default function AdminPage() {
                         </button>
                     ))}
                 </div>
+
+                {/* ── Tab: Live Broadcast ────────────────────────────────────── */}
+                {tab === "live" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xs tracking-[0.4em] text-zinc-600 font-bold uppercase">Broadcast Control</h2>
+                        </div>
+                        {fixtures.length === 0 ? (
+                            <div className="py-16 text-center text-zinc-700 text-xs tracking-widest">
+                                NO FIXTURES SCHEDULED
+                            </div>
+                        ) : (
+                            <div className="grid gap-3">
+                                {fixtures.map(f => (
+                                    <div key={f.matchNo} className={`flex items-center justify-between p-5 bg-zinc-900 border rounded-xl transition-all ${activeLiveMatchId === f.matchNo ? 'border-amber-500/50 bg-amber-500/5' : 'border-zinc-800'}`}>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs text-zinc-500 font-bold tracking-widest uppercase">MATCH {f.matchNo}</span>
+                                                {f.winner && (
+                                                    <span className="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">FIN</span>
+                                                )}
+                                                {activeLiveMatchId === f.matchNo && (
+                                                    <span className="text-[9px] bg-red-500/20 text-red-500 border border-red-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-widest animate-pulse">ON AIR</span>
+                                                )}
+                                                {liveMatchStates[f.matchNo] && (
+                                                    <span title={`Status: ${liveMatchStates[f.matchNo].status}`} className={`text-[9px] border px-1.5 py-0.5 rounded font-bold uppercase tracking-widest ${Date.now() - (liveMatchStates[f.matchNo].lastSyncedAt || 0) < 30000 ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-amber-500/20 text-amber-500 border-amber-500/30'}`}>
+                                                        {Date.now() - (liveMatchStates[f.matchNo].lastSyncedAt || 0) < 30000 ? 'SCORER ONLINE' : 'SCORER OFFLINE'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-xl font-bold text-white tracking-wide block" style={{ fontFamily: "var(--font-heading)" }}>
+                                                {f.team1} <span className="text-zinc-600 mx-1">vs</span> {f.team2}
+                                            </span>
+                                            {f.winner && (
+                                                <span className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1 block">
+                                                    {['ABANDONED', 'TIE'].includes(f.winner) ? f.winner : `${f.winner} WON`}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col items-end gap-2 ml-4">
+                                            <button
+                                                onClick={() => handleSetActiveMatch(activeLiveMatchId === f.matchNo ? null : f.matchNo)}
+                                                className={`text-[9px] font-bold px-4 py-2 rounded-lg border transition-all ${activeLiveMatchId === f.matchNo ? 'bg-red-500 text-white border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20'}`}
+                                            >
+                                                {activeLiveMatchId === f.matchNo ? 'REMOVE FROM BROADCAST' : 'SET AS LIVE'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* ── Tab: Group Setup ─────────────────────────────────────── */}
                 {tab === "groups" && (
@@ -967,5 +1076,6 @@ export default function AdminPage() {
                 )}
             </div>
         </main>
+        </ErrorBoundary>
     );
 }

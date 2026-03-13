@@ -1,22 +1,31 @@
 import { NextResponse } from 'next/server';
-
-// Temporary fixed PIN for scorers. In a real app, this could be in .env
-// We keep it simple since it's just to prevent accidental access from players.
-const SCORER_PIN = process.env.SCORER_PIN || "2025";
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
-        const { pin } = body;
+        const { pin } = await request.json();
+        const correctPin = process.env.ADMIN_PASSWORD;
 
-        if (pin === SCORER_PIN) {
-            // Success. We return a simple token that the client will store.
-            // For VPL, a simple mock token is enough to unlock the UI locally.
-            return NextResponse.json({ success: true, token: "vpl_scorer_authenticated" });
-        } else {
-            return NextResponse.json({ error: "Invalid Scorer PIN" }, { status: 401 });
+        if (!correctPin) {
+            console.error("ADMIN_PASSWORD env variable is missing");
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
+
+        if (pin === correctPin) {
+            const cookieStore = await cookies();
+            cookieStore.set('vpl_scorer_token', correctPin, {
+                httpOnly: true,
+                secure: process.env.NEXT_PUBLIC_APP_ENV !== 'local',
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 60 * 60 * 24 * 7 // 1 week
+            });
+            return NextResponse.json({ success: true });
+        }
+
+        return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 });
     } catch (error) {
-        return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
+        console.error('Auth POST Error:', error);
+        return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
     }
 }

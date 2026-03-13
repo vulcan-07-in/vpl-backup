@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Minus, UserCircle2, ArrowRightLeft, Undo2, LogOut, CheckCircle, ShieldAlert, X, Trophy, Users, Zap, Check, AlertCircle, ChevronDown, MoreVertical } from "lucide-react";
 import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 import { MatchReport } from "@/components/match-report";
-
-const ADMIN_API_KEY = "vpl_secret_2025";
 
 type ScorerScreen = "AUTH" | "SELECT_MATCH" | "SCHEDULE_SETUP" | "TOSS_SETUP" | "LIVE_SCORING" | "EDIT_OVERRIDE" | "WICKET_MODAL";
 
@@ -92,8 +90,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     // Robust team matching helper
     const getSquadForTeam = (teamName: string) => {
         if (!teamName) return [];
-        const cleanName = teamName.trim().toLowerCase();
-        const key = Object.keys(squads).find(k => k.trim().toLowerCase() === cleanName);
+        const normalize = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
+        const cleanName = normalize(teamName);
+        const key = Object.keys(squads).find(k => normalize(k) === cleanName);
+        if (!key) console.warn(`[Squad] No squad found for: "${teamName}"`);
         return key ? squads[key] : [];
     };
 
@@ -129,6 +129,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [showAuditLogs, setShowAuditLogs] = useState(false);
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
     const [editingBall, setEditingBall] = useState<BallEvent | null>(null);
+
+    // UX improvements
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [resetStep, setResetStep] = useState<0 | 1>(0);
 
     const decimalOversToBalls = (overs: number) => {
         const fullOvers = Math.floor(overs);
@@ -471,8 +475,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         await fetch("/api/live-score", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                "x-vpl-internal-key": ADMIN_API_KEY
+                "Content-Type": "application/json"
             },
             body: JSON.stringify(newState)
         });
@@ -487,12 +490,13 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         const newState: LiveMatchState = {
             matchId: selectedMatch.matchNo,
             status: "SCHEDULED",
-            scheduledTime: scheduledTime,
+            scheduledTime: new Date(scheduledTime).toISOString(),
             currentInnings: 1,
             matchOvers: 8,
             innings1: { teamName: selectedMatch.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
             innings2: { teamName: selectedMatch.team2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
-            timeline: []
+            timeline: [],
+            lastSyncedAt: Date.now()
         };
 
         setLiveState(newState);
@@ -501,8 +505,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         await fetch("/api/live-score", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                "x-vpl-internal-key": ADMIN_API_KEY
+                "Content-Type": "application/json"
             },
             body: JSON.stringify(newState)
         });
@@ -530,8 +533,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             await fetch("/api/logs", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(logEntry)
             });
@@ -547,8 +549,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             await fetch("/api/notify", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ matchId: mId, message, type }),
             });
@@ -578,8 +579,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             await fetch("/api/matches", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(updatedFixtures)
             });
@@ -590,6 +590,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     };
 
     const pushUpdate = async (newState: LiveMatchState, actionDesc?: string) => {
+        newState.lastSyncedAt = Date.now();
         setLiveState(newState); // Optimistic UI
         setSyncStatus("PENDING");
 
@@ -603,8 +604,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             const res = await fetch("/api/live-score", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(newState)
             });
@@ -647,29 +647,33 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             if (!navigator.onLine) return;
 
             // Look for pending syncs in localStorage
+            const keysToSync = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key?.startsWith("vpl_pending_sync_")) {
-                    const matchId = key.replace("vpl_pending_sync_", "");
-                    const pendingData = localStorage.getItem(key);
-                    if (pendingData) {
-                        try {
-                            const res = await fetch("/api/live-score", {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "x-vpl-internal-key": ADMIN_API_KEY
-                                },
-                                body: pendingData
-                            });
-                            if (res.ok) {
-                                localStorage.removeItem(key);
-                                setSyncStatus("SYNCED");
-                                console.log(`Background sync success for ${matchId}`);
-                            }
-                        } catch (e) {
-                            // Retry next time
+                    keysToSync.push(key);
+                }
+            }
+            
+            for (const key of keysToSync) {
+                const matchId = key.replace("vpl_pending_sync_", "");
+                const pendingData = localStorage.getItem(key);
+                if (pendingData) {
+                    try {
+                        const res = await fetch("/api/live-score", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: pendingData
+                        });
+                        if (res.ok) {
+                            localStorage.removeItem(key);
+                            setSyncStatus("SYNCED");
+                            console.log(`Background sync success for ${matchId}`);
                         }
+                    } catch (e) {
+                        // Retry next time
                     }
                 }
             }
@@ -690,8 +694,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             await fetch("/api/live-score", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(newState)
             });
@@ -707,8 +710,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             const res = await fetch("/api/active-match", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-vpl-internal-key": ADMIN_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ activeMatchId: matchId })
             });
@@ -836,7 +838,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         const newState = rebuildState(selectedMatch, [...liveState.timeline, ball]);
         pushUpdate(newState, `WICKET: ${wicketType}`);
 
-        if (newState.status === "LIVE") {
+        if (newState.status === "LIVE" && newState.currentInnings === liveState.currentInnings) {
             setWicketStep(2);
         } else {
             setActiveScreen("LIVE_SCORING");
@@ -1045,19 +1047,12 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     </div>
                                 </button>
 
-                                <div className="flex flex-col items-end gap-2 ml-4">
-                                    <button
-                                        onClick={() => handleSetActiveMatch(activeLiveMatchId === f.matchNo ? null : f.matchNo)}
-                                        className={`text-[9px] font-bold px-3 py-1.5 rounded-lg border transition-all ${activeLiveMatchId === f.matchNo ? 'bg-red-500 text-white border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-500'}`}
-                                    >
-                                        {activeLiveMatchId === f.matchNo ? 'VISIBLE TO PUBLIC' : 'SET AS LIVE'}
-                                    </button>
-
+                                <div className="flex flex-col items-end justify-center ml-4">
                                     <button
                                         onClick={() => loadMatchData(f.matchNo)}
-                                        className="text-[10px] text-zinc-400 hover:text-white transition-colors flex items-center gap-1 font-bold"
+                                        className="text-[10px] bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-bold tracking-widest uppercase border border-amber-500/20"
                                     >
-                                        MANAGE &rarr;
+                                        SCORE MATCH &rarr;
                                     </button>
                                 </div>
                             </div>
@@ -1091,7 +1086,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                     <div className="space-y-4">
                         <input
-                            type="time"
+                            type="datetime-local"
                             value={scheduledTime}
                             onChange={(e) => setScheduledTime(e.target.value)}
                             className="w-full bg-zinc-800 text-white text-xl p-4 rounded-xl border border-zinc-700 outline-none text-center"
@@ -1298,37 +1293,47 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             </div>
                         )}
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setActiveScreen("SELECT_MATCH")}
-                            className="flex items-center gap-2 bg-zinc-900 text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest border border-zinc-800 transition-colors uppercase mr-2"
-                        >
-                            <Undo2 className="w-3 h-3" />
-                            Back
+                    <div className="flex gap-2 relative">
+                        {/* Primary Actions */}
+                        <button onClick={() => setActiveScreen("SELECT_MATCH")} className="flex items-center gap-2 bg-zinc-900 text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest border border-zinc-800 transition-colors uppercase mr-2">
+                            <Undo2 className="w-3 h-3" /> Matches
                         </button>
                         <button onClick={() => setShowFullScoreboard(true)} className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest border border-amber-500/20 hover:bg-amber-500/20 transition-colors uppercase">
-                            <Plus className="w-3 h-3" />
-                            Scoreboard
+                            <Plus className="w-3 h-3" /> Scoreboard
                         </button>
-                        <button onClick={() => setActiveScreen("EDIT_OVERRIDE")} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
-                            Override
-                        </button>
-                        <button onClick={handleResetMatch} className="text-[10px] font-bold tracking-widest text-red-400 hover:text-red-300 px-3 py-1.5 rounded bg-red-500/10 border border-red-500/20 transition-colors uppercase">
-                            Reset
-                        </button>
-                        <button onClick={() => setShowHistory(true)} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
-                            History
-                        </button>
-                        <button onClick={() => setActiveScreen("TOSS_SETUP")} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
-                            Setup
-                        </button>
-                        <button onClick={() => setActiveScreen("SELECT_MATCH")} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
-                            Matches
-                        </button>
-                        <button onClick={() => setShowAuditLogs(true)} className="text-[10px] font-bold tracking-widest text-zinc-400 hover:text-white px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 transition-colors uppercase">
-                            Logs
-                        </button>
-                        <button onClick={handleLogout} className="p-2 text-zinc-600 hover:text-red-400 transition-colors">
+                        
+                        {/* More Dropdown */}
+                        <div className="relative">
+                            <button onClick={() => setShowMoreMenu(!showMoreMenu)} className="flex items-center gap-1 bg-zinc-900 text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest border border-zinc-800 transition-colors uppercase">
+                                Action <ChevronDown className="w-3 h-3" />
+                            </button>
+                            
+                            <AnimatePresence>
+                                {showMoreMenu && (
+                                    <motion.div initial={{ opacity: 0, scale: 0.95, y: 5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 5 }} transition={{ duration: 0.15 }} className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col py-1">
+                                        <button onClick={() => { setActiveScreen("EDIT_OVERRIDE"); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Override State</button>
+                                        <button onClick={() => { setShowHistory(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">History Manager</button>
+                                        <button onClick={() => { setActiveScreen("TOSS_SETUP"); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Toss Setup</button>
+                                        <button onClick={() => { setShowAuditLogs(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Audit Logs</button>
+                                        
+                                        <div className="h-px bg-zinc-800/50 my-1 mx-2" />
+                                        
+                                        {resetStep === 0 ? (
+                                            <button onClick={(e) => { e.stopPropagation(); setResetStep(1); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-red-400 hover:bg-red-500/10 transition-colors uppercase flex justify-between items-center group">
+                                                Reset Match <AlertCircle className="w-3 h-3 opacity-50 group-hover:opacity-100" />
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => { setResetStep(0); setShowMoreMenu(false); handleResetMatch(); }} onMouseLeave={() => setResetStep(0)} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-white bg-red-600 hover:bg-red-500 transition-colors uppercase animate-pulse">
+                                                Are you sure?
+                                            </button>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Logout stays distinct */}
+                        <button onClick={handleLogout} className="p-2 text-zinc-600 hover:text-red-400 transition-colors ml-2">
                             <LogOut className="w-4 h-4" />
                         </button>
                     </div>
@@ -1339,7 +1344,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     {/* LEFT COL: Live Scoreboard (The "Big Board") */}
                     <div className="col-span-6 flex flex-col gap-4 overflow-hidden h-full min-h-0">
                         {/* Main Score Card */}
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-center items-center text-center shadow-lg min-h-[180px] shrink-0">
+                        <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-6 ${isSecondInnings && target !== null ? 'pb-14' : ''} relative overflow-hidden flex flex-col justify-center items-center text-center shadow-lg min-h-[180px] shrink-0`}>
                             <div className="absolute top-0 w-full h-full opacity-[0.15] blur-3xl pointer-events-none" style={{ backgroundColor: battingTeamColor }} />
 
                             <h2 className="text-xl font-bold text-white mb-1 relative z-10 uppercase tracking-wide">
@@ -1366,14 +1371,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             </div>
 
                             {isSecondInnings && target !== null && (
-                                <div className="mt-4 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl relative z-10 flex flex-col items-center">
-                                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-tighter">TARGET: {target}</span>
-                                    <span className="text-lg font-bold text-amber-400 tabular-nums">
-                                        NEED {runsToWin} FROM {ballsLeft} BALLS
-                                    </span>
-                                    <span className="text-[10px] text-zinc-400 font-medium">
-                                        REQ: {((runsToWin || 0) / ((ballsLeft || 1) / 6)).toFixed(2)} RPO
-                                    </span>
+                                <div className="absolute bottom-0 left-0 right-0 bg-amber-500/10 border-t border-amber-500/20 py-2 px-4 flex justify-between items-center text-[11px] z-20 backdrop-blur-sm">
+                                    <span className="text-zinc-400 font-bold uppercase tracking-widest">{liveState.innings1.teamName} SET {target - 1}</span>
+                                    <span className="text-amber-400 font-bold tracking-widest uppercase animate-pulse">NEED {runsToWin} FROM {ballsLeft}</span>
+                                    <span className="text-zinc-400 font-bold tracking-widest">REQ: {((runsToWin || 0) / ((ballsLeft || 1) / 6)).toFixed(1)}</span>
                                 </div>
                             )}
                         </div>
@@ -1387,17 +1388,26 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         No deliveries recorded yet
                                     </div>
                                 ) : (
-                                    recentTimeline.map((ball) => (
-                                        <div key={ball.id} className="flex items-center justify-between bg-black/40 border border-zinc-800/50 p-3 rounded-xl text-xs">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-zinc-500 font-mono w-8">{(ball.over - 0.1).toFixed(1)}</span>
-                                                <div className="flex flex-col">
-                                                    <span className="text-white font-bold">{ball.striker}</span>
-                                                    <span className="text-zinc-500 text-[9px]">{ball.bowler.split(' ')[0]}</span>
-                                                </div>
+                                    Object.entries(
+                                        recentTimeline.reduce((acc, ball) => {
+                                            const getOverNum = (o: number) => o === 0 ? 1 : Math.floor(o) + (Math.round(o * 10) % 10 === 0 ? 0 : 1);
+                                            const overNum = getOverNum(ball.over);
+                                            if (!acc[overNum]) acc[overNum] = [];
+                                            acc[overNum].push(ball);
+                                            return acc;
+                                        }, {} as Record<number, BallEvent[]>)
+                                    ).sort((a, b) => Number(b[0]) - Number(a[0])).map(([overNum, balls]) => (
+                                        <div key={overNum} className="bg-black/40 border border-zinc-800/50 p-3 rounded-xl mb-2 shrink-0">
+                                            <div className="flex justify-between items-center mb-2 border-b border-zinc-800/50 pb-2">
+                                                <span className="text-zinc-500 font-bold tracking-widest text-[9px] uppercase">OVER {overNum}</span>
+                                                <span className="text-zinc-400 font-bold tracking-widest text-[9px]">{balls.reduce((sum, b) => sum + b.runs + b.extras, 0)} RUNS</span>
                                             </div>
-                                            <div className={`px-3 py-1 rounded-lg font-bold min-w-[32px] text-center ${ball.isWicket ? 'bg-red-500 text-white' : ball.runs >= 4 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 text-zinc-300'}`}>
-                                                {ball.isWicket ? 'W' : ball.extras > 0 ? `${ball.runs || ''}${ball.extraType}` : ball.runs}
+                                            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                                                {balls.sort((a, b) => a.over - b.over).map(ball => (
+                                                    <div key={ball.id} className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-sm font-bold text-[10px] ${ball.isWicket ? 'bg-red-500 text-white' : ball.runs >= 4 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 text-zinc-300'}`} title={`${ball.bowler} to ${ball.striker}`}>
+                                                        {ball.isWicket ? 'W' : ball.extras > 0 ? `${ball.runs || ''}${ball.extraType}` : ball.runs}
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     ))
@@ -1455,7 +1465,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 className="bg-zinc-800 text-[10px] font-bold text-white border-zinc-700 rounded px-1 py-0.5 outline-none focus:border-amber-500 transition-colors"
                                             >
                                                 <option value="">CHANGE</option>
-                                                {getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName).map(name => (
+                                                {getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName)
+                                                    .filter(name => {
+                                                        if (name === p.ref) return true;
+                                                        if (p.isBowler) return true;
+                                                        const bats = currentInningsData.batsmen[name];
+                                                        return !bats?.isOut && name !== currentInningsData.strikerRef && name !== currentInningsData.nonStrikerRef;
+                                                    })
+                                                    .map(name => (
                                                     <option key={name} value={name}>{name}</option>
                                                 ))}
                                             </select>
@@ -1472,6 +1489,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 <button
                                     onClick={() => setIsScoringLocked(!isScoringLocked)}
                                     className={`px-3 py-1 rounded-full text-[9px] font-bold tracking-widest transition-all ${isScoringLocked ? 'bg-zinc-800 text-zinc-400 border border-zinc-700' : 'bg-green-500/10 text-green-500 border border-green-500/30'}`}
+                                    title={isScoringLocked ? "Tap to unlock and start recording deliveries" : "Tap to lock the scoring pad"}
                                 >
                                     {isScoringLocked ? "🔒 LOCKED" : "🔓 UNLOCKED"}
                                 </button>
@@ -1637,7 +1655,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                                 <td className="px-4 py-3 text-right">{bw.maidens}</td>
                                                                 <td className="px-4 py-3 text-right">{bw.runs}</td>
                                                                 <td className="px-4 py-3 text-right font-bold text-blue-400">{bw.wickets}</td>
-                                                                <td className="px-4 py-3 text-right text-[10px] font-mono">{bw.overs > 0 ? (bw.runs / bw.overs).toFixed(2) : '0.00'}</td>
+                                                                <td className="px-4 py-3 text-right text-[10px] font-mono">{bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + Math.round((bw.overs % 1) * 10) / 6)).toFixed(2) : '0.00'}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>

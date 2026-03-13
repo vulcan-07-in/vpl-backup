@@ -72,20 +72,40 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
     }
 
     if (!liveMatch) {
+        // Find next upcoming match (not yet played)
+        const upcomingMatches = fixtures.filter(f => !f.winner);
+
         return (
-            <main className="min-h-screen pt-32 pb-16 px-4 flex flex-col items-center justify-center text-center">
-                <p className="text-[14px] tracking-[0.5em] text-zinc-600 mb-4 font-bold" style={{ fontFamily: "var(--font-body)" }}>
+            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                {/* Ambient background pulse */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[120px] animate-pulse pointer-events-none" />
+
+                <p className="text-[12px] tracking-[0.5em] text-zinc-600 mb-6 font-bold" style={{ fontFamily: "var(--font-body)" }}>
                     MATCH CENTER
                 </p>
                 <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-zinc-800">
                     <span className="text-3xl text-zinc-500">📡</span>
                 </div>
-                <h2 className="text-3xl text-white font-bold mb-4" style={{ fontFamily: "var(--font-display)" }}>
+                <h2 className="text-4xl text-white font-bold mb-3" style={{ fontFamily: "var(--font-display)" }}>
                     NO LIVE MATCH
                 </h2>
-                <p className="text-zinc-500 max-w-sm">
-                    There are no ongoing matches at this moment. Check the Match schedule to see when the next game begins.
+                <p className="text-zinc-500 max-w-sm mb-8">
+                    There are no ongoing matches at this moment.
                 </p>
+
+                {upcomingMatches.length > 0 && (
+                    <div className="mb-8 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full">
+                        <p className="text-[9px] tracking-[0.3em] text-blue-400 font-bold mb-3">NEXT UP</p>
+                        <p className="text-xl font-bold text-white mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+                            {upcomingMatches[0].team1} <span className="text-zinc-600">vs</span> {upcomingMatches[0].team2}
+                        </p>
+                        <p className="text-[10px] text-zinc-600 tracking-widest">MATCH {upcomingMatches[0].matchNo}</p>
+                    </div>
+                )}
+
+                <a href="/matches" className="text-amber-500 text-xs tracking-[0.3em] font-bold hover:text-amber-400 transition-colors">
+                    VIEW ALL MATCHES →
+                </a>
             </main>
         );
     }

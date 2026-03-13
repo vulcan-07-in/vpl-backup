@@ -16,6 +16,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const isValid = await validateAdminRequest();
+        if (!isValid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { activeMatchId } = await request.json();
 
         if (activeMatchId === null) {

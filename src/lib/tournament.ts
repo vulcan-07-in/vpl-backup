@@ -88,6 +88,7 @@ export interface LiveMatchState {
     matchOvers: number; // Defaults to 8 for VPL
     winner?: string;
     result?: string;
+    lastSyncedAt?: number; // Epoch timestamp of last client push
     // Rule: Squad is 8 players. 7 wickets = All Out. 
     // BUT Last Man Standing rule applies, so player 8 bats alone until Wicket 8.
 }
@@ -195,11 +196,7 @@ export function calculateStandings(
             map[f.team1].won++;
             map[f.team1].points += 2;
             map[f.team2].lost++;
-        } else if (winner === f.team2) {
-            map[f.team2].won++;
-            map[f.team2].points += 2;
-            map[f.team1].lost++;
-        } else if (winner === "TIE") {
+        } else if (winner === "TIE" || winner === "ABANDONED" || liveMatch?.status === "ABANDONED") {
             map[f.team1].points += 1;
             map[f.team2].points += 1;
         }
@@ -234,7 +231,7 @@ export function calculateStandings(
             const t2BallsBowled = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
 
             map[f.team2].oversFaced += t2BallsFaced / 6;
-            map[f.team2].oversBowled += t1BallsBowled / 6; // Fixed: should be t1BallsBowled
+            map[f.team2].oversBowled += t2BallsBowled / 6;
         }
     });
 
