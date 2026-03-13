@@ -220,6 +220,12 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 if (ball.newBatsman && !inn.batsmen[ball.newBatsman]) {
                     inn.batsmen[ball.newBatsman] = { name: ball.newBatsman, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
                 }
+
+                // Last Man Standing: If one slot is empty but another is filled, move to striker
+                if (!inn.strikerRef && inn.nonStrikerRef) {
+                    inn.strikerRef = inn.nonStrikerRef;
+                    inn.nonStrikerRef = undefined;
+                }
             } else if (ball.isWicket && ball.wicketType === "RETIRED_HURT") {
                 const outPlayer = ball.playerOut || ball.striker;
                 inn.batsmen[outPlayer].isOut = true;
@@ -229,6 +235,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                 if (ball.newBatsman && !inn.batsmen[ball.newBatsman]) {
                     inn.batsmen[ball.newBatsman] = { name: ball.newBatsman, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
+                }
+
+                if (!inn.strikerRef && inn.nonStrikerRef) {
+                    inn.strikerRef = inn.nonStrikerRef;
+                    inn.nonStrikerRef = undefined;
                 }
             }
 
@@ -543,19 +554,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     };
 
     const notifyMatch = async (message: string, type: "INFO" | "SUCCESS" = "INFO") => {
-        const mId = selectedMatch?.matchNo || liveState?.matchId;
-        if (!mId) return;
-        try {
-            await fetch("/api/notify", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ matchId: mId, message, type }),
-            });
-        } catch (e) {
-            console.error("Notification failed", e);
-        }
+        // Notification system disabled by request
+        return;
     };
 
     const syncMatchResultToSheet = async (finalState: LiveMatchState) => {
@@ -618,12 +618,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 localStorage.removeItem(`vpl_pending_sync_${matchId}`);
             }
 
-            // Transition Notifications
-            if (liveState?.status === "SCHEDULED" && newState.status === "LIVE") {
-                notifyMatch(`Match Started: ${newState.innings1.teamName} vs ${newState.innings2.teamName}`, "INFO");
-            }
+            // Transition Notifications removed
             if (liveState?.status !== "COMPLETED" && newState.status === "COMPLETED") {
-                notifyMatch(`Match Finished! ${newState.winner} won by ${newState.result?.split('by ')[1] || 'victory'}`, "SUCCESS");
                 syncMatchResultToSheet(newState);
             }
 
@@ -838,7 +834,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         const newState = rebuildState(selectedMatch, [...liveState.timeline, ball]);
         pushUpdate(newState, `WICKET: ${wicketType}`);
 
-        if (newState.status === "LIVE" && newState.currentInnings === liveState.currentInnings) {
+        const inn = newState.currentInnings === 1 ? newState.innings1 : newState.innings2;
+        // Skip next batsman step if it's the 7th wicket (Last Man Standing)
+        if (newState.status === "LIVE" && newState.currentInnings === liveState.currentInnings && inn.wickets < MAX_WICKETS - 1) {
             setWicketStep(2);
         } else {
             setActiveScreen("LIVE_SCORING");
@@ -1315,6 +1313,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         <button onClick={() => { setShowHistory(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">History Manager</button>
                                         <button onClick={() => { setActiveScreen("TOSS_SETUP"); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Toss Setup</button>
                                         <button onClick={() => { setShowAuditLogs(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Audit Logs</button>
+                                        
+                                        <button 
+                                            onClick={async () => {
+                                                const res = await fetch("/api/active-match", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ activeMatchId: activeLiveMatchId === liveState.matchId ? null : liveState.matchId })
+                                                });
+                                                if (res.ok) {
+                                                    setActiveLiveMatchId(activeLiveMatchId === liveState.matchId ? null : liveState.matchId);
+                                                }
+                                                setShowMoreMenu(false);
+                                            }} 
+                                            className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-[#F59E0B] hover:bg-amber-500/10 transition-colors uppercase border-t border-zinc-800/50 pt-3"
+                                        >
+                                            {activeLiveMatchId === liveState.matchId ? "Remove Broadcast" : "Broadcast Match"}
+                                        </button>
                                         
                                         <div className="h-px bg-zinc-800/50 my-1 mx-2" />
                                         

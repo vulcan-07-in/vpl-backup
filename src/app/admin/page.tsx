@@ -360,7 +360,8 @@ export default function AdminPage() {
         setSaving(true);
         setSaveMsg("");
         try {
-            const res = await fetch("/api/matches", {
+            // 1. Clear Google Sheets via /api/matches
+            const sheetRes = await fetch("/api/matches", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
@@ -368,20 +369,33 @@ export default function AdminPage() {
                 },
                 body: JSON.stringify([]), // Empty array clears the sheet
             });
-            if (res.ok) {
+
+            // 2. Clear Redis via /api/reset-data
+            const redisRes = await fetch("/api/reset-data", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-vpl-internal-key": ADMIN_API_KEY
+                }
+            });
+
+            if (sheetRes.ok && redisRes.ok) {
                 setFixtures([]);
                 setGroupA([]);
                 setGroupB([]);
                 setManualOverrides({});
                 setUnassigned(teams.map(t => t.teamName));
                 setBracketMsg("");
-                setSaveMsg("All data reset successfully");
+                setSaveMsg("All data (Sheets + Redis) reset successfully");
                 setTab("groups");
+                // Refresh local state for active match
+                setActiveLiveMatchId(null);
             } else {
-                setSaveMsg("Error resetting data");
+                setSaveMsg("Partial reset failure. Check logs.");
             }
-        } catch {
-            setSaveMsg("Network error");
+        } catch (e) {
+            console.error(e);
+            setSaveMsg("Error resetting data");
         } finally {
             setSaving(false);
         }
