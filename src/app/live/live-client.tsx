@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom';
 import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { Clock, Bell, X, Trophy, ChevronLeft, AlertCircle, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Scorecard } from "@/components/scorecard";
+import { InningsBreakOverlay } from "@/components/innings-break-overlay";
+import { MatchOverOverlay } from "@/components/match-over-overlay";
 
 export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
     const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
@@ -137,99 +140,13 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
 
     const renderInningsScorecard = (inn: LiveMatchState["innings1"], idx: number) => {
         return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-end border-b border-white/5 pb-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-2 h-10 rounded-full bg-gradient-to-b from-amber-500 to-amber-700 shadow-[0_0_15px_rgba(245,158,11,0.3)]" />
-                        <div className="flex flex-col">
-                            <h3 className="text-white font-black tracking-[0.2em] text-lg uppercase leading-none">{inn.teamName}</h3>
-                            <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase mt-1">{idx === 1 ? 'FIRST' : 'SECOND'} INNINGS</span>
-                        </div>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-black text-white tabular-nums leading-none">{inn.runs}-{inn.wickets}</span>
-                        <span className="text-zinc-500 text-sm font-bold tracking-widest uppercase">({inn.overs.toFixed(1)})</span>
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    <div className="overflow-x-auto rounded-3xl border border-white/5 bg-black/20 pb-2 custom-scrollbar">
-                        <table className="w-full text-left text-xs min-w-[500px] whitespace-nowrap">
-                            <thead>
-                                <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
-                                    <th className="px-6 py-4">BATSMAN</th>
-                                    <th className="px-6 py-4 text-right">RUNS</th>
-                                    <th className="px-6 py-4 text-right">BALLS</th>
-                                    <th className="px-6 py-4 text-right">4s</th>
-                                    <th className="px-6 py-4 text-right">6s</th>
-                                    <th className="px-6 py-4 text-right">SR</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {Object.values(inn.batsmen).length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Innings not started</td>
-                                    </tr>
-                                ) : (
-                                    Object.values(inn.batsmen).map((b, bIdx) => (
-                                        <tr key={bIdx} className={`transition-colors h-12 ${b.isOut ? 'text-zinc-500 opacity-60' : 'text-zinc-100'}`}>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-black tracking-tight text-sm uppercase">{b.name}</span>
-                                                    {b.isOut && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-500 font-bold uppercase tracking-tighter shrink-0">{b.dismissal}</span>}
-                                                    {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] shrink-0" />}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-black text-amber-500 text-sm">{b.runs}</td>
-                                            <td className="px-6 py-4 text-right font-bold tabular-nums">{b.balls}</td>
-                                            <td className="px-6 py-4 text-right font-bold tabular-nums">{b.fours}</td>
-                                            <td className="px-6 py-4 text-right font-bold tabular-nums">{b.sixes}</td>
-                                            <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
-                                                {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="overflow-x-auto rounded-3xl border border-white/5 bg-black/20 pb-2 custom-scrollbar">
-                        <table className="w-full text-left text-xs min-w-[500px] whitespace-nowrap">
-                            <thead>
-                                <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
-                                    <th className="px-6 py-4">BOWLER</th>
-                                    <th className="px-6 py-4 text-right">O</th>
-                                    <th className="px-6 py-4 text-right">M</th>
-                                    <th className="px-6 py-4 text-right">R</th>
-                                    <th className="px-6 py-4 text-right">W</th>
-                                    <th className="px-6 py-4 text-right">ECON</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {Object.values(inn.bowlers).length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Yet to bowl</td>
-                                    </tr>
-                                ) : (
-                                    Object.values(inn.bowlers).map((bw, bwIdx) => (
-                                        <tr key={bwIdx} className="text-zinc-200 transition-colors h-12">
-                                            <td className="px-6 py-4 font-black tracking-tight text-sm uppercase">{bw.name}</td>
-                                            <td className="px-6 py-4 text-right font-black text-white">{bw.overs.toFixed(1)}</td>
-                                            <td className="px-6 py-4 text-right font-bold">{bw.maidens || 0}</td>
-                                            <td className="px-6 py-4 text-right font-bold">{bw.runs}</td>
-                                            <td className="px-6 py-4 text-right font-black text-blue-400 text-sm">{bw.wickets}</td>
-                                            <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
-                                                {bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + (Math.round((bw.overs % 1) * 10)) / 6)).toFixed(2) : '0.00'}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            <Scorecard 
+                innings={inn} 
+                inningsNum={idx} 
+                teamColor={colorOf(inn.teamName)} 
+                winnerName={liveMatch.winner}
+                isLive
+            />
         );
     };
 
@@ -275,198 +192,28 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
 
     // INNINGS BREAK VIEW
     if (liveMatch.status === "INNINGS_BREAK") {
-        const target = liveMatch.innings1.runs + 1;
-        const mainColor = colorOf(liveMatch.innings1.teamName);
-        
         return (
-            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden bg-black">
-                {/* Dramatic Background Glow */}
-                <motion.div 
-                    animate={{ 
-                        scale: [1, 1.2, 1],
-                        opacity: [0.1, 0.3, 0.1]
-                    }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ background: `radial-gradient(circle at center, ${mainColor}40 0%, transparent 70%)` }}
-                />
-
-                <div className="relative z-10 space-y-8 max-w-2xl w-full">
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex flex-col items-center gap-4"
-                    >
-                        <Trophy className="w-12 h-12 text-amber-500 animate-bounce" />
-                        <p className="text-[12px] tracking-[0.8em] text-blue-400 font-bold uppercase ml-[0.8em]">End of Innings</p>
-                    </motion.div>
-
-                    <motion.h2 
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="text-7xl md:text-9xl text-white font-black italic tracking-tighter leading-none" 
-                        style={{ fontFamily: "var(--font-display)" }}
-                    >
-                        INNINGS 1 <br/> OVER
-                    </motion.h2>
-
-                    <motion.div 
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden"
-                    >
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
-                        
-                        <div className="space-y-6">
-                            <div className="flex flex-col items-center">
-                                <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2">{liveMatch.innings1.teamName} SCORE</span>
-                                <p className="text-6xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
-                                    {liveMatch.innings1.runs}<span className="text-zinc-600">/</span>{liveMatch.innings1.wickets}
-                                </p>
-                                <span className="text-zinc-500 font-bold tracking-widest">({liveMatch.innings1.overs.toFixed(1)} OVERS)</span>
-                            </div>
-
-                            <div className="h-px bg-white/5 w-2/3 mx-auto" />
-
-                            <div className="flex flex-col items-center">
-                                <span className="text-[10px] text-amber-500 uppercase font-black tracking-widest mb-3">Target for {liveMatch.innings2.teamName}</span>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-1 bg-amber-500/20 rounded-full" />
-                                    <p className="text-5xl font-black text-white animate-pulse">{target}</p>
-                                    <div className="w-12 h-1 bg-amber-500/20 rounded-full" />
-                                </div>
-                                <p className="text-[10px] text-zinc-500 tracking-[0.3em] uppercase mt-4 font-bold">Resuming shortly...</p>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* Animated Particles */}
-                <div className="absolute inset-0 pointer-events-none opacity-20">
-                    {[...Array(15)].map((_, i) => (
-                        <motion.div
-                            key={i}
-                            animate={{ 
-                                y: [-20, 1000],
-                                x: [Math.random() * 100 + "%", Math.random() * 100 + "%"],
-                                opacity: [0, 1, 0]
-                            }}
-                            transition={{ duration: 5 + Math.random() * 5, repeat: Infinity, delay: Math.random() * 10 }}
-                            className="absolute w-1 h-1 bg-white rounded-full"
-                        />
-                    ))}
-                </div>
-            </main>
+            <InningsBreakOverlay 
+                teamName={liveMatch.innings1.teamName}
+                runs={liveMatch.innings1.runs}
+                wickets={liveMatch.innings1.wickets}
+                overs={liveMatch.innings1.overs}
+                targetTeam={liveMatch.innings2.teamName}
+                teamColor={colorOf(liveMatch.innings1.teamName)}
+            />
         );
     }
 
     // MATCH OVER VIEW
     if (liveMatch.status === "COMPLETED") {
-        const winner = liveMatch.winner;
-        const winnerColor = winner ? colorOf(winner) : "#EAB308";
-        
         return (
-            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden bg-black">
-                {/* Winner Ambient Glow */}
-                <motion.div 
-                    animate={{ opacity: [0.1, 0.2, 0.1] }}
-                    transition={{ duration: 4, repeat: Infinity }}
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ background: `radial-gradient(circle at center, ${winnerColor}50 0%, transparent 70%)` }}
-                />
-
-                <div className="relative z-10 flex flex-col items-center max-w-4xl w-full">
-                    <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", damping: 10, stiffness: 100 }}
-                        className="mb-8"
-                    >
-                        <div className="relative">
-                            <motion.div 
-                                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className="absolute inset-0 blur-2xl rounded-full"
-                                style={{ backgroundColor: winnerColor }}
-                            />
-                            <Trophy className="w-32 h-32 text-white relative z-10 drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]" />
-                        </div>
-                    </motion.div>
-
-                    <motion.p 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-amber-500 font-black tracking-[0.8em] uppercase mb-4 text-sm"
-                    >
-                        Tournament Match Complete
-                    </motion.p>
-
-                    <motion.h1 
-                        initial={{ y: 50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="text-[25vw] md:text-[12rem] font-black text-white italic tracking-tighter leading-none mb-4"
-                        style={{ fontFamily: "var(--font-display)" }}
-                    >
-                        MATCH <br/> OVER
-                    </motion.h1>
-
-                    <motion.div 
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden"
-                    >
-                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-white to-transparent opacity-50" />
-                        
-                        <p className="text-2xl md:text-5xl font-black text-white mb-8 tracking-tight">
-                            {liveMatch.result}
-                        </p>
-
-                        <div className="flex flex-col md:flex-row gap-4 justify-center">
-                            <button 
-                                onClick={() => setShowScorecard(true)}
-                                className="flex items-center justify-center gap-3 bg-white text-black font-black px-6 md:px-10 py-4 md:py-5 rounded-2xl tracking-widest uppercase text-xs md:text-sm hover:scale-105 transition-all shadow-xl shadow-white/10 w-full md:w-auto"
-                            >
-                                <Users className="w-5 h-5" /> Full Scorecard
-                            </button>
-                            <a 
-                                href="/matches"
-                                className="flex items-center justify-center gap-3 bg-zinc-800 text-white font-black px-6 md:px-10 py-4 md:py-5 rounded-2xl tracking-widest uppercase text-xs md:text-sm border border-white/10 hover:bg-zinc-700 transition-all w-full md:w-auto"
-                            >
-                                <ChevronLeft className="w-5 h-5" /> Other Matches
-                            </a>
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* Scorecard Overlay */}
-                <AnimatePresence>
-                    {showScorecard && liveMatch && (
-                        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4">
-                            <motion.div 
-                                initial={{ opacity: 0, y: 40 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 40 }}
-                                className="w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar"
-                            >
-                                <div className="p-8 space-y-12">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <h2 className="text-4xl font-bold text-white tracking-widest uppercase italic" style={{ fontFamily: "var(--font-heading)" }}>SCORECARD</h2>
-                                        <button onClick={() => setShowScorecard(false)} className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all">
-                                            <X className="w-6 h-6" />
-                                        </button>
-                                    </div>
-                                    <div className="space-y-12">
-                                        {renderInningsScorecard(liveMatch.innings1, 1)}
-                                        {renderInningsScorecard(liveMatch.innings2, 2)}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-                </AnimatePresence>
-            </main>
+            <MatchOverOverlay 
+                result={liveMatch.result || ""}
+                innings1={liveMatch.innings1}
+                innings2={liveMatch.innings2}
+                winnerColor={liveMatch.winner ? colorOf(liveMatch.winner) : "#EAB308"}
+                onShowScorecard={() => setShowScorecard(true)}
+            />
         );
     }
 

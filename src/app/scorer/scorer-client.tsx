@@ -21,6 +21,7 @@ import {
     ShieldAlert,
     Settings,
     Smartphone,
+    Trash2,
     Trophy,
     Undo2,
     User,
@@ -28,8 +29,11 @@ import {
     X,
     Zap
 } from "lucide-react";
-import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
+import { Scorecard } from "@/components/scorecard";
+import { InningsBreakOverlay } from "@/components/innings-break-overlay";
+import { MatchOverOverlay } from "@/components/match-over-overlay";
 import { MatchReport } from "@/components/match-report";
+import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 
 type ScorerScreen = "AUTH" | "SELECT_MATCH" | "SCHEDULE_SETUP" | "TOSS_SETUP" | "LIVE_SCORING" | "EDIT_OVERRIDE" | "WICKET_MODAL";
 
@@ -39,6 +43,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isInitializing, setIsInitializing] = useState(true);
     const [hasMounted, setHasMounted] = useState(false);
+
+    const colorOf = (name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
 
     // ---- MATCH SELECT & SETUP ----
     const [activeScreen, setActiveScreen] = useState<ScorerScreen>("AUTH");
@@ -1705,70 +1711,22 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
                                     {/* Innings 1 / Innings 2 Tabs or Sections */}
-                                    {liveState && [liveState.innings1, liveState.innings2].map((inn, innIdx) => (
-                                        <div key={innIdx} className="space-y-4">
-                                            <div className="flex justify-between items-end border-b border-zinc-800 pb-2">
-                                                <h3 className="text-amber-500 font-bold tracking-widest text-xs uppercase">{inn.teamName} Innings</h3>
-                                                <span className="text-2xl font-bold">{inn.runs}-{inn.wickets} <span className="text-zinc-500 text-sm font-normal">({inn.overs.toFixed(1)})</span></span>
-                                            </div>
-
-                                            {/* Batsmen Table */}
-                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20 custom-scrollbar">
-                                                <table className="w-full text-left text-xs whitespace-nowrap">
-                                                    <thead>
-                                                        <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
-                                                            <th className="px-4 py-2">Batter</th>
-                                                            <th className="px-4 py-2 text-right">R</th>
-                                                            <th className="px-4 py-2 text-right">B</th>
-                                                            <th className="px-4 py-2 text-right">4s</th>
-                                                            <th className="px-4 py-2 text-right">6s</th>
-                                                            <th className="px-4 py-2 text-right">SR</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-zinc-900">
-                                                        {Object.values(inn.batsmen).map((b, bIdx) => (
-                                                            <tr key={bIdx} className={b.isOut ? 'text-zinc-600 italic' : 'text-zinc-300'}>
-                                                                <td className="px-4 py-3 font-medium">{b.name} {b.isOut && '(out)'} {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && '*'}</td>
-                                                                <td className="px-4 py-3 text-right font-bold text-white">{b.runs}</td>
-                                                                <td className="px-4 py-3 text-right">{b.balls}</td>
-                                                                <td className="px-4 py-3 text-right">{b.fours}</td>
-                                                                <td className="px-4 py-3 text-right">{b.sixes}</td>
-                                                                <td className="px-4 py-3 text-right text-[10px] font-mono">{b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                            {/* Bowlers Table */}
-                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20 custom-scrollbar">
-                                                <table className="w-full text-left text-xs whitespace-nowrap">
-                                                    <thead>
-                                                        <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
-                                                            <th className="px-4 py-2">Bowler</th>
-                                                            <th className="px-4 py-2 text-right">O</th>
-                                                            <th className="px-4 py-2 text-right">M</th>
-                                                            <th className="px-4 py-2 text-right">R</th>
-                                                            <th className="px-4 py-2 text-right">W</th>
-                                                            <th className="px-4 py-2 text-right">Econ</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-zinc-900">
-                                                        {Object.values(inn.bowlers).map((bw, bwIdx) => (
-                                                            <tr key={bwIdx} className="text-zinc-300">
-                                                                <td className="px-4 py-3 font-medium">{bw.name}</td>
-                                                                <td className="px-4 py-3 text-right font-bold text-white">{bw.overs.toFixed(1)}</td>
-                                                                <td className="px-4 py-3 text-right">{bw.maidens}</td>
-                                                                <td className="px-4 py-3 text-right">{bw.runs}</td>
-                                                                <td className="px-4 py-3 text-right font-bold text-blue-400">{bw.wickets}</td>
-                                                                <td className="px-4 py-3 text-right text-[10px] font-mono">{bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + Math.round((bw.overs % 1) * 10) / 6)).toFixed(2) : '0.00'}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                    {liveState && (
+                                        <div className="space-y-12">
+                                            <Scorecard 
+                                                innings={liveState.innings1} 
+                                                inningsNum={1} 
+                                                teamColor={colorOf(liveState.innings1.teamName)} 
+                                                winnerName={liveState.winner}
+                                            />
+                                            <Scorecard 
+                                                innings={liveState.innings2} 
+                                                inningsNum={2} 
+                                                teamColor={colorOf(liveState.innings2.teamName)} 
+                                                winnerName={liveState.winner}
+                                            />
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
@@ -1777,98 +1735,47 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                 {/* Innings Break / Match Finished Overlays */}
                 <AnimatePresence>
-                    {liveState && (liveState.status === "INNINGS_BREAK" || liveState.status === "COMPLETED") && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 text-center">
-                            <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-10 shadow-2xl">
-                                {liveState.status === "COMPLETED" ? (
-                                    <>
-                                        <div className="w-24 h-24 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_80px_rgba(245,158,11,0.3)]">
-                                            <Trophy className="w-12 h-12 text-black" strokeWidth={2.5} />
-                                        </div>
-                                        <h2 className="text-5xl font-black text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>Match Over!</h2>
-                                        <p className="text-amber-500 font-black uppercase tracking-[0.2em] text-sm mb-10">{liveState.result}</p>
-                                        
-                                        <div className="grid grid-cols-2 gap-4 mb-10">
-                                            <div className="bg-black/40 rounded-2xl p-4 border border-zinc-800">
-                                                <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-widest mb-1">{liveState.innings1.teamName}</p>
-                                                <p className="text-xl font-bold text-white">{liveState.innings1.runs}/{liveState.innings1.wickets}</p>
-                                            </div>
-                                            <div className="bg-black/40 rounded-2xl p-4 border border-zinc-800">
-                                                <p className="text-zinc-600 text-[8px] font-bold uppercase tracking-widest mb-1">{liveState.innings2.teamName}</p>
-                                                <p className="text-xl font-bold text-white">{liveState.innings2.runs}/{liveState.innings2.wickets}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <button 
-                                                onClick={() => setShowReport(true)}
-                                                className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl border border-white/10 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                                            >
-                                                <Trophy className="w-4 h-4" /> View Full Scorecard
-                                            </button>
-                                            <button 
-                                                onClick={() => {
-                                                    const url = `${window.location.origin}/matches/${liveState.matchId}`;
-                                                    navigator.clipboard.writeText(url);
-                                                    alert("Scorecard Link Copied!");
-                                                }}
-                                                className="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold py-4 rounded-2xl border border-blue-500/20 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                                            >
-                                                <AlertCircle className="w-4 h-4 rotate-180" /> Copy Public Scorecard Link
-                                            </button>
-                                            <button 
-                                                onClick={() => {
-                                                    setLiveState(null);
-                                                    setSelectedMatch(null);
-                                                    setActiveScreen("SELECT_MATCH");
-                                                }}
-                                                className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest mt-2"
-                                            >
-                                                Back to Dashboard
-                                            </button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                            <Clock className="w-10 h-10 text-amber-500" />
-                                        </div>
-                                        <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>Innings Break</h2>
-                                        <p className="text-zinc-500 mb-8 uppercase tracking-widest text-xs font-bold">{liveState.innings1.teamName} has completed their innings</p>
-                                        
-                                        <div className="bg-black/40 rounded-2xl p-6 mb-8 border border-zinc-800">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Final Score</span>
-                                                <span className="text-white font-bold">{liveState.innings1.runs}/{liveState.innings1.wickets}</span>
-                                            </div>
-                                            <div className="h-px bg-zinc-800 mb-4" />
-                                            <div className="text-center">
-                                                <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">Target for {liveState.innings2.teamName}</p>
-                                                <p className="text-3xl font-black text-amber-500 tracking-tighter">{liveState.innings1.runs + 1}</p>
-                                                <p className="text-zinc-500 text-[9px] mt-1 font-medium">From {liveState.matchOvers} overs</p>
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            onClick={() => {
-                                                if (!liveState) return;
-                                                const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
-                                                state.currentInnings = 2;
-                                                state.status = "LIVE";
-                                                setOpenStriker("");
-                                                setOpenNonStriker("");
-                                                setOpenBowler("");
-                                                setLiveState(state);
-                                                setActiveScreen("TOSS_SETUP");
-                                            }}
-                                            className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-[0_10px_30px_rgba(245,158,11,0.2)] hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest"
-                                        >
-                                            Start 2nd Innings &rarr;
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </motion.div>
+                    {liveState && liveState.status === "COMPLETED" && (
+                        <MatchOverOverlay 
+                            result={liveState.result || ""}
+                            innings1={liveState.innings1}
+                            innings2={liveState.innings2}
+                            winnerColor={liveState.winner ? colorOf(liveState.winner) : "#EAB308"}
+                            onShowScorecard={() => setShowReport(true)}
+                            onBack={() => {
+                                setLiveState(null);
+                                setSelectedMatch(null);
+                                setActiveScreen("SELECT_MATCH");
+                            }}
+                            onCopyLink={() => {
+                                const url = `${window.location.origin}/matches/${liveState.matchId}`;
+                                navigator.clipboard.writeText(url);
+                                alert("Scorecard Link Copied!");
+                            }}
+                            isScorer
+                        />
+                    )}
+                    {liveState && liveState.status === "INNINGS_BREAK" && (
+                        <InningsBreakOverlay 
+                            teamName={liveState.innings1.teamName}
+                            runs={liveState.innings1.runs}
+                            wickets={liveState.innings1.wickets}
+                            overs={liveState.innings1.overs}
+                            targetTeam={liveState.innings2.teamName}
+                            teamColor={colorOf(liveState.innings1.teamName)}
+                            onStartSecondInnings={() => {
+                                if (!liveState) return;
+                                const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
+                                state.currentInnings = 2;
+                                state.status = "LIVE";
+                                setOpenStriker("");
+                                setOpenNonStriker("");
+                                setOpenBowler("");
+                                setLiveState(state);
+                                setActiveScreen("TOSS_SETUP");
+                            }}
+                            isScorer
+                        />
                     )}
                 </AnimatePresence>
 

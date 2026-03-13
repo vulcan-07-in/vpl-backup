@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { ArrowLeft, Trophy } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { Scorecard } from "@/components/scorecard";
+import { MatchOverOverlay } from "@/components/match-over-overlay";
 
 interface Props {
     matchId: string;
@@ -15,6 +17,7 @@ interface Props {
 export default function MatchReportClient({ matchId, fixture, teams }: Props) {
     const [matchState, setMatchState] = useState<LiveMatchState | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showOverlay, setShowOverlay] = useState(true);
 
     const colorOf = (name?: string) => teams.find(t => t.teamName === name)?.color ?? "#EAB308";
 
@@ -63,129 +66,30 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
     const winnerName = matchState?.winner || fixture?.winner || null;
 
     const renderInningsScorecard = (innings: LiveMatchState["innings1"], inningsNum: number) => {
-        const batsmen = Object.values(innings.batsmen);
-        const bowlers = Object.values(innings.bowlers);
-
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: inningsNum * 0.15 }}
-                className="bg-zinc-900/80 border border-zinc-800 rounded-2xl overflow-hidden"
-            >
-                {/* Innings Header */}
-                <div className="p-5 border-b border-zinc-800 flex items-center justify-between"
-                    style={{ background: `linear-gradient(135deg, ${colorOf(innings.teamName)}10, transparent)` }}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colorOf(innings.teamName) }} />
-                        <span className="text-white font-bold text-lg tracking-wide" style={{ fontFamily: "var(--font-heading)" }}>
-                            {innings.teamName}
-                        </span>
-                        {winnerName === innings.teamName && (
-                            <Trophy className="w-4 h-4 text-amber-400" />
-                        )}
-                    </div>
-                    <div className="text-right">
-                        <span className="text-3xl font-bold text-white" style={{ fontFamily: "var(--font-display)" }}>
-                            {innings.runs}<span className="text-zinc-500 text-xl">-{innings.wickets}</span>
-                        </span>
-                        <span className="text-zinc-500 text-xs ml-2 tracking-wider">
-                            ({innings.overs.toFixed(1)} ov)
-                        </span>
-                    </div>
-                </div>
-
-                {/* Batting Table */}
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left text-xs min-w-[480px] whitespace-nowrap">
-                        <thead>
-                            <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
-                                <th className="px-4 py-2.5">Batter</th>
-                                <th className="px-4 py-2.5 text-right">R</th>
-                                <th className="px-4 py-2.5 text-right">B</th>
-                                <th className="px-4 py-2.5 text-right">4s</th>
-                                <th className="px-4 py-2.5 text-right">6s</th>
-                                <th className="px-4 py-2.5 text-right">SR</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-900">
-                            {batsmen.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-4 text-center text-zinc-600 italic">Yet to bat</td>
-                                </tr>
-                            ) : (
-                                batsmen.map((b, i) => (
-                                    <tr key={i} className={b.isOut ? 'text-zinc-600' : 'text-zinc-300'}>
-                                        <td className="px-4 py-3 font-medium">
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-white">{b.name}</span>
-                                                    {!b.isOut && (b.name === innings.strikerRef || b.name === innings.nonStrikerRef) && (
-                                                        <span className="text-amber-500 italic font-bold text-[10px]">*</span>
-                                                    )}
-                                                </div>
-                                                {b.isOut && (
-                                                    <span className="text-[10px] text-zinc-500 font-medium italic mt-0.5">
-                                                        {b.dismissal || "out"}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-bold text-white">{b.runs}</td>
-                                        <td className="px-4 py-3 text-right">{b.balls}</td>
-                                        <td className="px-4 py-3 text-right">{b.fours}</td>
-                                        <td className="px-4 py-3 text-right">{b.sixes}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
-                                            {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Bowling Table */}
-                <div className="border-t border-zinc-800 overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left text-xs min-w-[480px] whitespace-nowrap">
-                        <thead>
-                            <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
-                                <th className="px-4 py-2.5">Bowler</th>
-                                <th className="px-4 py-2.5 text-right">O</th>
-                                <th className="px-4 py-2.5 text-right">M</th>
-                                <th className="px-4 py-2.5 text-right">R</th>
-                                <th className="px-4 py-2.5 text-right">W</th>
-                                <th className="px-4 py-2.5 text-right">Econ</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-900">
-                            {bowlers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-4 text-center text-zinc-600 italic">Yet to bowl</td>
-                                </tr>
-                            ) : (
-                                bowlers.map((bw, i) => (
-                                    <tr key={i} className="text-zinc-300">
-                                        <td className="px-4 py-3 font-medium">{bw.name}</td>
-                                        <td className="px-4 py-3 text-right font-bold text-white">{bw.overs.toFixed(1)}</td>
-                                        <td className="px-4 py-3 text-right">{bw.maidens || 0}</td>
-                                        <td className="px-4 py-3 text-right">{bw.runs}</td>
-                                        <td className="px-4 py-3 text-right font-bold text-blue-400">{bw.wickets}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums opacity-60 font-mono">
-                                            {bw.overs > 0 ? (bw.runs / bw.overs).toFixed(2) : '0.00'}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </motion.div>
+            <Scorecard 
+                innings={innings} 
+                inningsNum={inningsNum} 
+                teamColor={colorOf(innings.teamName)} 
+                winnerName={winnerName}
+            />
         );
     };
 
     return (
         <main className="min-h-screen pt-28 pb-16 px-4 md:pt-32">
+            <AnimatePresence>
+                {showOverlay && matchState?.status === "COMPLETED" && (
+                    <MatchOverOverlay 
+                        result={matchState.result || ""}
+                        innings1={matchState.innings1}
+                        innings2={matchState.innings2}
+                        winnerColor={matchState.winner ? colorOf(matchState.winner) : "#EAB308"}
+                        onShowScorecard={() => setShowOverlay(false)}
+                    />
+                )}
+            </AnimatePresence>
+
             <div className="max-w-3xl mx-auto">
                 {/* Back Navigation */}
                 <Link href="/matches" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mb-8 text-xs tracking-widest font-bold">

@@ -80,7 +80,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         // Determine if match has any state in Redis
         const hasLiveState = !!lm;
         const isScheduled = lm?.status === "SCHEDULED";
-        const canView = isCompleted || isLive || isInningsBreak || (hasLiveState && lm.timeline?.length > 0);
+        const canView = true; // All matches are now clickable
         const targetHref = (isLive || isInningsBreak) ? "/live" : `/matches/${fixture.matchNo}`;
 
         // Get score info
