@@ -65,7 +65,7 @@ export interface BallEvent {
     bowler: string;
     runs: number;      // Runs off the bat
     extras: number;    // Extra runs
-    extraType?: "WD" | "NB" | "B" | "LB" | "DB" | "SWAP";
+    extraType?: "WD" | "NB" | "B" | "LB" | "DB" | "SWAP" | "OVERRIDE";
     isWicket: boolean;
     wicketType?: "BOWLED" | "CAUGHT" | "RUNOUT" | "LBW" | "STUMPED" | "HIT_WICKET" | "RETIRED_HURT";
     playerOut?: string;
@@ -73,6 +73,19 @@ export interface BallEvent {
     caughtBy?: string; // Fielder name for CAUGHT/STUMPED
     runOutBy?: string; // Fielder name for RUNOUT
     swapped?: boolean; // If strike was swapped during this ball (e.g. crossing)
+    // For OVERRIDE
+    overrideData?: {
+        teamRuns?: number;
+        teamWickets?: number;
+        teamOvers?: number;
+        strikerRuns?: number;
+        strikerBalls?: number;
+        nonStrikerRuns?: number;
+        nonStrikerBalls?: number;
+        bowlerRuns?: number;
+        bowlerWickets?: number;
+        bowlerOvers?: number;
+    };
 }
 
 export interface LiveMatchState {

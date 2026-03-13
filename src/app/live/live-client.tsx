@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
-import { Clock, Bell, X } from "lucide-react";
+import { Clock, Bell, X, Trophy, ChevronLeft, AlertCircle, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixture[], teams: Team[] }) {
@@ -131,6 +131,105 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
         );
     }
 
+    const renderInningsScorecard = (inn: LiveMatchState["innings1"], idx: number) => {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-end border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-2 h-10 rounded-full bg-gradient-to-b from-amber-500 to-amber-700 shadow-[0_0_15px_rgba(245,158,11,0.3)]" />
+                        <div className="flex flex-col">
+                            <h3 className="text-white font-black tracking-[0.2em] text-lg uppercase leading-none">{inn.teamName}</h3>
+                            <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase mt-1">{idx === 1 ? 'FIRST' : 'SECOND'} INNINGS</span>
+                        </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-black text-white tabular-nums leading-none">{inn.runs}-{inn.wickets}</span>
+                        <span className="text-zinc-500 text-sm font-bold tracking-widest uppercase">({inn.overs.toFixed(1)})</span>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
+                        <table className="w-full text-left text-xs min-w-[500px]">
+                            <thead>
+                                <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
+                                    <th className="px-6 py-4">BATSMAN</th>
+                                    <th className="px-6 py-4 text-right">RUNS</th>
+                                    <th className="px-6 py-4 text-right">BALLS</th>
+                                    <th className="px-6 py-4 text-right">4s</th>
+                                    <th className="px-6 py-4 text-right">6s</th>
+                                    <th className="px-6 py-4 text-right">SR</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {Object.values(inn.batsmen).length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Innings not started</td>
+                                    </tr>
+                                ) : (
+                                    Object.values(inn.batsmen).map((b, bIdx) => (
+                                        <tr key={bIdx} className={`transition-colors h-12 ${b.isOut ? 'text-zinc-500 opacity-60' : 'text-zinc-100'}`}>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-black tracking-tight text-sm uppercase">{b.name}</span>
+                                                    {b.isOut && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-zinc-500 font-bold uppercase tracking-tighter">{b.dismissal}</span>}
+                                                    {(b.name === inn.strikerRef || b.name === inn.nonStrikerRef) && !b.isOut && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-black text-amber-500 text-sm">{b.runs}</td>
+                                            <td className="px-6 py-4 text-right font-bold tabular-nums">{b.balls}</td>
+                                            <td className="px-6 py-4 text-right font-bold tabular-nums">{b.fours}</td>
+                                            <td className="px-6 py-4 text-right font-bold tabular-nums">{b.sixes}</td>
+                                            <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
+                                                {b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0'}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="overflow-hidden rounded-3xl border border-white/5 bg-black/20">
+                        <table className="w-full text-left text-xs min-w-[500px]">
+                            <thead>
+                                <tr className="bg-white/5 text-zinc-400 font-black uppercase tracking-[0.2em]">
+                                    <th className="px-6 py-4">BOWLER</th>
+                                    <th className="px-6 py-4 text-right">O</th>
+                                    <th className="px-6 py-4 text-right">M</th>
+                                    <th className="px-6 py-4 text-right">R</th>
+                                    <th className="px-6 py-4 text-right">W</th>
+                                    <th className="px-6 py-4 text-right">ECON</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {Object.values(inn.bowlers).length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-zinc-600 font-bold uppercase tracking-widest italic">Yet to bowl</td>
+                                    </tr>
+                                ) : (
+                                    Object.values(inn.bowlers).map((bw, bwIdx) => (
+                                        <tr key={bwIdx} className="text-zinc-200 transition-colors h-12">
+                                            <td className="px-6 py-4 font-black tracking-tight text-sm uppercase">{bw.name}</td>
+                                            <td className="px-6 py-4 text-right font-black text-white">{bw.overs.toFixed(1)}</td>
+                                            <td className="px-6 py-4 text-right font-bold">{bw.maidens || 0}</td>
+                                            <td className="px-6 py-4 text-right font-bold">{bw.runs}</td>
+                                            <td className="px-6 py-4 text-right font-black text-blue-400 text-sm">{bw.wickets}</td>
+                                            <td className="px-6 py-4 text-right tabular-nums font-black text-zinc-500">
+                                                {bw.overs > 0 ? (bw.runs / (Math.floor(bw.overs) + (Math.round((bw.overs % 1) * 10)) / 6)).toFixed(2) : '0.00'}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // SCHEDULED VIEW
     if (liveMatch.status === "SCHEDULED") {
         return (
             <main className="min-h-screen pt-32 pb-16 px-4 flex flex-col items-center justify-center text-center">
@@ -155,28 +254,168 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
     // INNINGS BREAK VIEW
     if (liveMatch.status === "INNINGS_BREAK") {
         const target = liveMatch.innings1.runs + 1;
+        const mainColor = colorOf(liveMatch.innings1.teamName);
+        
         return (
-            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none opacity-20" style={{ backgroundColor: colorOf(liveMatch.innings1.teamName) }} />
-                <p className="text-[12px] tracking-[0.5em] text-blue-400 mb-4 font-bold uppercase">Match {liveMatch.matchId}</p>
-                <h2 className="text-5xl md:text-7xl text-white font-bold mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
-                    INNINGS 1 OVER
-                </h2>
-                <div className="mt-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 max-w-md w-full">
-                    <p className="text-xl font-bold text-white mb-2" style={{ fontFamily: "var(--font-heading)" }}>
-                        {liveMatch.innings1.teamName}: <span className="text-amber-500">{liveMatch.innings1.runs}/{liveMatch.innings1.wickets}</span>
-                        <span className="text-zinc-500 text-sm ml-2">({liveMatch.innings1.overs.toFixed(1)} ov)</span>
-                    </p>
-                    <div className="h-px bg-zinc-800 my-3" />
-                    <p className="text-lg text-zinc-300 font-bold">
-                        {liveMatch.innings2.teamName} needs <span className="text-amber-500 text-2xl font-black">{target}</span> runs to win
-                    </p>
-                    <p className="text-[10px] text-zinc-500 tracking-widest uppercase mt-3 font-bold">2nd Innings will resume shortly</p>
+            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden bg-black">
+                {/* Dramatic Background Glow */}
+                <motion.div 
+                    animate={{ 
+                        scale: [1, 1.2, 1],
+                        opacity: [0.1, 0.3, 0.1]
+                    }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ background: `radial-gradient(circle at center, ${mainColor}40 0%, transparent 70%)` }}
+                />
+
+                <div className="relative z-10 space-y-8 max-w-2xl w-full">
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-col items-center gap-4"
+                    >
+                        <Trophy className="w-12 h-12 text-amber-500 animate-bounce" />
+                        <p className="text-[12px] tracking-[0.8em] text-blue-400 font-bold uppercase ml-[0.8em]">End of Innings</p>
+                    </motion.div>
+
+                    <motion.h2 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="text-7xl md:text-9xl text-white font-black italic tracking-tighter leading-none" 
+                        style={{ fontFamily: "var(--font-display)" }}
+                    >
+                        INNINGS 1 <br/> OVER
+                    </motion.h2>
+
+                    <motion.div 
+                        initial={{ opacity: 0, y: 40 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+                        
+                        <div className="space-y-6">
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2">{liveMatch.innings1.teamName} SCORE</span>
+                                <p className="text-6xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+                                    {liveMatch.innings1.runs}<span className="text-zinc-600">/</span>{liveMatch.innings1.wickets}
+                                </p>
+                                <span className="text-zinc-500 font-bold tracking-widest">({liveMatch.innings1.overs.toFixed(1)} OVERS)</span>
+                            </div>
+
+                            <div className="h-px bg-white/5 w-2/3 mx-auto" />
+
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-amber-500 uppercase font-black tracking-widest mb-3">Target for {liveMatch.innings2.teamName}</span>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-1 bg-amber-500/20 rounded-full" />
+                                    <p className="text-5xl font-black text-white animate-pulse">{target}</p>
+                                    <div className="w-12 h-1 bg-amber-500/20 rounded-full" />
+                                </div>
+                                <p className="text-[10px] text-zinc-500 tracking-[0.3em] uppercase mt-4 font-bold">Resuming shortly...</p>
+                            </div>
+                        </div>
+                    </motion.div>
                 </div>
-                <div className="mt-6 flex gap-2">
-                    {[...Array(3)].map((_, i) => (
-                        <motion.div key={i} animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }} className="w-2 h-2 rounded-full bg-blue-400" />
+
+                {/* Animated Particles */}
+                <div className="absolute inset-0 pointer-events-none opacity-20">
+                    {[...Array(15)].map((_, i) => (
+                        <motion.div
+                            key={i}
+                            animate={{ 
+                                y: [-20, 1000],
+                                x: [Math.random() * 100 + "%", Math.random() * 100 + "%"],
+                                opacity: [0, 1, 0]
+                            }}
+                            transition={{ duration: 5 + Math.random() * 5, repeat: Infinity, delay: Math.random() * 10 }}
+                            className="absolute w-1 h-1 bg-white rounded-full"
+                        />
                     ))}
+                </div>
+            </main>
+        );
+    }
+
+    // MATCH OVER VIEW
+    if (liveMatch.status === "COMPLETED") {
+        const winner = liveMatch.winner;
+        const winnerColor = winner ? colorOf(winner) : "#EAB308";
+        
+        return (
+            <main className="min-h-screen pt-28 pb-16 px-4 flex flex-col items-center justify-center text-center relative overflow-hidden bg-black">
+                {/* Winner Ambient Glow */}
+                <motion.div 
+                    animate={{ opacity: [0.1, 0.2, 0.1] }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ background: `radial-gradient(circle at center, ${winnerColor}50 0%, transparent 70%)` }}
+                />
+
+                <div className="relative z-10 flex flex-col items-center max-w-4xl w-full">
+                    <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", damping: 10, stiffness: 100 }}
+                        className="mb-8"
+                    >
+                        <div className="relative">
+                            <motion.div 
+                                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="absolute inset-0 blur-2xl rounded-full"
+                                style={{ backgroundColor: winnerColor }}
+                            />
+                            <Trophy className="w-32 h-32 text-white relative z-10 drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]" />
+                        </div>
+                    </motion.div>
+
+                    <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-amber-500 font-black tracking-[0.8em] uppercase mb-4 text-sm"
+                    >
+                        Tournament Match Complete
+                    </motion.p>
+
+                    <motion.h1 
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="text-8xl md:text-[12rem] font-black text-white italic tracking-tighter leading-none mb-4"
+                        style={{ fontFamily: "var(--font-display)" }}
+                    >
+                        MATCH <br/> OVER
+                    </motion.h1>
+
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-white to-transparent opacity-50" />
+                        
+                        <p className="text-3xl md:text-5xl font-black text-white mb-8 tracking-tight">
+                            {liveMatch.result}
+                        </p>
+
+                        <div className="flex gap-4 justify-center">
+                            <button 
+                                onClick={() => setShowScorecard(true)}
+                                className="flex items-center gap-3 bg-white text-black font-black px-10 py-5 rounded-2xl tracking-widest uppercase text-sm hover:scale-105 transition-all shadow-xl shadow-white/10"
+                            >
+                                <Users className="w-5 h-5" /> Full Scorecard
+                            </button>
+                            <a 
+                                href="/matches"
+                                className="flex items-center gap-3 bg-zinc-800 text-white font-black px-10 py-5 rounded-2xl tracking-widest uppercase text-sm border border-white/10 hover:bg-zinc-700 transition-all"
+                            >
+                                <ChevronLeft className="w-5 h-5" /> Other Matches
+                            </a>
+                        </div>
+                    </motion.div>
                 </div>
             </main>
         );
@@ -239,57 +478,111 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     </AnimatePresence>
                 </div>
 
-                {/* Big Event Animation Banner (Wicket, 4, 6) */}
+                {/* Big Event Animation Backdrop (Full Page) */}
                 <AnimatePresence>
                     {animationEvent && (
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 1.1, y: -20 }}
-                            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none p-4"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
                         >
-                            <div className={`relative overflow-hidden rounded-[3rem] p-1 shadow-[0_0_100px_rgba(0,0,0,0.5)] ${
-                                animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-600 to-red-900' :
-                                animationEvent.type === '6' ? 'bg-gradient-to-br from-purple-600 to-indigo-900' :
-                                'bg-gradient-to-br from-amber-400 to-amber-700'
-                            }`}>
-                                <div className="bg-black/20 backdrop-blur-sm px-12 py-8 rounded-[2.8rem] flex flex-col items-center text-center border border-white/20">
+                            {/* Full-screen Flash Backdrop */}
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0, 0.4, 0.2] }}
+                                transition={{ duration: 0.5 }}
+                                className={`absolute inset-0 ${
+                                    animationEvent.type === 'W' ? 'bg-red-600' :
+                                    animationEvent.type === '6' ? 'bg-purple-600' :
+                                    'bg-amber-400'
+                                }`}
+                            />
+
+                            {/* Abstract Shapes/Particles Move */}
+                            <div className="absolute inset-0 overflow-hidden">
+                                {[...Array(20)].map((_, i) => (
                                     <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: 'spring', delay: 0.2 }}
-                                        className="text-7xl md:text-9xl font-black text-white italic tracking-tighter mb-2 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
-                                        style={{ fontFamily: 'var(--font-display)' }}
-                                    >
-                                        {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
-                                    </motion.div>
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.4 }}
-                                        className="text-white font-bold text-xl md:text-3xl uppercase tracking-[0.3em]"
-                                    >
-                                        {animationEvent.player}
-                                    </motion.div>
-                                    
-                                    {/* Particles/Lines effect */}
-                                    <div className="absolute inset-0 opacity-30">
-                                        {[...Array(6)].map((_, i) => (
-                                            <motion.div
-                                                key={i}
-                                                animate={{ 
-                                                    x: [0, (i % 2 === 0 ? 100 : -100)],
-                                                    y: [0, (i < 3 ? 100 : -100)],
-                                                    opacity: [0, 1, 0]
-                                                }}
-                                                transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
-                                                className="absolute top-1/2 left-1/2 w-1 h-20 bg-white rounded-full blur-sm"
-                                            />
-                                        ))}
+                                        key={i}
+                                        initial={{ 
+                                            x: Math.random() * 100 - 50 + "%", 
+                                            y: Math.random() * 100 - 50 + "%",
+                                            scale: 0,
+                                            rotate: Math.random() * 360
+                                        }}
+                                        animate={{ 
+                                            x: [null, (Math.random() * 200 - 100) + "%"],
+                                            y: [null, (Math.random() * 200 - 100) + "%"],
+                                            scale: [0, 2, 0],
+                                            opacity: [0, 0.5, 0]
+                                        }}
+                                        transition={{ duration: 2, ease: "easeOut" }}
+                                        className="absolute w-64 h-64 border-2 border-white/20 rounded-full"
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Center Content */}
+                            <motion.div
+                                initial={{ scale: 0.5, opacity: 0, y: 100 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 1.5, opacity: 0, y: -100 }}
+                                transition={{ type: "spring", damping: 12, stiffness: 200 }}
+                                className="relative flex flex-col items-center"
+                            >
+                                <div className="absolute -inset-20 bg-black/60 blur-3xl rounded-full" />
+                                
+                                <motion.h2 
+                                    className="text-[20vw] font-black italic text-white leading-none tracking-tighter drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative"
+                                    style={{ fontFamily: "var(--font-display)" }}
+                                    animate={{ 
+                                        scale: [1, 1.1, 1],
+                                        rotate: [-2, 2, -2]
+                                    }}
+                                    transition={{ duration: 0.5, repeat: 4 }}
+                                >
+                                    {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
+                                </motion.h2>
+
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="relative px-12 py-4 bg-white text-black font-black text-2xl md:text-5xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl"
+                                >
+                                    {animationEvent.player}
+                                </motion.div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Scorecard Overlay */}
+                <AnimatePresence>
+                    {showScorecard && liveMatch && (
+                        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, y: 40 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 40 }}
+                                className="w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+                            >
+                                <div className="p-8 space-y-12">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h2 className="text-4xl font-bold text-white tracking-widest uppercase italic" style={{ fontFamily: "var(--font-heading)" }}>SCORECARD</h2>
+                                        <button onClick={() => setShowScorecard(false)} className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all">
+                                            <X className="w-6 h-6" />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-12">
+                                        {renderInningsScorecard(liveMatch.innings1, 1)}
+                                        {(liveMatch.currentInnings === 2 || liveMatch.status === "COMPLETED") && (
+                                            renderInningsScorecard(liveMatch.innings2, 2)
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                        </motion.div>
+                            </motion.div>
+                        </div>
                     )}
                 </AnimatePresence>
 
@@ -390,35 +683,30 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                             const totalBalls = liveMatch.matchOvers * 6;
                             const ballsBowled = Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10);
                             const ballsRemaining = totalBalls - ballsBowled;
-                            // C5 FIX: Guard against division by zero
                             const reqRate = ballsRemaining > 0 ? (runsNeeded / (ballsRemaining / 6)).toFixed(2) : '∞';
+                            
                             return (
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.6 }}
-                                className="mt-12 w-full max-w-2xl px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/20 backdrop-blur-lg"
-                            >
-                                <div className="flex flex-col items-center gap-1">
-                                    <div className="text-amber-500 font-black tracking-[0.4em] text-[10px] uppercase mb-1 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
-                                        TARGET REACHABLE
-                                    </div>
-                                    <div className="text-2xl md:text-4xl font-black text-white tracking-tight uppercase" style={{ fontFamily: "var(--font-display)" }}>
-                                        NEED {runsNeeded} <span className="text-amber-500">RUNS</span> IN {ballsRemaining} <span className="text-zinc-500">BALLS</span>
-                                    </div>
-                                    <div className="flex items-center gap-4 mt-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">TARGET</span>
-                                            <span className="text-sm font-black text-white">{liveMatch.innings1.runs + 1}</span>
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.6 }}
+                                    className="mt-12 w-full max-w-2xl px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/20 backdrop-blur-lg"
+                                >
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="text-amber-500 font-black tracking-[0.4em] text-[10px] uppercase mb-1 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                                            TARGET CHASE
                                         </div>
-                                        <div className="w-1 h-1 rounded-full bg-zinc-700" />
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">REQUIRED RATE</span>
-                                            <span className="text-sm font-black text-amber-500">{reqRate}</span>
+                                        <div className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase" style={{ fontFamily: "var(--font-display)" }}>
+                                            NEED {runsNeeded} <span className="text-amber-500">RUNS</span> IN {ballsRemaining} <span className="text-zinc-500">BALLS</span>
+                                        </div>
+                                        <div className="flex items-center gap-4 mt-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">REQUIRED RATE</span>
+                                                <span className="text-sm font-black text-white tabular-nums">{reqRate}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
+                                </motion.div>
                             );
                         })()}
                     </div>
@@ -527,25 +815,10 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 >
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
                     
-                    {liveMatch.status === "COMPLETED" ? (
-                        <div className="text-center py-6">
-                            <h3 className="text-[10px] font-black tracking-[0.5em] text-amber-500/70 mb-3 uppercase">MATCH CONCLUSION</h3>
-                            <p className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase drop-shadow-lg" style={{ fontFamily: "var(--font-display)" }}>
-                                {liveMatch.result}
-                            </p>
-                            <div className="mt-4 flex justify-center gap-2">
-                                {[...Array(3)].map((_, i) => (
-                                    <motion.div 
-                                        key={i}
-                                        animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-                                        transition={{ duration: 2, repeat: Infinity, delay: i * 0.4 }}
-                                        className="w-1.5 h-1.5 rounded-full bg-amber-500"
-                                    />
-                                ))}
-                            </div>
-                            <a href={`/matches/${liveMatch.matchId}`} className="mt-6 inline-block bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-bold tracking-widest px-6 py-2.5 rounded-full border border-amber-500/30 transition-all uppercase">
-                                VIEW FULL MATCH REPORT
-                            </a>
+                    {liveMatch.timeline.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center w-full py-4 opacity-30">
+                            <div className="w-10 h-10 rounded-full border-2 border-dashed border-zinc-500 animate-spin mb-2" />
+                            <span className="text-zinc-500 text-[10px] font-bold tracking-[0.2em] uppercase">Awaiting first delivery</span>
                         </div>
                     ) : (
                         <>
@@ -563,33 +836,26 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 </div>
                             </div>
                             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
-                                {liveMatch.timeline.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center w-full py-4 opacity-30">
-                                        <div className="w-10 h-10 rounded-full border-2 border-dashed border-zinc-500 animate-spin mb-2" />
-                                        <span className="text-zinc-500 text-[10px] font-bold tracking-[0.2em] uppercase">Awaiting first delivery</span>
-                                    </div>
-                                ) : (
-                                    [...liveMatch.timeline].reverse().slice(0, 12).map((ball, idx) => (
-                                        <motion.div 
-                                            key={ball.id} 
-                                            initial={{ opacity: 0, scale: 0.5, x: 20 }}
-                                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                                            transition={{ delay: idx * 0.05, type: 'spring', damping: 12 }}
-                                            className="flex flex-col items-center gap-2 min-w-[56px]"
-                                        >
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border-2 shadow-2xl transition-all duration-300 transform hover:scale-110 ${
-                                                ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/40 rotate-3' : 
-                                                ball.runs >= 4 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/20 -rotate-3' : 
-                                                'bg-white/5 border-white/10 text-zinc-100'
-                                            }`}>
-                                                {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
-                                            </div>
-                                            <span className="text-[9px] font-black text-zinc-500 font-mono tracking-tighter">
-                                                {(ball.over - 0.1).toFixed(1)}
-                                            </span>
-                                        </motion.div>
-                                    ))
-                                )}
+                                {[...liveMatch.timeline].reverse().slice(0, 12).map((ball, idx) => (
+                                    <motion.div 
+                                        key={ball.id} 
+                                        initial={{ opacity: 0, scale: 0.5, x: 20 }}
+                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                        transition={{ delay: idx * 0.05, type: 'spring', damping: 12 }}
+                                        className="flex flex-col items-center gap-2 min-w-[56px]"
+                                    >
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border-2 shadow-2xl transition-all duration-300 transform hover:scale-110 ${
+                                            ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/40 rotate-3' : 
+                                            ball.runs >= 4 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/20 -rotate-3' : 
+                                            'bg-white/5 border-white/10 text-zinc-100'
+                                        }`}>
+                                            {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
+                                        </div>
+                                        <span className="text-[9px] font-black text-zinc-500 font-mono tracking-tighter">
+                                            {(ball.over - 0.1).toFixed(1)}
+                                        </span>
+                                    </motion.div>
+                                ))}
                             </div>
                         </>
                     )}

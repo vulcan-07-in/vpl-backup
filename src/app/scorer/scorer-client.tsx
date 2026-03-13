@@ -2,7 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Plus, ArrowRightLeft, Undo2, LogOut, ShieldAlert, X, Trophy, Zap, AlertCircle, ChevronDown, Clock } from "lucide-react";
+import {
+    AlertCircle,
+    Check,
+    ChevronDown,
+    ChevronLeft,
+    Clock,
+    Edit2,
+    History,
+    Info,
+    Loader2,
+    LogOut,
+    Plus,
+    RefreshCcw,
+    RotateCcw,
+    Save,
+    Search,
+    ShieldAlert,
+    Settings,
+    Smartphone,
+    Trophy,
+    Undo2,
+    User,
+    Users,
+    X,
+    Zap
+} from "lucide-react";
 import { Fixture, Team, LiveMatchState, MatchStatus, BallEvent, BatsmanStats } from "@/lib/tournament";
 import { MatchReport } from "@/components/match-report";
 
@@ -167,6 +192,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
 
         let strikerObj = inn.batsmen[ball.striker];
+        let nonStrikerObj = ball.nonStriker ? inn.batsmen[ball.nonStriker] : null;
         let bowlerObj = inn.bowlers[ball.bowler];
 
         // C3 FIX: SWAP and DB must return BEFORE any score increment
@@ -291,8 +317,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 inn.strikerRef = inn.nonStrikerRef;
                 inn.nonStrikerRef = temp;
             }
+        } else if (ball.extraType === "OVERRIDE" && ball.overrideData) {
+            // MANUAL OVERRIDE: Forcefully set values
+            const d = ball.overrideData;
+            if (d.teamRuns !== undefined) inn.runs = d.teamRuns;
+            if (d.teamWickets !== undefined) inn.wickets = d.teamWickets;
+            if (d.teamOvers !== undefined) inn.overs = d.teamOvers;
+            
+            if (strikerObj && d.strikerRuns !== undefined) strikerObj.runs = d.strikerRuns;
+            if (strikerObj && d.strikerBalls !== undefined) strikerObj.balls = d.strikerBalls;
+            
+            if (nonStrikerObj && d.nonStrikerRuns !== undefined) nonStrikerObj.runs = d.nonStrikerRuns;
+            if (nonStrikerObj && d.nonStrikerBalls !== undefined) nonStrikerObj.balls = d.nonStrikerBalls;
+            
+            if (bowlerObj && d.bowlerRuns !== undefined) bowlerObj.runs = d.bowlerRuns;
+            if (bowlerObj && d.bowlerWickets !== undefined) bowlerObj.wickets = d.bowlerWickets;
+            if (bowlerObj && d.bowlerOvers !== undefined) bowlerObj.overs = d.bowlerOvers;
         }
-
         // 3. Status Check
         if (isSecondInnings && target !== null) {
             state.status = "LIVE"; // Ensure we are in LIVE mode if processing 2nd innings balls
@@ -1320,6 +1361,12 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             <span className="text-zinc-500 text-[9px] font-mono uppercase">{liveState.status}</span>
                         </div>
 
+                        <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+                            <span className="text-[10px] font-bold text-zinc-400 tracking-wider">
+                                TOSS: <span className="text-amber-500">{liveState.tossWinner}</span> WON & CHOSE <span className="text-amber-500">{liveState.tossDecision}</span>
+                            </span>
+                        </div>
+
                         {isSecondInnings && target !== null && (
                             <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/10">
                                 <span className="text-xs font-bold text-zinc-400">TARGET: <span className="text-white">{target}</span></span>
@@ -1881,8 +1928,27 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     {showReport && liveState && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[130] flex items-center justify-center p-4">
                             <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={() => setShowReport(false)} />
-                            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-                                <MatchReport state={liveState} teams={teams} />
+                            <div className="relative w-full max-w-2xl max-h-[90vh]">
+                                <div className="flex flex-col items-center gap-6 overflow-y-auto max-h-full py-10 w-full custom-scrollbar">
+                                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-2xl px-4">
+                                        <MatchReport state={liveState} teams={teams} />
+                                        
+                                        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                                            <button 
+                                                onClick={handleResetMatch}
+                                                className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 px-8 rounded-2xl tracking-widest transition-all shadow-xl shadow-red-600/20 flex items-center justify-center gap-3 uppercase text-sm"
+                                            >
+                                                <AlertCircle className="w-5 h-5" /> Reset Match (Careful!)
+                                            </button>
+                                            <button 
+                                                onClick={() => setActiveScreen("SELECT_MATCH")}
+                                                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-4 px-8 rounded-2xl tracking-widest transition-all border border-zinc-700 flex items-center justify-center gap-3 uppercase text-sm"
+                                            >
+                                                <ChevronLeft className="w-5 h-5" /> Back to Matches
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                </div>
                                 <button
                                     onClick={() => setShowReport(false)}
                                     className="absolute top-4 right-4 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all focus:outline-none"
@@ -2137,10 +2203,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     // RENDER: EDIT OVERRIDE
     // ==========================================
     if (activeScreen === "EDIT_OVERRIDE" && liveState) {
-        // We create local state for the edit form inline here since it's only active in this view
         const inn = liveState.currentInnings === 1 ? liveState.innings1 : liveState.innings2;
 
-        const handleCommitOverride = (e: React.FormEvent<HTMLFormElement>) => {
+        const handleCommitOverrideInternal = (e: React.FormEvent<HTMLFormElement>) => {
             e.preventDefault();
             if (!window.confirm("WARNING: This will forcefully overwrite the live match state. Proceed?")) return;
 
@@ -2148,26 +2213,26 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             const newState = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
             const targetInn = newState.currentInnings === 1 ? newState.innings1 : newState.innings2;
 
-            // Update Team Score
+            // 1. Update Team Score in the state
             targetInn.runs = parseInt(formData.get("teamRuns") as string, 10) || 0;
             targetInn.wickets = parseInt(formData.get("teamWickets") as string, 10) || 0;
             targetInn.overs = parseFloat(formData.get("teamOvers") as string) || 0;
 
-            // Update Active Striker
+            // 2. Update Active Striker
             if (targetInn.strikerRef && targetInn.batsmen[targetInn.strikerRef]) {
                 const s = targetInn.batsmen[targetInn.strikerRef];
                 s.runs = parseInt(formData.get("strikerRuns") as string, 10) || 0;
                 s.balls = parseInt(formData.get("strikerBalls") as string, 10) || 0;
             }
 
-            // Update Active Non-Striker
+            // 3. Update Active Non-Striker
             if (targetInn.nonStrikerRef && targetInn.batsmen[targetInn.nonStrikerRef]) {
                 const ns = targetInn.batsmen[targetInn.nonStrikerRef];
                 ns.runs = parseInt(formData.get("nonStrikerRuns") as string, 10) || 0;
                 ns.balls = parseInt(formData.get("nonStrikerBalls") as string, 10) || 0;
             }
 
-            // Update Active Bowler
+            // 4. Update Active Bowler
             if (targetInn.currentBowlerRef && targetInn.bowlers[targetInn.currentBowlerRef]) {
                 const b = targetInn.bowlers[targetInn.currentBowlerRef];
                 b.runs = parseInt(formData.get("bowlerRuns") as string, 10) || 0;
@@ -2175,13 +2240,41 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 b.overs = parseFloat(formData.get("bowlerOvers") as string) || 0;
             }
 
-            // Push forceful update
+            // 5. Push OVERRIDE event to timeline for persistence during rebuildState
+            const overrideEvent: BallEvent = {
+                id: `ovr-${Date.now()}`,
+                timestamp: Date.now(),
+                innings: newState.currentInnings,
+                over: targetInn.overs,
+                striker: targetInn.strikerRef || "",
+                nonStriker: targetInn.nonStrikerRef || "",
+                bowler: targetInn.currentBowlerRef || "",
+                runs: 0,
+                extras: 0,
+                extraType: "OVERRIDE",
+                isWicket: false,
+                overrideData: {
+                    teamRuns: targetInn.runs,
+                    teamWickets: targetInn.wickets,
+                    teamOvers: targetInn.overs,
+                    strikerRuns: (targetInn.strikerRef && targetInn.batsmen[targetInn.strikerRef]) ? targetInn.batsmen[targetInn.strikerRef].runs : undefined,
+                    strikerBalls: (targetInn.strikerRef && targetInn.batsmen[targetInn.strikerRef]) ? targetInn.batsmen[targetInn.strikerRef].balls : undefined,
+                    nonStrikerRuns: (targetInn.nonStrikerRef && targetInn.batsmen[targetInn.nonStrikerRef]) ? targetInn.batsmen[targetInn.nonStrikerRef].runs : undefined,
+                    nonStrikerBalls: (targetInn.nonStrikerRef && targetInn.batsmen[targetInn.nonStrikerRef]) ? targetInn.batsmen[targetInn.nonStrikerRef].balls : undefined,
+                    bowlerRuns: (targetInn.currentBowlerRef && targetInn.bowlers[targetInn.currentBowlerRef]) ? targetInn.bowlers[targetInn.currentBowlerRef].runs : undefined,
+                    bowlerWickets: (targetInn.currentBowlerRef && targetInn.bowlers[targetInn.currentBowlerRef]) ? targetInn.bowlers[targetInn.currentBowlerRef].wickets : undefined,
+                    bowlerOvers: (targetInn.currentBowlerRef && targetInn.bowlers[targetInn.currentBowlerRef]) ? targetInn.bowlers[targetInn.currentBowlerRef].overs : undefined,
+                }
+            };
+            newState.timeline.push(overrideEvent);
+
             pushUpdate(newState);
             setActiveScreen("LIVE_SCORING");
         };
 
         return (
             <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+                {/* Form implementation */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-2xl w-full">
                     <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
                         <div className="flex items-center gap-3">
@@ -2193,7 +2286,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                         </button>
                     </div>
 
-                    <form onSubmit={handleCommitOverride} className="space-y-6">
+                    <form onSubmit={handleCommitOverrideInternal} className="space-y-6">
                         {/* TEAM SCORE EDIT */}
                         <div className="bg-black p-4 rounded-xl border border-zinc-800">
                             <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 mb-4 block">1. TEAM TOTAL (INNINGS {liveState.currentInnings})</h3>

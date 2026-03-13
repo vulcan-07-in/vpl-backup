@@ -105,11 +105,15 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
 
     const leaderboards = useMemo(() => {
         return {
-            runs: [...aggregatedStats].sort((a, b) => b.runs - a.runs || a.balls - b.balls),
+            runs: [...aggregatedStats]
+                .filter(p => p.balls >= 15)
+                .sort((a, b) => b.runs - a.runs || a.balls - b.balls),
             strikeRate: [...aggregatedStats]
                 .filter(p => p.balls >= 15)
                 .sort((a, b) => b.strikeRate - a.strikeRate),
-            wickets: [...aggregatedStats].sort((a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded),
+            wickets: [...aggregatedStats]
+                .filter(p => p.ballsBowled >= 18) // 3 overs
+                .sort((a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded),
             economy: [...aggregatedStats]
                 .filter(p => p.ballsBowled >= 18) // 3 overs
                 .sort((a, b) => a.economy - b.economy)
@@ -126,9 +130,9 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
     }
 
     const categories = [
-        { id: "runs", title: "Highest Runs", icon: Trophy, data: leaderboards.runs, unit: "Runs" },
+        { id: "runs", title: "Highest Runs", icon: Trophy, data: leaderboards.runs, unit: "Runs", sub: "Min 15 balls" },
         { id: "strikeRate", title: "Best Strike Rate", icon: Zap, data: leaderboards.strikeRate, unit: "SR", sub: "Min 15 balls" },
-        { id: "wickets", title: "Most Wickets", icon: Target, data: leaderboards.wickets, unit: "Wkts" },
+        { id: "wickets", title: "Most Wickets", icon: Target, data: leaderboards.wickets, unit: "Wkts", sub: "Min 3 overs" },
         { id: "economy", title: "Best Economy", icon: BarChart3, data: leaderboards.economy, unit: "Econ", sub: "Min 3 overs" },
     ];
 
