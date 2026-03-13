@@ -1713,8 +1713,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                             </div>
 
                                             {/* Batsmen Table */}
-                                            <div className="overflow-hidden rounded-xl border border-zinc-900 bg-zinc-900/20">
-                                                <table className="w-full text-left text-xs">
+                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20 custom-scrollbar">
+                                                <table className="w-full text-left text-xs whitespace-nowrap">
                                                     <thead>
                                                         <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
                                                             <th className="px-4 py-2">Batter</th>
@@ -1741,8 +1741,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                             </div>
 
                                             {/* Bowlers Table */}
-                                            <div className="overflow-hidden rounded-xl border border-zinc-900 bg-zinc-900/20">
-                                                <table className="w-full text-left text-xs">
+                                            <div className="overflow-x-auto rounded-xl border border-zinc-900 bg-zinc-900/20 custom-scrollbar">
+                                                <table className="w-full text-left text-xs whitespace-nowrap">
                                                     <thead>
                                                         <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest">
                                                             <th className="px-4 py-2">Bowler</th>

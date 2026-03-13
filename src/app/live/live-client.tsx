@@ -736,9 +736,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                             
                             return (
                                 <motion.div 
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.6 }}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
                                     className="mt-12 w-full max-w-2xl px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/20 backdrop-blur-lg"
                                 >
                                     <div className="flex flex-col items-center gap-1">
@@ -765,9 +764,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     {/* BATSMEN */}
                     <motion.div 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-3xl pointer-events-none" />
@@ -818,9 +816,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
 
                     {/* BOWLER */}
                     <motion.div 
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col"
                     >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl pointer-events-none" />
@@ -857,9 +854,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
 
                 {/* Recent Balls Timeline with Glassmorphism */}
                 <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     className="mt-10 bg-zinc-900/30 backdrop-blur-md border border-white/5 rounded-[2rem] p-8 shadow-inner overflow-hidden relative"
                 >
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
@@ -888,9 +884,8 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                                 {[...liveMatch.timeline].reverse().slice(0, 12).map((ball, idx) => (
                                     <motion.div 
                                         key={ball.id} 
-                                        initial={{ opacity: 0, scale: 0.5, x: 20 }}
-                                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                                        transition={{ delay: idx * 0.05, type: 'spring', damping: 12 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
                                         className="flex flex-col items-center gap-2 min-w-[56px]"
                                     >
                                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border-2 shadow-2xl transition-all duration-300 transform hover:scale-110 ${

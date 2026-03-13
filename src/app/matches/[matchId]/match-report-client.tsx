@@ -96,8 +96,8 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
                 </div>
 
                 {/* Batting Table */}
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs min-w-[480px]">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left text-xs min-w-[480px] whitespace-nowrap">
                         <thead>
                             <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
                                 <th className="px-4 py-2.5">Batter</th>
@@ -146,8 +146,8 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
                 </div>
 
                 {/* Bowling Table */}
-                <div className="border-t border-zinc-800 overflow-x-auto">
-                    <table className="w-full text-left text-xs min-w-[480px]">
+                <div className="border-t border-zinc-800 overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left text-xs min-w-[480px] whitespace-nowrap">
                         <thead>
                             <tr className="bg-zinc-900 text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
                                 <th className="px-4 py-2.5">Bowler</th>
