@@ -199,8 +199,9 @@ export function calculateStandings(
         ensureTeam(f.team1, group);
         ensureTeam(f.team2, group);
 
-        const normalizedMatchNo = String(f.matchNo).trim();
-        const liveMatch = liveStates[normalizedMatchNo] || liveStates[f.matchNo];
+        const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        const normalizedMatchNo = cleanId(f.matchNo);
+        const liveMatch = liveStates[normalizedMatchNo] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
         const winner = f.winner || liveMatch?.winner;
 
         if (!winner && liveMatch?.status !== "COMPLETED") return; // not played yet

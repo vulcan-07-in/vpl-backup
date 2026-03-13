@@ -28,6 +28,10 @@ export default async function MatchReportPage({ params }: { params: { matchId: s
     const tId = cleanId(params.matchId);
     
     const fixture = fixtures.find(f => cleanId(f.matchNo) === tId);
+    
+    // Use the raw exact matchNo from the fixture if available. This guarantees perfect Redis key matching
+    // since the scorer saves match state using selectedMatch.matchNo.
+    const exactMatchId = fixture ? fixture.matchNo : decodeURIComponent(params.matchId).trim();
 
-    return <MatchReportClient matchId={decodeURIComponent(params.matchId).trim()} fixture={fixture ?? null} teams={teams} />;
+    return <MatchReportClient matchId={exactMatchId} fixture={fixture ?? null} teams={teams} />;
 }

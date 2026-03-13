@@ -21,11 +21,17 @@ export default async function PointsPage() {
         const keys = await redis.keys('live_match_*');
         if (keys.length > 0) {
             const values = await redis.mget(...keys);
+            
+            // Clean ID helper to ensure "M 5" matches "m5" identically against CSV drifts
+            const cleanId = (id: string) => decodeURIComponent(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+            
             keys.forEach((key, i) => {
                 const matchId = key.replace('live_match_', '');
                 const data = values[i];
                 if (data) {
-                    liveStates[matchId] = JSON.parse(data);
+                    const parsed = JSON.parse(data);
+                    // Map by clean ID to make NRR lookups invincible
+                    liveStates[cleanId(matchId)] = parsed;
                 }
             });
         }
