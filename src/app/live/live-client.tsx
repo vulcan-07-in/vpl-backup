@@ -405,7 +405,7 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     <motion.h1 
                         initial={{ y: 50, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        className="text-8xl md:text-[12rem] font-black text-white italic tracking-tighter leading-none mb-4"
+                        className="text-[25vw] md:text-[12rem] font-black text-white italic tracking-tighter leading-none mb-4"
                         style={{ fontFamily: "var(--font-display)" }}
                     >
                         MATCH <br/> OVER
@@ -419,20 +419,20 @@ export default function LiveViewerClient({ fixtures, teams }: { fixtures: Fixtur
                     >
                         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-white to-transparent opacity-50" />
                         
-                        <p className="text-3xl md:text-5xl font-black text-white mb-8 tracking-tight">
+                        <p className="text-2xl md:text-5xl font-black text-white mb-8 tracking-tight">
                             {liveMatch.result}
                         </p>
 
-                        <div className="flex gap-4 justify-center">
+                        <div className="flex flex-col md:flex-row gap-4 justify-center">
                             <button 
                                 onClick={() => setShowScorecard(true)}
-                                className="flex items-center gap-3 bg-white text-black font-black px-10 py-5 rounded-2xl tracking-widest uppercase text-sm hover:scale-105 transition-all shadow-xl shadow-white/10"
+                                className="flex items-center justify-center gap-3 bg-white text-black font-black px-6 md:px-10 py-4 md:py-5 rounded-2xl tracking-widest uppercase text-xs md:text-sm hover:scale-105 transition-all shadow-xl shadow-white/10 w-full md:w-auto"
                             >
                                 <Users className="w-5 h-5" /> Full Scorecard
                             </button>
                             <a 
                                 href="/matches"
-                                className="flex items-center gap-3 bg-zinc-800 text-white font-black px-10 py-5 rounded-2xl tracking-widest uppercase text-sm border border-white/10 hover:bg-zinc-700 transition-all"
+                                className="flex items-center justify-center gap-3 bg-zinc-800 text-white font-black px-6 md:px-10 py-4 md:py-5 rounded-2xl tracking-widest uppercase text-xs md:text-sm border border-white/10 hover:bg-zinc-700 transition-all w-full md:w-auto"
                             >
                                 <ChevronLeft className="w-5 h-5" /> Other Matches
                             </a>

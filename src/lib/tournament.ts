@@ -249,9 +249,9 @@ export function calculateStandings(
                 map[f.team1].runsScored += t1Score.runs;
                 map[f.team1].runsAgainst += t2Score.runs;
 
-                // For NRR, if a team is all out (7 wickets for 8-man VPL), they are considered to have faced their full overs quota
-                const t1BallsFaced = (t1Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
-                const t1BallsBowled = (t2Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                // For NRR, if a team is all out (8 wickets for 8-man VPL with Last Man Standing), they are considered to have faced their full overs quota
+                const t1BallsFaced = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                const t1BallsBowled = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
 
                 map[f.team1].oversFaced += t1BallsFaced / 6;
                 map[f.team1].oversBowled += t1BallsBowled / 6;
@@ -262,8 +262,8 @@ export function calculateStandings(
                 map[f.team2].runsScored += t2Score.runs;
                 map[f.team2].runsAgainst += t1Score.runs;
 
-                const t2BallsFaced = (t2Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
-                const t2BallsBowled = (t1Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                const t2BallsFaced = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                const t2BallsBowled = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
 
                 map[f.team2].oversFaced += t2BallsFaced / 6;
                 map[f.team2].oversBowled += t2BallsBowled / 6;
