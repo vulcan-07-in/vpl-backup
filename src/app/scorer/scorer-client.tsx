@@ -1797,9 +1797,15 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         <div className="space-y-3">
                                             <button 
                                                 onClick={() => setShowReport(true)}
-                                                className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl border border-white/10 transition-all uppercase tracking-widest text-xs"
+                                                className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-4 rounded-2xl border border-white/10 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                                             >
-                                                View Full Report
+                                                <Trophy className="w-4 h-4" /> View Full Scorecard
+                                            </button>
+                                            <button 
+                                                onClick={handleResetMatch}
+                                                className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-4 rounded-2xl border border-red-500/20 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                                            >
+                                                <AlertCircle className="w-4 h-4" /> Reset Match
                                             </button>
                                             <button 
                                                 onClick={() => {
@@ -1807,7 +1813,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                     setSelectedMatch(null);
                                                     setActiveScreen("SELECT_MATCH");
                                                 }}
-                                                className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest"
+                                                className="w-full bg-amber-500 text-black font-bold py-5 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest mt-2"
                                             >
                                                 Back to Dashboard
                                             </button>

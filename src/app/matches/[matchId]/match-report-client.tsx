@@ -21,7 +21,7 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
     useEffect(() => {
         const fetchMatchState = async () => {
             try {
-                const res = await fetch(`/api/live-score?matchId=${matchId}`);
+                const res = await fetch(`/api/live-score?matchId=${encodeURIComponent(matchId)}`);
                 if (res.ok) {
                     setMatchState(await res.json());
                 }

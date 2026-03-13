@@ -226,22 +226,31 @@ export function calculateStandings(
             const inn1 = liveMatch.innings1;
             const inn2 = liveMatch.innings2;
 
-            const normalize = (s: string) => String(s).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalize = (s: string) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, '');
             const t1Clean = normalize(f.team1);
             const t2Clean = normalize(f.team2);
             
+            // Highly tolerant matching: if inn.teamName contains the fixture team name or vice versa
+            const isMatch = (innName: string, fixName: string) => {
+                const nInn = normalize(innName);
+                if (!nInn || !fixName) return false;
+                return nInn.includes(fixName) || fixName.includes(nInn);
+            };
+
             // Determine which innings belongs to f.team1
-            const t1Score = normalize(inn1.teamName) === t1Clean ? inn1 : (normalize(inn2.teamName) === t1Clean ? inn2 : null);
-            const t2Score = normalize(inn1.teamName) === t2Clean ? inn1 : (normalize(inn2.teamName) === t2Clean ? inn2 : null);
+            const t1Score = isMatch(inn1.teamName, t1Clean) ? inn1 : (isMatch(inn2.teamName, t1Clean) ? inn2 : null);
+            const t2Score = isMatch(inn1.teamName, t2Clean) ? inn1 : (isMatch(inn2.teamName, t2Clean) ? inn2 : null);
+
+            const matchOvers = liveMatch.matchOvers || 8;
 
             // Update Team 1 Stats
             if (map[f.team1] && t1Score && t2Score) {
                 map[f.team1].runsScored += t1Score.runs;
                 map[f.team1].runsAgainst += t2Score.runs;
 
-                // For NRR, if a team is all out, they are considered to have faced their full overs quota
-                const t1BallsFaced = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
-                const t1BallsBowled = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                // For NRR, if a team is all out (7 wickets for 8-man VPL), they are considered to have faced their full overs quota
+                const t1BallsFaced = (t1Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                const t1BallsBowled = (t2Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
 
                 map[f.team1].oversFaced += t1BallsFaced / 6;
                 map[f.team1].oversBowled += t1BallsBowled / 6;
@@ -252,8 +261,8 @@ export function calculateStandings(
                 map[f.team2].runsScored += t2Score.runs;
                 map[f.team2].runsAgainst += t1Score.runs;
 
-                const t2BallsFaced = (t2Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t2Score.overs);
-                const t2BallsBowled = (t1Score.wickets >= 8) ? (liveMatch.matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                const t2BallsFaced = (t2Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                const t2BallsBowled = (t1Score.wickets >= 7) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
 
                 map[f.team2].oversFaced += t2BallsFaced / 6;
                 map[f.team2].oversBowled += t2BallsBowled / 6;
