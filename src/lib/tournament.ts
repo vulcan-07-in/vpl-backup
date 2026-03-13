@@ -313,7 +313,7 @@ export function resolveKnockouts(
         const maxPts3rd = p3.points + gamesLeft3rd * 2;
 
         const first = p1.points > maxPts3rd ? p1.team : null;
-        const tiedFor2nd = p2.points === p3.points;
+        const tiedFor2nd = p2.points === p3.points && p2.nrr === p3.nrr;
         const second = (!tiedFor2nd && p2.points > maxPts3rd)
             ? p2.team
             : (tiedFor2nd && manualOverrides[group])

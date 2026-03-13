@@ -134,8 +134,8 @@ export default function PointsClient({ fixtures, teams, liveStates = {} }: { fix
         }
     });
 
-    const isTiedA = groupA.length >= 3 && groupA[1].points === groupA[2].points;
-    const isTiedB = groupB.length >= 3 && groupB[1].points === groupB[2].points;
+    const isTiedA = groupA.length >= 3 && groupA[1].points === groupA[2].points && groupA[1].nrr === groupA[2].nrr;
+    const isTiedB = groupB.length >= 3 && groupB[1].points === groupB[2].points && groupB[1].nrr === groupB[2].nrr;
 
     if (isTiedA && sfTeams.has(groupA[2].team)) {
         [groupA[1], groupA[2]] = [groupA[2], groupA[1]];
