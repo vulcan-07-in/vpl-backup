@@ -43,6 +43,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 const match = fixtures.find(f => f.matchNo === savedMatchId);
                 if (match) {
                     setSelectedMatch(match);
+                    // Re-verify with server immediately
+                    loadMatchData(savedMatchId);
                 } else {
                     // Safety: mismatch between saved session and current data
                     if (savedAuth === "true") setActiveScreen("SELECT_MATCH");
@@ -438,18 +440,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     setActiveScreen("LIVE_SCORING");
                 }
             } else {
-                // OFFLINE FALLBACK: Try localStorage
-                const localData = localStorage.getItem(`vpl_live_state_${matchId}`);
-                if (localData) {
-                    const parsed = JSON.parse(localData);
-                    setLiveState(parsed);
-                    setActiveScreen("LIVE_SCORING");
-                    alert("⚠️ Network failed. Resumed from LOCAL CACHE.");
-                } else {
-                    // Not LIVE yet, or was RESET. Clear local cache to prevent stale data.
-                    localStorage.removeItem(`vpl_live_state_${matchId}`);
-                    setActiveScreen("SCHEDULE_SETUP");
-                }
+                // Not LIVE yet, or was RESET. Clear local cache to prevent stale data.
+                localStorage.removeItem(`vpl_live_state_${matchId}`);
+                setActiveScreen("SCHEDULE_SETUP");
             }
         } catch (e) {
             console.error(e);
