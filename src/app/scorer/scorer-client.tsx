@@ -446,7 +446,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     setActiveScreen("LIVE_SCORING");
                     alert("⚠️ Network failed. Resumed from LOCAL CACHE.");
                 } else {
-                    // Not LIVE yet, go to Scheduling Phase
+                    // Not LIVE yet, or was RESET. Clear local cache to prevent stale data.
+                    localStorage.removeItem(`vpl_live_state_${matchId}`);
                     setActiveScreen("SCHEDULE_SETUP");
                 }
             }

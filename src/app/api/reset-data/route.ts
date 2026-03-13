@@ -12,19 +12,24 @@ export async function POST(request: Request) {
         // 1. Clear active match
         await redis.del('active_live_match_id');
 
-        // 2. Find and clear all vpl_live_state_* keys
-        const keys = await redis.keys('vpl_live_state_*');
-        if (keys.length > 0) {
-            await redis.del(...keys);
+        // 2. Find and clear all match state keys
+        // We clear both live_match_* (engine) and vpl_live_state_* (legacy/alternative)
+        const matchKeys = await redis.keys('live_match_*');
+        const vplKeys = await redis.keys('vpl_live_state_*');
+        const allMatchKeys = [...matchKeys, ...vplKeys];
+        
+        if (allMatchKeys.length > 0) {
+            await redis.del(...allMatchKeys);
         }
 
-        // 3. Clear logs
+        // 3. Clear logs and notifications
         await redis.del('vpl_audit_logs');
-
-        // 4. Clear notifications
         await redis.del('vpl_notifications');
 
-        return NextResponse.json({ success: true, clearedKeys: keys.length + 2 });
+        // 4. Optional: Clear session tokens to force re-login? 
+        // No, let's keep it to data for now.
+
+        return NextResponse.json({ success: true, clearedKeys: allMatchKeys.length + 3 });
     } catch (error) {
         console.error('reset-data POST Error:', error);
         return NextResponse.json({ error: 'Failed to reset Redis data' }, { status: 500 });

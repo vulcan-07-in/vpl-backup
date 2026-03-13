@@ -377,6 +377,13 @@ export default function AdminPage() {
                 }
             });
 
+            // 3. Unset active match ID on server
+            await fetch("/api/active-match", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ activeMatchId: null })
+            });
+
             if (sheetRes.ok && redisRes.ok) {
                 setFixtures([]);
                 setGroupA([]);

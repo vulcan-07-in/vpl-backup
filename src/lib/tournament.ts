@@ -333,7 +333,7 @@ export const FIXTURES_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_
 
 export async function fetchTeams(): Promise<Team[]> {
     try {
-        const res = await fetch(SQUADS_CSV_URL, { next: { revalidate: 60 } });
+        const res = await fetch(`${SQUADS_CSV_URL}&t=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch squads");
         const text = await res.text();
 
@@ -425,7 +425,7 @@ export async function fetchSquads(): Promise<Array<{ teamName: string, shortName
 
 export async function fetchFixtures(): Promise<Fixture[]> {
     try {
-        const res = await fetch(FIXTURES_CSV_URL, { next: { revalidate: 60 } });
+        const res = await fetch(`${FIXTURES_CSV_URL}&t=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch fixtures");
         const text = await res.text();
 
