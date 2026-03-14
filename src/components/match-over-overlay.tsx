@@ -136,7 +136,7 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
 
             {/* Confetti-like particles */}
             <div className="absolute inset-0 pointer-events-none">
-                {[...Array(20)].map((_, i) => (
+                {[...Array(8)].map((_, i) => (
                     <motion.div
                         key={i}
                         initial={{ opacity: 0, y: -100 }}

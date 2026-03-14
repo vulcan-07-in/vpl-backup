@@ -107,7 +107,7 @@ export const InningsBreakOverlay = React.memo(function InningsBreakOverlay({
 
             {/* Animated Particles */}
             <div className="absolute inset-0 pointer-events-none opacity-20">
-                {[...Array(15)].map((_, i) => (
+                {[...Array(6)].map((_, i) => (
                     <motion.div
                         key={i}
                         animate={{

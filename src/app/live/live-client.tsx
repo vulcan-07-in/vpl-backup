@@ -499,8 +499,8 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         </motion.div>
                     </AnimatePresence>
 
-                    {/* Mesh Gradient Overlay */}
-                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150" />
+                    {/* Mesh Gradient Overlay - Reduced to simple opacity */}
+                    <div className="absolute inset-0 opacity-[0.01] pointer-events-none bg-white blur-3xl" />
 
                     <div className="p-8 md:p-14 relative z-10 flex flex-col items-center text-center">
                         <motion.div 

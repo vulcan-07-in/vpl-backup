@@ -29,10 +29,8 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  /* very subtle white border */
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-  /* deep shadow to separate from bg */
-  will-change: transform; /* GPU optimization */
+  transform: translateZ(0); /* Hardware Acceleration */
 }
 
 @media (max-width: 768px) {
@@ -43,10 +41,11 @@ body {
 }
 
 .glass-nav {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transform: translateZ(0);
 }
 
 .text-gold-gradient {
@@ -54,19 +53,16 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  will-change: opacity;
 }
 
-/* Ambient Film Grain & Glow */
+/* Ambient Glow (Removed heavy SVG Noise) */
 .ambient-bg {
   position: fixed;
   inset: 0;
   z-index: -10;
-  background:
-    radial-gradient(circle at 50% 10%, rgba(234, 179, 8, 0.03) 0%, transparent 60%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opactiy='0.05'/%3E%3C/svg%3E");
+  background: radial-gradient(circle at 50% 10%, rgba(234, 179, 8, 0.03) 0%, transparent 60%);
   background-attachment: fixed;
-  opacity: 0.15;
+  opacity: 1;
   pointer-events: none;
-  transform: translateZ(0); /* Force GPU layer */
+  transform: translateZ(0);
 }
