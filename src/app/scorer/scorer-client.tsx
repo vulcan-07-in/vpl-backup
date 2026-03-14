@@ -772,7 +772,24 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
         setLoading(true);
         try {
-            const newState = { ...getInitialState(selectedMatch, selectedMatch.team1, selectedMatch.team2), status: "SCHEDULED" } as LiveMatchState;
+            // Build a fully clean SCHEDULED state — no toss info, no scores, no timeline
+            const newState: LiveMatchState = {
+                matchId: selectedMatch.matchNo,
+                status: "SCHEDULED",
+                currentInnings: 1,
+                matchOvers: 8,
+                innings1: { teamName: selectedMatch.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+                innings2: { teamName: selectedMatch.team2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+                timeline: [],
+            };
+
+            // Clear toss React state so TOSS_SETUP screen starts fresh
+            setTossWinner("");
+            setTossDecision(null);
+            setOpenStriker("");
+            setOpenNonStriker("");
+            setOpenBowler("");
+
             setLiveState(newState);
             setActiveScreen("TOSS_SETUP");
 
