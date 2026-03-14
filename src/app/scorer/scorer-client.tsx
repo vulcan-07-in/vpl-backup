@@ -1315,7 +1315,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         alert("Striker and Non-Striker cannot be the same player.");
                                         return;
                                     }
-                                    if (liveState) {
+                                    if (liveState && liveState.tossWinner) {
+                                        // Match already in progress (e.g. 2nd innings setup) — just update player refs
                                         const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
                                         const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
                                         inn.strikerRef = openStriker;
@@ -1330,6 +1331,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         pushUpdate(state);
                                         setActiveScreen("LIVE_SCORING");
                                     } else {
+                                        // Fresh start or post-reset: beginLiveScoring computes batting order from toss
                                         beginLiveScoring();
                                     }
                                 }}
