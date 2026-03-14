@@ -15,7 +15,7 @@ interface InningsBreakOverlayProps {
     isScorer?: boolean;
 }
 
-export function InningsBreakOverlay({
+export const InningsBreakOverlay = React.memo(function InningsBreakOverlay({
     teamName,
     runs,
     wickets,
@@ -122,4 +122,4 @@ export function InningsBreakOverlay({
             </div>
         </motion.div>
     );
-}
+});

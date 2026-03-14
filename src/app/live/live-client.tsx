@@ -49,8 +49,18 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                 if (res.ok) {
                     const data: LiveMatchState = await res.json();
                     
-                    // C4 FIX: Read from ref to get the LATEST state, not the stale closure value
                     const prev = liveMatchRef.current;
+                    
+                    // PERFORMANCE GUARD: Only update state if data has actually changed
+                    // We check timeline length (new ball), status, and current innings
+                    const hasChanged = !prev || 
+                                     data.timeline.length !== prev.timeline.length || 
+                                     data.status !== prev.status || 
+                                     data.currentInnings !== prev.currentInnings ||
+                                     data.innings1.runs !== prev.innings1.runs ||
+                                     data.innings2.runs !== prev.innings2.runs ||
+                                     data.winner !== prev.winner;
+
                     if (prev && data.timeline.length > prev.timeline.length) {
                         const lastBall = data.timeline[data.timeline.length - 1];
                         if (lastBall.isWicket) {
@@ -65,7 +75,9 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         }
                     }
                     
-                    if (isMounted) setLiveMatch(data);
+                    if (isMounted && hasChanged) {
+                        setLiveMatch(data);
+                    }
                 } else {
                     if (isMounted) setLiveMatch(null);
                 }

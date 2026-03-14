@@ -15,7 +15,7 @@ interface MatchOverOverlayProps {
     isScorer?: boolean;
 }
 
-export function MatchOverOverlay({
+export const MatchOverOverlay = React.memo(function MatchOverOverlay({
     result,
     innings1,
     innings2,
@@ -154,4 +154,4 @@ export function MatchOverOverlay({
             </div>
         </motion.div>
     );
-}
+});

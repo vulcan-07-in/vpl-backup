@@ -26,12 +26,20 @@ body {
 /* Redefined Glassmorphism for a Minimal Finish */
 .glass-panel {
   background: rgba(10, 10, 10, 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   /* very subtle white border */
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   /* deep shadow to separate from bg */
+  will-change: transform; /* GPU optimization */
+}
+
+@media (max-width: 768px) {
+  .glass-panel, .glass-nav {
+    backdrop-filter: blur(8px); /* Lighter on mobile */
+    -webkit-backdrop-filter: blur(8px);
+  }
 }
 
 .glass-nav {
@@ -46,6 +54,7 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  will-change: opacity;
 }
 
 /* Ambient Film Grain & Glow */
@@ -59,4 +68,5 @@ body {
   background-attachment: fixed;
   opacity: 0.15;
   pointer-events: none;
+  transform: translateZ(0); /* Force GPU layer */
 }

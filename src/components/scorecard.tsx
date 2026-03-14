@@ -13,7 +13,7 @@ interface ScorecardProps {
     isLive?: boolean;
 }
 
-export function Scorecard({ innings, inningsNum, teamColor, winnerName, isLive }: ScorecardProps) {
+export const Scorecard = React.memo(function Scorecard({ innings, inningsNum, teamColor, winnerName, isLive }: ScorecardProps) {
     const batsmen = Object.values(innings.batsmen);
     const bowlers = Object.values(innings.bowlers);
 
@@ -138,4 +138,4 @@ export function Scorecard({ innings, inningsNum, teamColor, winnerName, isLive }
             </div>
         </motion.div>
     );
-}
+});
