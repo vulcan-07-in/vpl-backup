@@ -12,13 +12,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Check, LogOut, ChevronRight, X } from "lucide-react";
-import { generateFixtures, resolveKnockouts, calculateStandings, SQUADS_CSV_URL, type Fixture, type Team } from "@/lib/tournament";
+import { generateFixtures, resolveKnockouts, calculateStandings, SQUADS_CSV_URL, type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { calculateAllPlayerStats, type PlayerStats } from "@/lib/mvp";
 
 // ADMIN_API_KEY removed from client - using session cookies
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Tab = "live" | "groups" | "fixtures" | "teams" | "players" | "logs";
+type Tab = "live" | "groups" | "fixtures" | "teams" | "players" | "logs" | "mvp";
 type Overrides = Partial<Record<"A" | "B", string>>;
 
 // ── Sortable fixture row ──────────────────────────────────────────────────────
@@ -169,6 +170,11 @@ export default function AdminPage() {
     const [activeLiveMatchId, setActiveLiveMatchId] = useState<string | null>(null);
     const [liveMatchStates, setLiveMatchStates] = useState<Record<string, any>>({});
 
+    // MVP State
+    const [mvpState, setMvpState] = useState<{ player: string | null, published: boolean }>({ player: null, published: false });
+    const [mvpCandidates, setMvpCandidates] = useState<PlayerStats[]>([]);
+    const [loadingMvp, setLoadingMvp] = useState(false);
+
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -210,8 +216,57 @@ export default function AdminPage() {
             fetchStatuses();
             const interval = setInterval(fetchStatuses, 10000);
             return () => clearInterval(interval);
+        } else if (tab === "mvp") {
+            const fetchMvpData = async () => {
+                setLoadingMvp(true);
+                try {
+                    // Fetch current selection
+                    const resState = await fetch("/api/mvp");
+                    if (resState.ok) {
+                        const data = await resState.json();
+                        setMvpState(data);
+                    }
+
+                    // Fetch all scores to calculate candidates
+                    const resScores = await fetch("/api/live-score/all");
+                    if (resScores.ok) {
+                        const scoreData = await resScores.json();
+                        const stats = calculateAllPlayerStats(scoreData);
+                        // Sort by points and take top 10
+                        const sorted = stats.sort((a, b) => b.mvpPoints - a.mvpPoints).slice(0, 10);
+                        setMvpCandidates(sorted);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch MVP data", e);
+                } finally {
+                    setLoadingMvp(false);
+                }
+            };
+            fetchMvpData();
         }
     }, [tab, fetchLogs, fixtures, teams]);
+
+    const handleSaveMvp = async (newState: { player: string | null, published: boolean }) => {
+        try {
+            setSaving(true);
+            const res = await fetch("/api/mvp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newState)
+            });
+            if (res.ok) {
+                setMvpState(newState);
+                setSaveMsg("MVP state updated successfully ✓");
+            } else {
+                setSaveMsg("Failed to update MVP state");
+            }
+        } catch (e) {
+            console.error(e);
+            setSaveMsg("Error updating MVP");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const handleSetActiveMatch = async (matchId: string | null) => {
         try {
@@ -586,7 +641,7 @@ export default function AdminPage() {
                                 marginBottom: "-1px",
                             }}
                         >
-                            {t === "groups" ? "GROUPS" : t.toUpperCase()}
+                            {t === "groups" ? "GROUPS" : t === "mvp" ? "MVP" : t.toUpperCase()}
                         </button>
                     ))}
                 </div>
@@ -1109,6 +1164,81 @@ export default function AdminPage() {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                )}
+
+                {/* ── Tab: MVP Management ──────────────────────────────────── */}
+                {tab === "mvp" && (
+                    <div className="space-y-8">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xs tracking-[0.4em] text-zinc-600 font-bold uppercase mb-1">Tournament MVP</h2>
+                                <p className="text-[10px] text-zinc-500 tracking-wider">Select the Most Valuable Player and publish to stats page.</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => handleSaveMvp({ ...mvpState, published: !mvpState.published })}
+                                    disabled={saving || !mvpState.player}
+                                    className={`px-6 py-2 rounded-xl text-[10px] font-bold tracking-widest transition-all border ${mvpState.published ? 'bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'}`}
+                                >
+                                    {mvpState.published ? 'UNPUBLISH FROM STATS' : 'PUBLISH TO STATS'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {loadingMvp ? (
+                            <div className="py-20 flex flex-col items-center justify-center bg-white/[0.01] border border-white/[0.05] rounded-3xl">
+                                <span className="text-xs text-zinc-600 tracking-[0.3em] animate-pulse">CALCULATING PERFORMANCE...</span>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                <h3 className="text-[10px] text-zinc-700 font-bold uppercase tracking-[0.2em] px-2">Top Performance Rankings</h3>
+                                {mvpCandidates.map((p, idx) => (
+                                    <div 
+                                        key={p.name} 
+                                        className={`p-5 rounded-2xl border transition-all flex items-center justify-between ${mvpState.player === p.name ? 'bg-amber-500/10 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]'}`}
+                                    >
+                                        <div className="flex items-center gap-6">
+                                            <span className={`w-8 text-center font-mono text-lg font-black ${idx === 0 ? 'text-amber-500' : 'text-zinc-800'}`}>
+                                                {idx + 1}
+                                            </span>
+                                            <div>
+                                                <p className="text-sm font-bold text-white uppercase tracking-tight">{p.name}</p>
+                                                <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase">{p.team}</p>
+                                            </div>
+                                            <div className="h-8 w-px bg-white/[0.05] hidden md:block" />
+                                            <div className="hidden md:flex gap-6">
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-white tabular-nums">{p.runs}</p>
+                                                    <p className="text-[8px] text-zinc-700 font-bold uppercase tracking-widest">Runs</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-white tabular-nums">{p.wickets}</p>
+                                                    <p className="text-[8px] text-zinc-700 font-bold uppercase tracking-widest">Wkts</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-white tabular-nums">{p.mvpPoints}</p>
+                                                    <p className="text-[8px] text-amber-500/60 font-bold uppercase tracking-widest">Points</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <button
+                                            onClick={() => handleSaveMvp({ ...mvpState, player: mvpState.player === p.name ? null : p.name })}
+                                            className={`px-5 py-2 rounded-lg text-[9px] font-bold tracking-[0.2em] transition-all ${mvpState.player === p.name ? 'bg-amber-500 text-black shadow-lg scale-105' : 'bg-white/[0.05] text-white hover:bg-white/[0.1] border border-white/5'}`}
+                                        >
+                                            {mvpState.player === p.name ? 'SELECTED' : 'SELECT PLAYER'}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {!loadingMvp && mvpCandidates.length === 0 && (
+                            <div className="py-20 text-center text-zinc-700 text-xs tracking-widest border border-dashed border-white/[0.05] rounded-3xl">
+                                NO MATCH DATA AVAILABLE FOR CALCULATION
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

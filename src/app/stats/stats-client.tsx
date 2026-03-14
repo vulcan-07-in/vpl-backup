@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Zap, Target, BarChart3, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { type LiveMatchState, type Team } from "@/lib/tournament";
+import { calculateAllPlayerStats, getAchievements, type PlayerStats as MVPStats } from "@/lib/mvp";
 
 interface PlayerStats {
     name: string;
@@ -23,14 +24,23 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
     const [liveStates, setLiveStates] = useState<Record<string, LiveMatchState>>({});
     const [loading, setLoading] = useState(true);
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+    const [mvpState, setMvpState] = useState<{ player: string | null, published: boolean }>({ player: null, published: false });
 
     useEffect(() => {
-        const fetchAllScores = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch("/api/live-score/all");
-                if (res.ok) {
-                    const data = await res.json();
+                const [scoresRes, mvpRes] = await Promise.all([
+                    fetch("/api/live-score/all"),
+                    fetch("/api/mvp")
+                ]);
+
+                if (scoresRes.ok) {
+                    const data = await scoresRes.json();
                     setLiveStates(data);
+                }
+                if (mvpRes.ok) {
+                    const data = await mvpRes.json();
+                    setMvpState(data);
                 }
             } catch (e) {
                 console.error("Failed to fetch stats:", e);
@@ -38,7 +48,7 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
                 setLoading(false);
             }
         };
-        fetchAllScores();
+        fetchData();
     }, []);
 
     const aggregatedStats = useMemo(() => {
@@ -136,6 +146,17 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
         { id: "economy", title: "Best Economy", icon: BarChart3, data: leaderboards.economy, unit: "Econ", sub: "Min 3 overs" },
     ];
 
+    const mvpPlayer = useMemo(() => {
+        if (!mvpState.published || !mvpState.player) return null;
+        const allStats = calculateAllPlayerStats(liveStates);
+        const player = allStats.find(p => p.name === mvpState.player);
+        if (!player) return null;
+        return {
+            ...player,
+            achievements: getAchievements(player)
+        };
+    }, [mvpState, liveStates]);
+
     return (
         <main className="min-h-screen pt-24 pb-20 px-4 md:px-8">
             <div className="max-w-6xl mx-auto">
@@ -149,6 +170,64 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
                         <span className="text-xs text-zinc-500 tracking-[0.2em] font-medium">RANKINGS & LEADERBOARDS</span>
                     </div>
                 </header>
+
+                {/* MVP Section */}
+                {mvpPlayer && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mb-16 relative group"
+                    >
+                        {/* Glow effect */}
+                        <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-500" />
+                        
+                        <div className="relative bg-[#0a0a0a] border border-amber-500/20 rounded-[2rem] overflow-hidden p-8 md:p-12">
+                            <div className="flex flex-col lg:flex-row gap-12 items-center">
+                                {/* Left: MVP Badge */}
+                                <div className="shrink-0 relative">
+                                    <div className="w-32 h-32 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 p-1">
+                                        <div className="w-full h-full rounded-full bg-black flex flex-col items-center justify-center p-4">
+                                            <Trophy className="w-12 h-12 md:w-20 md:h-20 text-amber-500 mb-2" />
+                                            <span className="text-[10px] md:text-xs font-black text-amber-500 tracking-[0.3em] uppercase">TOURNAMENT</span>
+                                            <span className="text-lg md:text-2xl font-black text-white leading-none">MVP</span>
+                                        </div>
+                                    </div>
+                                    <div className="absolute -bottom-4 -right-4 w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-zinc-900 border border-amber-500/30 flex items-center justify-center shadow-2xl">
+                                        <Zap className="w-6 h-6 md:w-8 md:h-8 text-amber-500 fill-amber-500" />
+                                    </div>
+                                </div>
+
+                                {/* Right: Stats & Info */}
+                                <div className="flex-1 text-center lg:text-left">
+                                    <p className="text-amber-500 font-black tracking-[0.4em] text-[10px] md:text-xs uppercase mb-3">Player of the Season</p>
+                                    <h2 className="text-5xl md:text-8xl text-white font-bold leading-none mb-4" style={{ fontFamily: "var(--font-display)" }}>
+                                        {mvpPlayer.name}
+                                    </h2>
+                                    <div className="flex flex-wrap justify-center lg:justify-start gap-4 mb-8">
+                                        <span className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] md:text-xs font-bold text-zinc-400 tracking-widest uppercase">
+                                            {mvpPlayer.team}
+                                        </span>
+                                        <span className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] md:text-xs font-bold text-amber-500 tracking-widest uppercase">
+                                            {mvpPlayer.mvpPoints} MVP POINTS
+                                        </span>
+                                    </div>
+
+                                    {/* Achievements Grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {mvpPlayer.achievements.slice(0, 4).map((ach, i) => (
+                                            <div key={i} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex flex-col items-center lg:items-start">
+                                                <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center mb-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_10px_#f59e0b]" />
+                                                </div>
+                                                <p className="text-[10px] md:text-[11px] font-bold text-white tracking-tight leading-tight uppercase">{ach}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {categories.map((cat) => (
