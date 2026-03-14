@@ -1,6 +1,5 @@
 "use client";
 
-import { Trophy } from "lucide-react";
 import { calculateStandings, type Fixture, type Team, type Standing } from "@/lib/tournament";
 import { motion } from "framer-motion";
 
@@ -31,7 +30,7 @@ const tableRowVariants = {
     show: { opacity: 1, x: 0, transition: { duration: 0.3 } }
 };
 
-function GroupTable({ standings, label, qualifiedSet, tiedForSecond }: { group: "A" | "B"; standings: Standing[]; label: string; qualifiedSet: Set<string>; tiedForSecond: boolean }) {
+function GroupTable({ standings, label, qualifiedSet }: { group: "A" | "B"; standings: Standing[]; label: string; qualifiedSet: Set<string> }) {
     return (
         <div>
             <div className="flex items-center gap-4 mb-4">
@@ -89,11 +88,6 @@ function GroupTable({ standings, label, qualifiedSet, tiedForSecond }: { group: 
                                         {qualifiedSet.has(s.team) && (
                                             <span className="text-[10px] flex items-center justify-center w-4 h-4 text-amber-950 font-bold ml-1 rounded bg-amber-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                                                 Q
-                                            </span>
-                                        )}
-                                        {tiedForSecond && (idx === 1 || idx === 2) && (
-                                            <span className="text-[9px] tracking-widest text-orange-400 font-bold ml-1 px-1.5 py-0.5 rounded border border-orange-500/30 bg-orange-500/10">
-                                                TIED
                                             </span>
                                         )}
                                     </div>
@@ -178,8 +172,8 @@ export default function PointsClient({ fixtures, teams, liveStates = {} }: { fix
                     </div>
                 ) : (
                     <div className="space-y-12">
-                        <GroupTable group="A" standings={groupA} label="Group A" qualifiedSet={qualifiedA} tiedForSecond={tiedA} />
-                        <GroupTable group="B" standings={groupB} label="Group B" qualifiedSet={qualifiedB} tiedForSecond={tiedB} />
+                        <GroupTable group="A" standings={groupA} label="Group A" qualifiedSet={qualifiedA} />
+                        <GroupTable group="B" standings={groupB} label="Group B" qualifiedSet={qualifiedB} />
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}

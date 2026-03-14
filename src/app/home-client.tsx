@@ -6,14 +6,16 @@ import { Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 
 const NAV_ITEMS = [
+    { href: "/live", label: "LIVE MATCH" },
     { href: "/matches", label: "VIEW MATCHES" },
     { href: "/points", label: "STANDINGS" },
+    { href: "/stats", label: "VIEW STATS" },
     { href: "/squads", label: "VIEW SQUADS" },
 ];
 
 export default function HomeClient({ champion }: { champion: { name: string; color: string } | null }) {
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4">
+        <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 pt-24 md:pt-32">
             {/* Ambient glow */}
             <div className="absolute w-[500px] h-[500px] rounded-full bg-amber-500 opacity-5 blur-[80px] pointer-events-none" />
 
