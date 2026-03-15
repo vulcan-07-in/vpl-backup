@@ -298,9 +298,10 @@ export function realOvers(v: number): number {
 export function resolveKnockouts(
     fixtures: Fixture[],
     teams: Team[],
-    manualOverrides: Partial<Record<"A" | "B", string>> = {}
+    manualOverrides: Partial<Record<"A" | "B", string>> = {},
+    liveStates: Record<string, LiveMatchState> = {}
 ): Fixture[] {
-    const { groupA, groupB } = calculateStandings(fixtures, teams);
+    const { groupA, groupB } = calculateStandings(fixtures, teams, liveStates);
 
     const getQualifiers = (
         standings: Standing[],
@@ -345,10 +346,15 @@ export function resolveKnockouts(
         if (f.stage === "Final") {
             const sf1 = fixtures.find(x => x.stage === "Semi-Final 1");
             const sf2 = fixtures.find(x => x.stage === "Semi-Final 2");
+            
+            const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+            const sf1Live = sf1 ? (liveStates[sf1.matchNo] || liveStates[cleanId(sf1.matchNo)]) : null;
+            const sf2Live = sf2 ? (liveStates[sf2.matchNo] || liveStates[cleanId(sf2.matchNo)]) : null;
+
             return {
                 ...f,
-                team1: sf1?.winner || f.team1,
-                team2: sf2?.winner || f.team2,
+                team1: sf1?.winner || sf1Live?.winner || f.team1,
+                team2: sf2?.winner || sf2Live?.winner || f.team2,
             };
         }
         return f;

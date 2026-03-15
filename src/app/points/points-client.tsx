@@ -1,6 +1,6 @@
 "use client";
 
-import { calculateStandings, type Fixture, type Team, type Standing } from "@/lib/tournament";
+import { calculateStandings, resolveKnockouts, type Fixture, type Team, type Standing } from "@/lib/tournament";
 import { motion } from "framer-motion";
 
 function RankBadge({ rank }: { rank: number }) {
@@ -118,8 +118,11 @@ export default function PointsClient({ fixtures, teams, liveStates = {} }: { fix
     const qualifiedA = qualifiedTeams(groupA, groupAFixtures);
     const qualifiedB = qualifiedTeams(groupB, groupBFixtures);
 
+    // Resolve knockouts manually to see if SF teams have been picked dynamically
+    const resolvedFixtures = resolveKnockouts(fixtures, teams, {}, liveStates);
+
     const sfTeams = new Set(
-        fixtures.filter(f => f.stage.startsWith("Semi-Final")).flatMap(f => [f.team1, f.team2])
+        resolvedFixtures.filter(f => f.stage.startsWith("Semi-Final")).flatMap(f => [f.team1, f.team2])
     );
     sfTeams.forEach(t => {
         if (t && !t.includes("Group") && t !== "TBD") {
