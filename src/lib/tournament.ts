@@ -332,6 +332,9 @@ export function resolveKnockouts(
     const { first: b1, second: b2 } = getQualifiers(groupB, groupBFix, "B");
 
     return fixtures.map(f => {
+        // LOCKING: If the fixture already has a winner in the sheet, don't override anything
+        if (f.winner && f.winner !== "TBD") return f;
+
         if (f.stage === "Semi-Final 1") {
             return {
                 ...f,

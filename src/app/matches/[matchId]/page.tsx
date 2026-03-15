@@ -1,4 +1,5 @@
-import { fetchFixtures, fetchTeams } from "@/lib/tournament";
+import { fetchFixtures, fetchTeams, resolveKnockouts } from "@/lib/tournament";
+import { getAllLiveStates } from "@/lib/redis-server";
 import MatchReportClient from "./match-report-client";
 import { Metadata } from "next";
 
@@ -22,18 +23,23 @@ export async function generateMetadata({ params }: { params: Promise<{ matchId: 
 }
 
 export default async function MatchReportPage({ params }: { params: Promise<{ matchId: string }> }) {
-    const fixtures = await fetchFixtures();
-    const teams = await fetchTeams();
-    const resolvedParams = await params;
+    const [fixtures, teams, liveStates, resolvedParams] = await Promise.all([
+        fetchFixtures(),
+        fetchTeams(),
+        getAllLiveStates(),
+        params
+    ]);
     
+    // Resolve knockouts so we get actual team names instead of TBD placeholders
+    const resolvedFixtures = resolveKnockouts(fixtures, teams, {}, liveStates);
+
     // Robust cleanup to ignore spaces, special characters, and casing
     const cleanId = (id: string) => decodeURIComponent(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
     const tId = cleanId(resolvedParams.matchId);
     
-    const fixture = fixtures.find(f => cleanId(f.matchNo) === tId);
+    // Find from the RESOLVED list
+    const fixture = resolvedFixtures.find(f => cleanId(f.matchNo) === tId);
     
-    // Use the raw exact matchNo from the fixture if available. This guarantees perfect Redis key matching
-    // since the scorer saves match state using selectedMatch.matchNo.
     const exactMatchId = fixture ? fixture.matchNo : decodeURIComponent(resolvedParams.matchId).trim();
 
     return <MatchReportClient matchId={exactMatchId} fixture={fixture ?? null} teams={teams} />;
