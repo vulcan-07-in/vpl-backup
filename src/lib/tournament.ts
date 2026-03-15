@@ -202,9 +202,11 @@ export function calculateStandings(
         const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
         const normalizedMatchNo = cleanId(f.matchNo);
         const liveMatch = liveStates[normalizedMatchNo] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
-        const winner = f.winner || liveMatch?.winner;
+        
+        // ONLY use winner logic from Redis if it is explicitly COMPLETED
+        const winner = f.winner || (liveMatch?.status === "COMPLETED" ? liveMatch?.winner : null);
 
-        if (!winner && liveMatch?.status !== "COMPLETED") return; // not played yet
+        if (!winner && (!liveMatch || liveMatch.status !== "COMPLETED")) return; // not played yet
 
         map[f.team1].played++;
         map[f.team2].played++;
@@ -308,18 +310,19 @@ export function resolveKnockouts(
         groupFixtures: Fixture[],
         group: "A" | "B"
     ): { first: string | null; second: string | null } => {
-        if (standings.length < 3) return { first: null, second: null };
+        if (standings.length < 2) return { first: null, second: null };
+        
         const [p1, p2, p3] = standings;
-        const gamesLeft3rd = 3 - p3.played;
-        const maxPts3rd = p3.points + gamesLeft3rd * 2;
+        
+        // If no matches played in group, keep "1st Group X" labels
+        const matchesPlayed = standings.reduce((acc, s) => acc + s.played, 0);
+        if (matchesPlayed === 0) return { first: null, second: null };
 
-        const first = p1.points > maxPts3rd ? p1.team : null;
-        const tiedFor2nd = p2.points === p3.points && p2.nrr === p3.nrr;
-        const second = (!tiedFor2nd && p2.points > maxPts3rd)
-            ? p2.team
-            : (tiedFor2nd && manualOverrides[group])
-                ? manualOverrides[group]!
-                : null;
+        // Return current leaders if at least one match played
+        // This prevents flickering between "A1" and Team Name
+        const first = p1.team;
+        const second = p2?.team || null;
+        
         return { first, second };
     };
 
