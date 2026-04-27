@@ -209,6 +209,8 @@ export function calculateStandings(
         map[f.team1].played++;
         map[f.team2].played++;
 
+        if (!winner) return; // skip if no winner and not completed
+
         if (winner.trim() === f.team1.trim()) {
             map[f.team1].won++;
             map[f.team1].points += 2;
