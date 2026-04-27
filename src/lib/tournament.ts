@@ -209,15 +209,15 @@ export function calculateStandings(
         map[f.team1].played++;
         map[f.team2].played++;
 
-        if (winner === f.team1) {
+        if (winner.trim() === f.team1.trim()) {
             map[f.team1].won++;
             map[f.team1].points += 2;
             map[f.team2].lost++;
-        } else if (winner === f.team2) {
+        } else if (winner.trim() === f.team2.trim()) {
             map[f.team2].won++;
             map[f.team2].points += 2;
             map[f.team1].lost++;
-        } else if (winner === "TIE" || winner === "ABANDONED" || liveMatch?.status === "ABANDONED") {
+        } else if (winner.trim() === "TIE" || winner.trim() === "ABANDONED" || liveMatch?.status === "ABANDONED") {
             map[f.team1].points += 1;
             map[f.team2].points += 1;
         }
