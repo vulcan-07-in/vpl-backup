@@ -20,11 +20,11 @@ export async function POST(req: Request) {
         };
 
         // Store logs in a list for the match
-        await redis.lpush(`vpl_logs_${matchId}`, JSON.stringify(logEntry));
+        await redis.lpush(`s2:vpl_logs_${matchId}`, JSON.stringify(logEntry));
         // Also a global list for the admin
-        await redis.lpush(`vpl_logs_global`, JSON.stringify(logEntry));
+        await redis.lpush(`s2:vpl_logs_global`, JSON.stringify(logEntry));
         // Trim to last 1000 logs
-        await redis.ltrim(`vpl_logs_global`, 0, 999);
+        await redis.ltrim(`s2:vpl_logs_global`, 0, 999);
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -40,7 +40,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const matchId = searchParams.get("matchId");
         
-        const key = matchId ? `vpl_logs_${matchId}` : `vpl_logs_global`;
+        const key = matchId ? `s2:vpl_logs_${matchId}` : `s2:vpl_logs_global`;
         const logs = await redis.lrange(key, 0, 100);
 
         return NextResponse.json(logs.map(l => typeof l === 'string' ? JSON.parse(l) : l));

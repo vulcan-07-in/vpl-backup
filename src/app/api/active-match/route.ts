@@ -6,7 +6,7 @@ const redis = new Redis(process.env.REDIS_URL || '');
 
 export async function GET() {
     try {
-        const activeMatchId = await redis.get('active_live_match_id');
+        const activeMatchId = await redis.get('s2:active_live_match_id');
         return NextResponse.json({ activeMatchId });
     } catch (error) {
         console.error('active-match GET Error:', error);
@@ -22,9 +22,9 @@ export async function POST(request: Request) {
         const { activeMatchId } = await request.json();
 
         if (activeMatchId === null) {
-            await redis.del('active_live_match_id');
+            await redis.del('s2:active_live_match_id');
         } else {
-            await redis.set('active_live_match_id', activeMatchId);
+            await redis.set('s2:active_live_match_id', activeMatchId);
         }
 
         return NextResponse.json({ success: true });

@@ -6,7 +6,7 @@ const redis = new Redis(process.env.REDIS_URL || '');
 
 export async function GET() {
     try {
-        const keys = await redis.keys('live_match_*');
+        const keys = await redis.keys('s2:live_match_*');
         if (keys.length === 0) {
             return NextResponse.json({});
         }
@@ -15,7 +15,7 @@ export async function GET() {
         const liveStates: Record<string, LiveMatchState> = {};
 
         keys.forEach((key, i) => {
-            const matchId = key.replace('live_match_', '');
+            const matchId = key.replace('s2:live_match_', '');
             const data = values[i];
             if (data) {
                 liveStates[matchId] = JSON.parse(data);

@@ -15,12 +15,12 @@ export async function GET(request: Request) {
     }
 
     try {
-        const data = await redis.get(`live_match_${matchId}`);
+        const data = await redis.get(`s2:live_match_${matchId}`);
         let matchState = data ? JSON.parse(data) as LiveMatchState : null;
         
         // If live match isn't found, check the permanent archive
         if (!matchState) {
-            const archivedData = await redis.get(`completed_match_${matchId}`);
+            const archivedData = await redis.get(`s2:completed_match_${matchId}`);
             if (archivedData) {
                 matchState = JSON.parse(archivedData) as LiveMatchState;
             }
@@ -56,11 +56,11 @@ export async function POST(request: Request) {
         }
 
         // Save state to Redis. It overwrites the existing state instantly.
-        await redis.set(`live_match_${body.matchId}`, JSON.stringify(body));
+        await redis.set(`s2:live_match_${body.matchId}`, JSON.stringify(body));
 
         // Archive permanent copy if the match is completed
         if (body.status === "COMPLETED") {
-            await redis.set(`completed_match_${body.matchId}`, JSON.stringify(body));
+            await redis.set(`s2:completed_match_${body.matchId}`, JSON.stringify(body));
         }
 
         // Success response

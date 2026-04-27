@@ -10,13 +10,13 @@ export async function POST(request: Request) {
         if (!isValid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         // 1. Clear active match
-        await redis.del('active_live_match_id');
+        await redis.del('s2:active_live_match_id');
 
         // 2. Find and clear all match state keys
         // We clear live_match_*, vpl_live_state_*, and completed_match_* (archives)
-        const matchKeys = await redis.keys('live_match_*');
-        const vplKeys = await redis.keys('vpl_live_state_*');
-        const archiveKeys = await redis.keys('completed_match_*');
+        const matchKeys = await redis.keys('s2:live_match_*');
+        const vplKeys = await redis.keys('s2:vpl_logs_*'); // Note: changed to vpl_logs_* since vpl_live_state_* is old
+        const archiveKeys = await redis.keys('s2:completed_match_*');
         const allMatchKeys = [...matchKeys, ...vplKeys, ...archiveKeys];
         
         if (allMatchKeys.length > 0) {
@@ -24,8 +24,9 @@ export async function POST(request: Request) {
         }
 
         // 3. Clear logs and notifications
-        await redis.del('vpl_audit_logs');
-        await redis.del('vpl_notifications');
+        await redis.del('s2:vpl_logs_global');
+        await redis.del('s2:vpl_notifications');
+        await redis.del('s2:vpl_mvp_state_v1');
 
         // 4. Optional: Clear session tokens to force re-login? 
         // No, let's keep it to data for now.

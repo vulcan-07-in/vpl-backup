@@ -15,7 +15,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "MatchId and Message required" }, { status: 400 });
         }
 
-        const notifyKey = `vpl_notifications`;
+        const notifyKey = `s2:vpl_notifications`;
         const notification = {
             id: Date.now().toString(),
             matchId,
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
 export async function GET() {
     try {
-        const notifyKey = `vpl_notifications`;
+        const notifyKey = `s2:vpl_notifications`;
         const notifications = await redis.lrange(notifyKey, 0, -1);
         return NextResponse.json(notifications.map(n => typeof n === 'string' ? JSON.parse(n) : n));
     } catch (e) {

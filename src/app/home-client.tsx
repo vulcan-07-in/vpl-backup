@@ -79,7 +79,7 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                         >
                             <Trophy className="w-7 h-7 mb-1 drop-shadow-lg" style={{ color: champion.color }} strokeWidth={1.5} />
                             <p className="text-[9px] tracking-[0.5em] text-zinc-400 font-bold" style={{ fontFamily: "var(--font-body)" }}>
-                                SEASON 1 CHAMPIONS
+                                SEASON 2 CHAMPIONS
                             </p>
                             <h2
                                 className="text-3xl sm:text-4xl md:text-5xl uppercase tracking-wider leading-none mt-1 text-center w-full break-words"
