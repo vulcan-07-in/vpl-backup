@@ -33,6 +33,34 @@ export async function POST(request: Request) {
             }
             return NextResponse.json({ ok: true });
         }
+
+        if (payload.action === 'create_match') {
+            await prisma.match.create({
+                data: {
+                    matchNo: payload.matchNo,
+                    stage: payload.stage,
+                    group: payload.group || null,
+                    team1Id: payload.team1Id,
+                    team2Id: payload.team2Id,
+                    scheduledTime: payload.scheduledTime ? new Date(payload.scheduledTime) : null,
+                    status: 'SCHEDULED'
+                }
+            });
+            return NextResponse.json({ ok: true });
+        }
+
+        if (payload.action === 'delete_match') {
+            await prisma.match.delete({ where: { matchNo: payload.matchNo } });
+            return NextResponse.json({ ok: true });
+        }
+
+        if (payload.action === 'clear_winner') {
+            await prisma.match.update({
+                where: { matchNo: payload.matchNo },
+                data: { winnerId: null, status: 'SCHEDULED' }
+            });
+            return NextResponse.json({ ok: true });
+        }
         
         // Handling full array of fixtures (if still used)
         if (Array.isArray(payload)) {

@@ -1,4 +1,4 @@
-import Papa from "papaparse";
+
 
 export interface Team {
     teamName: string;

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
         // Handle specific actions for the new Season 2 Admin
         if (payload.action === 'create_team') {
-            await prisma.team.create({
+            const team = await prisma.team.create({
                 data: {
                     name: payload.name,
                     shortName: payload.shortName,
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
                     groupId: payload.groupId || "A"
                 }
             });
-            return NextResponse.json({ ok: true });
+            return NextResponse.json({ ok: true, teamId: team.id });
         }
 
         if (payload.action === 'add_player') {
@@ -49,6 +49,20 @@ export async function POST(request: Request) {
                     teamId: payload.teamId
                 }
             });
+            return NextResponse.json({ ok: true });
+        }
+
+        if (payload.action === 'delete_player') {
+            await prisma.player.delete({ where: { id: payload.playerId } });
+            return NextResponse.json({ ok: true });
+        }
+
+        if (payload.action === 'delete_team') {
+            // Delete players first (cascade), then team
+            await prisma.player.deleteMany({ where: { teamId: payload.teamId } });
+            // Delete matches referencing this team
+            await prisma.match.deleteMany({ where: { OR: [{ team1Id: payload.teamId }, { team2Id: payload.teamId }] } });
+            await prisma.team.delete({ where: { id: payload.teamId } });
             return NextResponse.json({ ok: true });
         }
 
