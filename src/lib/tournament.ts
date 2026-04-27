@@ -202,11 +202,9 @@ export function calculateStandings(
         const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
         const normalizedMatchNo = cleanId(f.matchNo);
         const liveMatch = liveStates[normalizedMatchNo] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
-        
-        // ONLY use winner logic from Redis if it is explicitly COMPLETED
-        const winner = f.winner || (liveMatch?.status === "COMPLETED" ? liveMatch?.winner : null);
+        const winner = f.winner || liveMatch?.winner;
 
-        if (!winner && (!liveMatch || liveMatch.status !== "COMPLETED")) return; // not played yet
+        if (!winner && liveMatch?.status !== "COMPLETED") return; // not played yet
 
         map[f.team1].played++;
         map[f.team2].played++;
@@ -300,29 +298,27 @@ export function realOvers(v: number): number {
 export function resolveKnockouts(
     fixtures: Fixture[],
     teams: Team[],
-    manualOverrides: Partial<Record<"A" | "B", string>> = {},
-    liveStates: Record<string, LiveMatchState> = {}
+    manualOverrides: Partial<Record<"A" | "B", string>> = {}
 ): Fixture[] {
-    const { groupA, groupB } = calculateStandings(fixtures, teams, liveStates);
+    const { groupA, groupB } = calculateStandings(fixtures, teams);
 
     const getQualifiers = (
         standings: Standing[],
         groupFixtures: Fixture[],
         group: "A" | "B"
     ): { first: string | null; second: string | null } => {
-        if (standings.length < 2) return { first: null, second: null };
-        
+        if (standings.length < 3) return { first: null, second: null };
         const [p1, p2, p3] = standings;
-        
-        // If no matches played in group, keep "1st Group X" labels
-        const matchesPlayed = standings.reduce((acc, s) => acc + s.played, 0);
-        if (matchesPlayed === 0) return { first: null, second: null };
+        const gamesLeft3rd = 3 - p3.played;
+        const maxPts3rd = p3.points + gamesLeft3rd * 2;
 
-        // Return current leaders if at least one match played
-        // This prevents flickering between "A1" and Team Name
-        const first = p1.team;
-        const second = p2?.team || null;
-        
+        const first = p1.points > maxPts3rd ? p1.team : null;
+        const tiedFor2nd = p2.points === p3.points && p2.nrr === p3.nrr;
+        const second = (!tiedFor2nd && p2.points > maxPts3rd)
+            ? p2.team
+            : (tiedFor2nd && manualOverrides[group])
+                ? manualOverrides[group]!
+                : null;
         return { first, second };
     };
 
@@ -332,9 +328,6 @@ export function resolveKnockouts(
     const { first: b1, second: b2 } = getQualifiers(groupB, groupBFix, "B");
 
     return fixtures.map(f => {
-        // LOCKING: If the fixture already has a winner in the sheet, don't override anything
-        if (f.winner && f.winner !== "TBD") return f;
-
         if (f.stage === "Semi-Final 1") {
             return {
                 ...f,
@@ -352,15 +345,10 @@ export function resolveKnockouts(
         if (f.stage === "Final") {
             const sf1 = fixtures.find(x => x.stage === "Semi-Final 1");
             const sf2 = fixtures.find(x => x.stage === "Semi-Final 2");
-            
-            const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-            const sf1Live = sf1 ? (liveStates[sf1.matchNo] || liveStates[cleanId(sf1.matchNo)]) : null;
-            const sf2Live = sf2 ? (liveStates[sf2.matchNo] || liveStates[cleanId(sf2.matchNo)]) : null;
-
             return {
                 ...f,
-                team1: sf1?.winner || sf1Live?.winner || f.team1,
-                team2: sf2?.winner || sf2Live?.winner || f.team2,
+                team1: sf1?.winner || f.team1,
+                team2: sf2?.winner || f.team2,
             };
         }
         return f;
