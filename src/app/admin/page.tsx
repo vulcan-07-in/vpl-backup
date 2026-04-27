@@ -29,7 +29,7 @@ export default function AdminPage() {
     // Form states
     const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A" });
     const [newPlayer, setNewPlayer] = useState({ name: "", role: "Batsman", price: "0", teamId: "" });
-    const [newMatch, setNewMatch] = useState({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "" });
+    const [newMatch, setNewMatch] = useState({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "" });
 
     // Broadcast state
     const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
@@ -99,29 +99,32 @@ export default function AdminPage() {
         setTimeout(() => setActionMsg(""), 3000);
     }
 
-    async function apiCall(url: string, body: any) {
+    async function apiCall(url: string, body: any): Promise<{ ok: boolean; error?: string }> {
         const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        return res.ok;
+        if (res.ok) return { ok: true };
+        try { const d = await res.json(); return { ok: false, error: d.error || `HTTP ${res.status}` }; }
+        catch { return { ok: false, error: `HTTP ${res.status}` }; }
     }
 
     // ── TEAM ACTIONS ──
     async function createTeam() {
         if (!newTeam.name || !newTeam.shortName) return flash("Name & short name required");
-        if (await apiCall("/api/squads", { action: "create_team", ...newTeam })) {
-            flash("Team created"); setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A" }); loadData();
-        } else flash("Failed to create team");
+        const r = await apiCall("/api/squads", { action: "create_team", ...newTeam });
+        if (r.ok) { flash("Team created ✓"); setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A" }); loadData(); }
+        else flash(`Failed: ${r.error}`);
     }
 
     async function deleteTeam(teamId: string) {
         if (!confirm("Delete this team and all its players?")) return;
-        if (await apiCall("/api/squads", { action: "delete_team", teamId })) { flash("Team deleted"); loadData(); }
+        const r = await apiCall("/api/squads", { action: "delete_team", teamId });
+        if (r.ok) { flash("Team deleted"); loadData(); } else flash(`Failed: ${r.error}`);
     }
 
     async function addPlayer() {
         if (!newPlayer.name || !newPlayer.teamId) return flash("Player name & team required");
-        if (await apiCall("/api/squads", { action: "add_player", ...newPlayer })) {
-            flash("Player added"); setNewPlayer(p => ({ ...p, name: "", price: "0" })); loadData();
-        } else flash("Failed to add player");
+        const r = await apiCall("/api/squads", { action: "add_player", ...newPlayer });
+        if (r.ok) { flash("Player added ✓"); setNewPlayer(p => ({ ...p, name: "", price: "0" })); loadData(); }
+        else flash(`Failed: ${r.error}`);
     }
 
     async function deletePlayer(playerId: string) {
@@ -131,9 +134,10 @@ export default function AdminPage() {
     // ── MATCH ACTIONS ──
     async function createMatch() {
         if (!newMatch.matchNo || !newMatch.team1Id || !newMatch.team2Id) return flash("Fill all match fields");
-        if (await apiCall("/api/matches", { action: "create_match", ...newMatch })) {
-            flash("Match created"); setNewMatch({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "" }); loadData();
-        } else flash("Failed — matchNo may already exist");
+        if (newMatch.team1Id === newMatch.team2Id) return flash("Team 1 and Team 2 must be different");
+        const r = await apiCall("/api/matches", { action: "create_match", ...newMatch });
+        if (r.ok) { flash("Match created ✓"); setNewMatch({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "" }); loadData(); }
+        else flash(`Failed: ${r.error}`);
     }
 
     async function deleteMatch(matchNo: string) {
@@ -234,9 +238,7 @@ export default function AdminPage() {
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                                             <input className={inputCls} placeholder="Team Name" value={newTeam.name} onChange={e => setNewTeam(t => ({ ...t, name: e.target.value }))} />
                                             <input className={inputCls} placeholder="Short Name (3 chars)" value={newTeam.shortName} onChange={e => setNewTeam(t => ({ ...t, shortName: e.target.value }))} maxLength={4} />
-                                            <select className={inputCls} value={newTeam.groupId} onChange={e => setNewTeam(t => ({ ...t, groupId: e.target.value }))}>
-                                                <option value="A">Group A</option><option value="B">Group B</option>
-                                            </select>
+                                            <input className={inputCls} placeholder="Group (e.g. A, B, C)" value={newTeam.groupId} onChange={e => setNewTeam(t => ({ ...t, groupId: e.target.value.toUpperCase() }))} maxLength={4} />
                                             <input className={inputCls} type="color" value={newTeam.color} onChange={e => setNewTeam(t => ({ ...t, color: e.target.value }))} />
                                         </div>
                                         <button onClick={createTeam} className={btnPrimary}>CREATE TEAM</button>
@@ -306,13 +308,8 @@ export default function AdminPage() {
                                             <h3 className="text-xs tracking-[0.3em] text-zinc-500 mb-4 uppercase font-bold flex items-center gap-2"><Plus className="w-3 h-3" /> Create Match</h3>
                                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                                                 <input className={inputCls} placeholder="Match No (e.g. M 1)" value={newMatch.matchNo} onChange={e => setNewMatch(m => ({ ...m, matchNo: e.target.value }))} />
-                                                <select className={inputCls} value={newMatch.stage} onChange={e => {
-                                                    const s = e.target.value;
-                                                    const g = s.includes("Group A") ? "A" : s.includes("Group B") ? "B" : "-";
-                                                    setNewMatch(m => ({ ...m, stage: s, group: g }));
-                                                }}>
-                                                    <option>Group A</option><option>Group B</option><option>Semi-Final 1</option><option>Semi-Final 2</option><option>Final</option>
-                                                </select>
+                                                <input className={inputCls} placeholder="Stage (e.g. Group A, Final)" value={newMatch.stage} onChange={e => setNewMatch(m => ({ ...m, stage: e.target.value }))} />
+                                                <input className={inputCls} placeholder="Group (e.g. A, B, -)" value={newMatch.group} onChange={e => setNewMatch(m => ({ ...m, group: e.target.value }))} maxLength={4} />
                                                 <select className={inputCls} value={newMatch.team1Id} onChange={e => setNewMatch(m => ({ ...m, team1Id: e.target.value }))}>
                                                     <option value="">Team 1</option>
                                                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -321,6 +318,7 @@ export default function AdminPage() {
                                                     <option value="">Team 2</option>
                                                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                 </select>
+                                                <input className={inputCls} type="datetime-local" value={newMatch.scheduledTime} onChange={e => setNewMatch(m => ({ ...m, scheduledTime: e.target.value }))} />
                                             </div>
                                             <button onClick={createMatch} className={btnPrimary}>CREATE MATCH</button>
                                         </div>
