@@ -781,6 +781,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 innings1: { teamName: selectedMatch.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
                 innings2: { teamName: selectedMatch.team2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
                 timeline: [],
+                lastSyncedAt: Date.now()
             };
 
             // Clear toss React state so TOSS_SETUP screen starts fresh

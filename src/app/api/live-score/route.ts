@@ -2,6 +2,8 @@ import Redis from 'ioredis';
 import { NextResponse } from 'next/server';
 import { LiveMatchState } from '@/lib/tournament';
 import { validateAdminRequest } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 const redis = new Redis(process.env.REDIS_URL || '');
 
@@ -18,7 +20,7 @@ export async function GET(request: Request) {
         const data = await redis.get(`s2:live_match_${matchId}`);
         let matchState = data ? JSON.parse(data) as LiveMatchState : null;
         
-        // If live match isn't found, check the permanent archive
+        // If live match isn't found in Redis, check the permanent archive in Redis
         if (!matchState) {
             const archivedData = await redis.get(`s2:completed_match_${matchId}`);
             if (archivedData) {
@@ -26,12 +28,20 @@ export async function GET(request: Request) {
             }
         }
 
+        // If still not found, check the PostgreSQL backup
+        if (!matchState) {
+            const match = await prisma.match.findUnique({
+                where: { matchNo: matchId }
+            });
+            if (match?.liveState) {
+                matchState = match.liveState as unknown as LiveMatchState;
+            }
+        }
+
         if (!matchState) {
             return NextResponse.json({ error: 'Match not found or not live' }, { status: 404 });
         }
 
-        // We use Edge caching logic here.
-        // It tells the browser/Vercel CDN: "Cache this for 5 seconds. If a request comes in within 5s, serve the cached version."
         return NextResponse.json(matchState, {
             headers: {
                 'Cache-Control': 's-maxage=1, stale-while-revalidate=1',
@@ -55,15 +65,43 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Match ID is required in payload' }, { status: 400 });
         }
 
-        // Save state to Redis. It overwrites the existing state instantly.
-        await redis.set(`s2:live_match_${body.matchId}`, JSON.stringify(body));
-
-        // Archive permanent copy if the match is completed
-        if (body.status === "COMPLETED") {
-            await redis.set(`s2:completed_match_${body.matchId}`, JSON.stringify(body));
+        const redisKey = `s2:live_match_${body.matchId}`;
+        
+        // 1. Race Condition Prevention: Check lastSyncedAt
+        const existingData = await redis.get(redisKey);
+        if (existingData) {
+            const existingState = JSON.parse(existingData) as LiveMatchState;
+            if (existingState.lastSyncedAt && body.lastSyncedAt && body.lastSyncedAt < existingState.lastSyncedAt) {
+                return NextResponse.json({ 
+                    error: 'STALE_UPDATE', 
+                    message: 'A newer update already exists. Refreshing client...',
+                    timestamp: existingState.lastSyncedAt
+                }, { status: 409 });
+            }
         }
 
-        // Success response
+        // 2. Save state to Redis (Fastest for live updates)
+        await redis.set(redisKey, JSON.stringify(body));
+
+        // 3. Save state to PostgreSQL as a persistent backup (Slower, but safe)
+        // We only do this if it's a significant update or just always if it's infrequent
+        await prisma.match.update({
+            where: { matchNo: body.matchId },
+            data: { 
+                liveState: body as any,
+                status: body.status
+            }
+        });
+
+        // 4. Archive permanent copy if the match is completed
+        if (body.status === "COMPLETED") {
+            await redis.set(`s2:completed_match_${body.matchId}`, JSON.stringify(body));
+            revalidatePath('/matches');
+            revalidatePath('/points');
+            revalidatePath('/stats');
+            revalidatePath('/');
+        }
+
         return NextResponse.json({ success: true, timestamp: Date.now() });
     } catch (error) {
         console.error('KV POST Error:', error);

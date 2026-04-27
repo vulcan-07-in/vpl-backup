@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { validateAdminRequest } from "@/lib/auth";
 import { fetchFixtures } from "@/lib/data";
 
+import { revalidatePath } from "next/cache";
+
 // GET — return fixtures from Prisma
 export async function GET() {
     try {
@@ -30,6 +32,10 @@ export async function POST(request: Request) {
                     where: { matchNo: payload.matchNo },
                     data: { winnerId: team.id, status: 'COMPLETED' }
                 });
+                revalidatePath('/matches');
+                revalidatePath('/points');
+                revalidatePath('/stats');
+                revalidatePath('/');
             }
             return NextResponse.json({ ok: true });
         }
@@ -46,11 +52,16 @@ export async function POST(request: Request) {
                     status: 'SCHEDULED'
                 }
             });
+            revalidatePath('/matches');
+            revalidatePath('/');
             return NextResponse.json({ ok: true });
         }
 
         if (payload.action === 'delete_match') {
             await prisma.match.delete({ where: { matchNo: payload.matchNo } });
+            revalidatePath('/matches');
+            revalidatePath('/points');
+            revalidatePath('/');
             return NextResponse.json({ ok: true });
         }
 
@@ -59,6 +70,10 @@ export async function POST(request: Request) {
                 where: { matchNo: payload.matchNo },
                 data: { winnerId: null, status: 'SCHEDULED' }
             });
+            revalidatePath('/matches');
+            revalidatePath('/points');
+            revalidatePath('/stats');
+            revalidatePath('/');
             return NextResponse.json({ ok: true });
         }
         

@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { validateAdminRequest } from "@/lib/auth";
 import { fetchSquads } from "@/lib/data";
 
+import { revalidatePath } from "next/cache";
+
 export async function GET() {
     try {
         const squads = await fetchSquads();
@@ -37,6 +39,9 @@ export async function POST(request: Request) {
                     groupId: payload.groupId || "A"
                 }
             });
+            revalidatePath('/squads');
+            revalidatePath('/points');
+            revalidatePath('/');
             return NextResponse.json({ ok: true, teamId: team.id });
         }
 
@@ -49,11 +54,13 @@ export async function POST(request: Request) {
                     teamId: payload.teamId
                 }
             });
+            revalidatePath('/squads');
             return NextResponse.json({ ok: true });
         }
 
         if (payload.action === 'delete_player') {
             await prisma.player.delete({ where: { id: payload.playerId } });
+            revalidatePath('/squads');
             return NextResponse.json({ ok: true });
         }
 
@@ -63,6 +70,10 @@ export async function POST(request: Request) {
             // Delete matches referencing this team
             await prisma.match.deleteMany({ where: { OR: [{ team1Id: payload.teamId }, { team2Id: payload.teamId }] } });
             await prisma.team.delete({ where: { id: payload.teamId } });
+            revalidatePath('/squads');
+            revalidatePath('/points');
+            revalidatePath('/matches');
+            revalidatePath('/');
             return NextResponse.json({ ok: true });
         }
 

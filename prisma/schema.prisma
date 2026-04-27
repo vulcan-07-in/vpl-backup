@@ -54,6 +54,8 @@ model Match {
   tossWinnerId  String?
   tossDecision  String?   // "BAT" or "BOWL"
   
+  liveState     Json?     // Persistent snapshot of the live match state (innings, balls, etc.)
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
