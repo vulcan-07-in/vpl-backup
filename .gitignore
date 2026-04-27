@@ -18,6 +18,11 @@ build/
 .DS_Store
 *.pem
 Thumbs.db
+scratch.txt
+*.tmp
+refactor.js
+vpl_backup_*.json
+old_*.tsx.tmp
 
 # Debug logs
 npm-debug.log*

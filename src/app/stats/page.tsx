@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import StatsClient from "./stats-client";
-import { fetchTeams } from "@/lib/tournament";
+import { fetchTeams } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
