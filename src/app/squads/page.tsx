@@ -1,4 +1,4 @@
-import { fetchSquads } from "@/lib/tournament";
+import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/data";
 import SquadsClient from "./squads-client";
 import { Metadata } from "next";
 

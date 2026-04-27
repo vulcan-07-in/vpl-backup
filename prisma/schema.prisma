@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  shortName String
+  color     String   @default("#FFFFFF")
+  groupId   String   // e.g. "A" or "B"
+  players   Player[]
+  
+  homeMatches Match[] @relation("Team1")
+  awayMatches Match[] @relation("Team2")
+  wonMatches  Match[] @relation("Winner")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Player {
+  id        String   @id @default(uuid())
+  name      String
+  role      String   // "Batsman", "Bowler", "All Rounder", "Wicketkeeper"
+  price     Int      @default(0)
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Match {
+  id            String    @id @default(uuid())
+  matchNo       String    @unique // e.g., "M 1", "SF 1"
+  stage         String    // "Group A", "Final"
+  group         String?   // "A", "B", null for knockouts
+  scheduledTime DateTime?
+  status        String    @default("SCHEDULED") // SCHEDULED, LIVE, INNINGS_BREAK, COMPLETED, ABANDONED
+  
+  team1Id       String
+  team2Id       String
+  team1         Team      @relation("Team1", fields: [team1Id], references: [id])
+  team2         Team      @relation("Team2", fields: [team2Id], references: [id])
+  
+  winnerId      String?
+  winner        Team?     @relation("Winner", fields: [winnerId], references: [id])
+  
+  tossWinnerId  String?
+  tossDecision  String?   // "BAT" or "BOWL"
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

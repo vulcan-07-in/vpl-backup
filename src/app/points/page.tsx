@@ -1,4 +1,4 @@
-import { fetchFixtures, fetchTeams } from "@/lib/tournament";
+import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/data";
 import PointsClient from "./points-client";
 import { Metadata } from "next";
 import Redis from "ioredis";

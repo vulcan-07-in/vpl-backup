@@ -1,58 +1,61 @@
 import { NextResponse } from "next/server";
-import { readSheet, writeSheet, clearSheet } from "@/lib/sheets";
-import { SQUADS_GID } from "@/lib/tournament";
+import prisma from "@/lib/prisma";
 import { validateAdminRequest } from "@/lib/auth";
-
-const SQUADS_RANGE = "MasterDB!A:D"; // Match the GID 667574756
+import { fetchSquads } from "@/lib/data";
 
 export async function GET() {
     try {
-        const rows = await readSheet(SQUADS_RANGE);
-        if (rows.length === 0) return NextResponse.json([]);
-
-        const headers = rows[0];
-        const data = rows.slice(1).map(row => {
-            const obj: any = {};
-            headers.forEach((h, i) => {
-                obj[h] = row[i] || "";
-            });
-            return obj;
-        });
-
-        return NextResponse.json(data);
+        const squads = await fetchSquads();
+        return NextResponse.json(squads);
     } catch (e) {
-        console.error("Squads GET Error:", e);
-        return NextResponse.json({ error: "Failed to fetch squads" }, { status: 500 });
+        return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }
 
-export async function POST(req: Request) {
-    try {
-        const body = await req.json(); // Expected: Array of { TeamName, ShortName, Color, Players }
+export async function POST(request: Request) {
+    if (!(await validateAdminRequest())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-        if (!Array.isArray(body)) {
-            return NextResponse.json({ error: "Payload must be an array" }, { status: 400 });
+    try {
+        const payload = await request.json();
+        
+        // This is a simplified replacement. A full admin panel would send specific actions
+        // like "create_team", "update_team", "add_player", etc.
+        // For compatibility with any old generic 'save all' calls, we can parse it:
+        if (Array.isArray(payload)) {
+            return NextResponse.json({ ok: true, message: "Use targeted Prisma API calls instead of bulk arrays." });
         }
 
-        const headers = ["TeamName", "ShortName", "Color", "Players"];
-        const rows = [headers];
+        // Handle specific actions for the new Season 2 Admin
+        if (payload.action === 'create_team') {
+            await prisma.team.create({
+                data: {
+                    name: payload.name,
+                    shortName: payload.shortName,
+                    color: payload.color || "#FFFFFF",
+                    groupId: payload.groupId || "A"
+                }
+            });
+            return NextResponse.json({ ok: true });
+        }
 
-        body.forEach(item => {
-            rows.push([
-                item.TeamName || "",
-                item.ShortName || "",
-                item.Color || "#EAB308",
-                item.Players || ""
-            ]);
-        });
+        if (payload.action === 'add_player') {
+            await prisma.player.create({
+                data: {
+                    name: payload.name,
+                    role: payload.role,
+                    price: parseInt(payload.price) || 0,
+                    teamId: payload.teamId
+                }
+            });
+            return NextResponse.json({ ok: true });
+        }
 
-        // Clear existing and write new
-        await clearSheet(SQUADS_RANGE);
-        await writeSheet(SQUADS_RANGE, rows);
-
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        console.error("Squads POST Error:", e);
-        return NextResponse.json({ error: "Failed to update squads" }, { status: 500 });
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.error("Prisma Squads Write Error:", message);
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

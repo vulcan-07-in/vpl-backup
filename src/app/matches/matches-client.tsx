@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Trophy, Clock, ChevronRight } from "lucide-react";
-import { resolveKnockouts, type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
+import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
 import { motion } from "framer-motion";
 
 const containerVariants = {
@@ -38,12 +38,9 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         fetchLiveStatus();
         const interval = setInterval(fetchLiveStatus, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [fixtures]);
 
-    // Dynamically resolve knockouts using both static fixtures and real-time live match state
-    const resolvedFixtures = resolveKnockouts(fixtures, teams, {}, liveMatches);
-
-    // Derive group team lists from original fixtures
+    // Derive group team lists from fixtures
     const groupTeams: Record<"A" | "B", string[]> = { A: [], B: [] };
     fixtures.forEach(f => {
         if (f.group === "A" || f.group === "B") {
@@ -316,12 +313,12 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                     <div className="mt-5 flex items-center gap-4">
                         <div className="h-px w-8 bg-amber-500" />
                         <span className="text-xs text-zinc-700 tracking-widest">
-                            {resolvedFixtures.length} MATCHES
+                            {fixtures.length} MATCHES
                         </span>
                     </div>
                 </motion.div>
 
-                {resolvedFixtures.length === 0 ? (
+                {fixtures.length === 0 ? (
                     <div className="py-24 text-center">
                         <p className="text-zinc-700 text-sm tracking-widest">MATCHES NOT YET PUBLISHED</p>
                     </div>
@@ -355,7 +352,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         )}
 
                         <div className="space-y-12">
-                            {resolvedFixtures.filter(f => f.group === "-" && 
+                            {fixtures.filter(f => f.group === "-" && 
                                 !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
                                 !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner")).length > 0 && (
                                 <div>
@@ -366,7 +363,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                         <div className="flex-1 h-px bg-amber-500/20" />
                                     </motion.div>
                                     <div className="space-y-6">
-                                        {resolvedFixtures
+                                        {fixtures
                                             .filter(f => f.group === "-" && 
                                                 !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
                                                 !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner"))
@@ -385,7 +382,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                 </motion.div>
 
                                 <div className="space-y-4">
-                                    {resolvedFixtures
+                                    {fixtures
                                         .filter(f => {
                                             const isKnockout = f.group === "-";
                                             const isResolved = !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&

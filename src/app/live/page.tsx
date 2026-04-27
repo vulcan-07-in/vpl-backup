@@ -1,4 +1,4 @@
-import { fetchFixtures, fetchTeams } from "@/lib/tournament";
+import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/data";
 import LiveViewerClient from "./live-client";
 import { Metadata } from "next";
 

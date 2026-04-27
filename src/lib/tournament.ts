@@ -202,11 +202,9 @@ export function calculateStandings(
         const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
         const normalizedMatchNo = cleanId(f.matchNo);
         const liveMatch = liveStates[normalizedMatchNo] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
-        
-        // ONLY use winner logic from Redis if it is explicitly COMPLETED
-        const winner = f.winner || (liveMatch?.status === "COMPLETED" ? liveMatch?.winner : null);
+        const winner = f.winner || liveMatch?.winner;
 
-        if (!winner && (!liveMatch || liveMatch.status !== "COMPLETED")) return; // not played yet
+        if (!winner && liveMatch?.status !== "COMPLETED") return; // not played yet
 
         map[f.team1].played++;
         map[f.team2].played++;
@@ -300,29 +298,27 @@ export function realOvers(v: number): number {
 export function resolveKnockouts(
     fixtures: Fixture[],
     teams: Team[],
-    manualOverrides: Partial<Record<"A" | "B", string>> = {},
-    liveStates: Record<string, LiveMatchState> = {}
+    manualOverrides: Partial<Record<"A" | "B", string>> = {}
 ): Fixture[] {
-    const { groupA, groupB } = calculateStandings(fixtures, teams, liveStates);
+    const { groupA, groupB } = calculateStandings(fixtures, teams);
 
     const getQualifiers = (
         standings: Standing[],
         groupFixtures: Fixture[],
         group: "A" | "B"
     ): { first: string | null; second: string | null } => {
-        if (standings.length < 2) return { first: null, second: null };
-        
+        if (standings.length < 3) return { first: null, second: null };
         const [p1, p2, p3] = standings;
-        
-        // If no matches played in group, keep "1st Group X" labels
-        const matchesPlayed = standings.reduce((acc, s) => acc + s.played, 0);
-        if (matchesPlayed === 0) return { first: null, second: null };
+        const gamesLeft3rd = 3 - p3.played;
+        const maxPts3rd = p3.points + gamesLeft3rd * 2;
 
-        // Return current leaders if at least one match played
-        // This prevents flickering between "A1" and Team Name
-        const first = p1.team;
-        const second = p2?.team || null;
-        
+        const first = p1.points > maxPts3rd ? p1.team : null;
+        const tiedFor2nd = p2.points === p3.points && p2.nrr === p3.nrr;
+        const second = (!tiedFor2nd && p2.points > maxPts3rd)
+            ? p2.team
+            : (tiedFor2nd && manualOverrides[group])
+                ? manualOverrides[group]!
+                : null;
         return { first, second };
     };
 
@@ -332,9 +328,6 @@ export function resolveKnockouts(
     const { first: b1, second: b2 } = getQualifiers(groupB, groupBFix, "B");
 
     return fixtures.map(f => {
-        // LOCKING: If the fixture already has a winner in the sheet, don't override anything
-        if (f.winner && f.winner !== "TBD") return f;
-
         if (f.stage === "Semi-Final 1") {
             return {
                 ...f,
@@ -352,163 +345,14 @@ export function resolveKnockouts(
         if (f.stage === "Final") {
             const sf1 = fixtures.find(x => x.stage === "Semi-Final 1");
             const sf2 = fixtures.find(x => x.stage === "Semi-Final 2");
-            
-            const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-            const sf1Live = sf1 ? (liveStates[sf1.matchNo] || liveStates[cleanId(sf1.matchNo)]) : null;
-            const sf2Live = sf2 ? (liveStates[sf2.matchNo] || liveStates[cleanId(sf2.matchNo)]) : null;
-
             return {
                 ...f,
-                team1: sf1?.winner || sf1Live?.winner || f.team1,
-                team2: sf2?.winner || sf2Live?.winner || f.team2,
+                team1: sf1?.winner || f.team1,
+                team2: sf2?.winner || f.team2,
             };
         }
         return f;
     });
 }
 
-// ── Sheet URLs ────────────────────────────────────────────────────────────────
-
-export const SHEET_ID = process.env.NEXT_PUBLIC_SHEET_ID || "12cbvXQkyWZWor1EYPCUljKi6so1-CANOgyQUzwZFgro";
-export const SQUADS_GID = process.env.NEXT_PUBLIC_SQUADS_GID || "667574756";
-
-export const SQUADS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SQUADS_GID}`;
-
-export const FIXTURES_GID = process.env.NEXT_PUBLIC_FIXTURES_GID || "1008778926";
-export const FIXTURES_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${FIXTURES_GID}`;
-
-// ── Server-Side Fetching (ISR) ───────────────────────────────────────────────
-
-export async function fetchTeams(): Promise<Team[]> {
-    try {
-        const res = await fetch(`${SQUADS_CSV_URL}&t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch squads");
-        const text = await res.text();
-
-        // Log beginning of text to catch if Google Sheets returned HTML error page
-        if (text.trim().startsWith('<')) {
-            console.error('Google Sheets returned HTML instead of CSV', text.substring(0, 100));
-            return [];
-        }
-
-        interface TeamData {
-            TeamName: string;
-            ShortName: string;
-            Color: string;
-            Players: string;
-        }
-
-        return new Promise((resolve) => {
-            Papa.parse<TeamData>(text, {
-                header: true,
-                skipEmptyLines: true,
-                complete: ({ data }) => {
-                    const teams = data.map((row) => ({
-                        teamName: row.TeamName || "Unknown",
-                        shortName: row.ShortName || "UNK",
-                        color: row.Color || "#EAB308",
-                    }));
-                    resolve(teams);
-                },
-                error: (error: Error) => {
-                    console.error("PapaParse error in fetchTeams: ", error.message);
-                    resolve([]); // Return empty on error
-                }
-            });
-        });
-    } catch (error) {
-        console.error("fetchTeams error:", error);
-        return [];
-    }
-}
-
-export async function fetchSquads(): Promise<Array<{ teamName: string, shortName: string, color: string, players: { name: string, role: string, price: string }[] }>> {
-    try {
-        const res = await fetch(SQUADS_CSV_URL, { next: { revalidate: 60 } });
-        if (!res.ok) throw new Error("Failed to fetch squads csv");
-        const text = await res.text();
-
-        if (text.trim().startsWith('<')) return [];
-
-        interface TeamData {
-            TeamName: string;
-            ShortName: string;
-            Color: string;
-            Players: string;
-        }
-
-        return new Promise((resolve) => {
-            Papa.parse<TeamData>(text, {
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    const teams = results.data.map((row) => ({
-                        teamName: row.TeamName || "Unknown",
-                        shortName: row.ShortName || "UNK",
-                        color: row.Color || "#EAB308",
-                        players: row.Players
-                            ? row.Players.split(",").map((p) => {
-                                const [name, role, price] = p.trim().split(":");
-                                return {
-                                    name: name?.trim() ?? "Unknown",
-                                    role: role?.trim() ?? "-",
-                                    price: price?.trim() ?? "-",
-                                };
-                            })
-                            : [],
-                    }));
-                    resolve(teams);
-                },
-                error: (error: Error) => {
-                    console.error("PapaParse squad error: ", error.message);
-                    resolve([]);
-                }
-            });
-        });
-    } catch (error) {
-        console.error("Error parsing squads:", error);
-        return [];
-    }
-}
-
-export async function fetchFixtures(): Promise<Fixture[]> {
-    try {
-        const res = await fetch(`${FIXTURES_CSV_URL}&t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to fetch fixtures");
-        const text = await res.text();
-
-        if (text.trim().startsWith('<')) {
-            console.error('fetchFixtures returned HTML instead of CSV', text.substring(0, 100));
-            return [];
-        }
-
-        return new Promise((resolve) => {
-            Papa.parse<Record<string, string>>(text, {
-                header: true,
-                skipEmptyLines: true,
-                complete: ({ data }) => {
-                    const parsed: Fixture[] = data
-                        .filter(r => r.MatchNo)
-                        .map(r => ({
-                            matchNo: r.MatchNo,
-                            stage: r.Stage as Fixture["stage"],
-                            group: (r.Pool ?? r.Group ?? "-") as Fixture["group"],
-                            team1: r.Team1,
-                            team2: r.Team2,
-                            winner: r.Winner ?? "",
-                            sortOrder: parseInt(r.SortOrder ?? "0", 10),
-                        }))
-                        .sort((a, b) => a.sortOrder - b.sortOrder);
-                    resolve(parsed);
-                },
-                error: (error: Error) => {
-                    console.error("PapaParse error in fetchFixtures:", error.message);
-                    resolve([]);
-                }
-            });
-        });
-    } catch (error) {
-        console.error("fetchFixtures error:", error);
-        return [];
-    }
-}
+// Data fetching has been migrated to src/lib/data.ts to prevent Prisma leaking into client bundles.

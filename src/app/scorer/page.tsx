@@ -1,4 +1,4 @@
-import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/tournament";
+import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/data";
 import ScorerClient from "./scorer-client";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Metadata } from "next";

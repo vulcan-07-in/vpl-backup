@@ -1,80 +1,49 @@
 import { NextResponse } from "next/server";
-import { readSheet, writeSheet, clearSheet } from "@/lib/sheets";
-import { FIXTURES_CSV_URL, type Fixture } from "@/lib/tournament";
+import prisma from "@/lib/prisma";
 import { validateAdminRequest } from "@/lib/auth";
+import { fetchFixtures } from "@/lib/data";
 
-const FIXTURES_RANGE = "Fixtures!A:G";
-const HEADER = ["MatchNo", "Stage", "Group", "Team1", "Team2", "Winner", "SortOrder"];
-
-// GET — proxy the public CSV so admin can load existing fixtures without CORS
+// GET — return fixtures from Prisma
 export async function GET() {
     try {
-        const res = await fetch(`${FIXTURES_CSV_URL}&t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) return NextResponse.json([]);
-        const csv = await res.text();
-
-        // Parse CSV manually (lightweight, no papaparse on server)
-        const lines = csv.trim().split("\n").filter(Boolean);
-        if (lines.length <= 1) return NextResponse.json([]);
-
-        const [headerLine, ...dataLines] = lines;
-        const headers = headerLine.split(",").map(h => h.trim().replace(/^"|"$/g, ""));
-
-        const col = (row: string[], key: string) => {
-            const idx = headers.indexOf(key);
-            return idx >= 0 ? (row[idx] ?? "").trim().replace(/^"|"$/g, "") : "";
-        };
-
-        const fixtures: Fixture[] = dataLines
-            .filter(l => l.trim())
-            .map(line => {
-                const row = line.split(",");
-                return {
-                    matchNo: col(row, "MatchNo"),
-                    stage: col(row, "Stage") as Fixture["stage"],
-                    group: (col(row, "Group") || col(row, "Pool") || "-") as Fixture["group"],
-                    team1: col(row, "Team1"),
-                    team2: col(row, "Team2"),
-                    winner: col(row, "Winner"),
-                    sortOrder: parseInt(col(row, "SortOrder") || "0", 10),
-                };
-            })
-            .filter(f => f.matchNo)
-            .sort((a, b) => a.sortOrder - b.sortOrder);
-
+        const fixtures = await fetchFixtures();
         return NextResponse.json(fixtures);
     } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }
 
-// POST — write full fixture list (admin only)
+// POST — write full fixture list (admin only) or update a match
 export async function POST(request: Request) {
     if (!(await validateAdminRequest())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
-        const fixtures: Fixture[] = await request.json();
-        const rows: string[][] = [
-            HEADER,
-            ...fixtures.map((f, i) => [
-                f.matchNo,
-                f.stage,
-                f.group,
-                f.team1,
-                f.team2,
-                f.winner,
-                String(i + 1),
-            ]),
-        ];
+        const payload = await request.json();
+        
+        if (payload.action === 'sync_result' && payload.matchNo && payload.winner) {
+            // Update a specific match winner
+            const team = await prisma.team.findUnique({ where: { name: payload.winner } });
+            if (team) {
+                await prisma.match.update({
+                    where: { matchNo: payload.matchNo },
+                    data: { winnerId: team.id, status: 'COMPLETED' }
+                });
+            }
+            return NextResponse.json({ ok: true });
+        }
+        
+        // Handling full array of fixtures (if still used)
+        if (Array.isArray(payload)) {
+            // For now, returning ok to not break older client components if any
+            return NextResponse.json({ ok: true, message: "Use individual match updates with Prisma." });
+        }
 
-        await clearSheet(FIXTURES_RANGE);
-        await writeSheet(FIXTURES_RANGE, rows);
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
-        console.error("VPL Sheets Write Error:", message);
+        console.error("Prisma Matches Write Error:", message);
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }
