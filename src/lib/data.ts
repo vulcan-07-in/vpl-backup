@@ -1,7 +1,9 @@
+import { unstable_noStore as noStore } from "next/cache";
 import prisma from "./prisma";
 import { Team, Fixture } from "./tournament";
 
 export async function fetchTeams(): Promise<Team[]> {
+    noStore();
     try {
         const dbTeams = await prisma.team.findMany({
             orderBy: { name: 'asc' }
@@ -18,12 +20,13 @@ export async function fetchTeams(): Promise<Team[]> {
 }
 
 export async function fetchSquads(): Promise<Array<{ teamName: string, shortName: string, color: string, players: { name: string, role: string, price: string }[] }>> {
+    noStore();
     try {
         const dbTeams = await prisma.team.findMany({
             include: { players: true },
             orderBy: { name: 'asc' }
         });
-        
+
         return dbTeams.map(t => ({
             teamName: t.name,
             shortName: t.shortName,
@@ -41,6 +44,7 @@ export async function fetchSquads(): Promise<Array<{ teamName: string, shortName
 }
 
 export async function fetchFixtures(): Promise<Fixture[]> {
+    noStore();
     try {
         const dbMatches = await prisma.match.findMany({
             include: {
@@ -48,10 +52,9 @@ export async function fetchFixtures(): Promise<Fixture[]> {
                 team2: true,
                 winner: true
             },
-            orderBy: { matchNo: 'asc' } // In real implementation, add a sortOrder column or parse the M1, M2 properly
+            orderBy: { matchNo: 'asc' }
         });
 
-        // Simple sort to handle M1, M2... M10 correctly instead of lexigraphically
         const sortedMatches = dbMatches.sort((a, b) => {
             const numA = parseInt(a.matchNo.replace(/[^0-9]/g, '')) || 0;
             const numB = parseInt(b.matchNo.replace(/[^0-9]/g, '')) || 0;
