@@ -1,0 +1,9 @@
+- [ ] Add Supabase client (src/lib/supabase.ts)
+- [ ] Update src/lib/data.ts to accept a `season` argument and switch between Prisma (Season 1) and Supabase (Season 2)
+- [ ] Add Supabase queries for fetchTeams, fetchSquads, fetchFixtures
+- [ ] Create new MVP page src/app/s2/page.tsx mirroring points page using season 2 data
+- [ ] Update package.json to include `@supabase/supabase-js`
+- [ ] Add Supabase env vars to .env (placeholder comments)
+- [ ] Verify points page works for Season 2 (`/s2`)
+- [ ] Manual testing: ensure existing `/points` (Season 1) still works
+- [ ] Deploy preview to Vercel and test sub‑domain `s2.varchasva...`
