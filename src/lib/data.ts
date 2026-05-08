@@ -48,6 +48,8 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
   noStore();
   if (season === 2) {
     // Fetch teams with their IDs for correct FK resolution
+    type TeamRow = { id: string; name: string; shortName: string; color: string };
+    type PlayerRow = { name: string; role: string; price: number; team_id: string };
     const { data: teamRows, error: teamErr } = await supabase
       .from("team")
       .select("id, name, shortName, color")
@@ -66,18 +68,19 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
 
     // Build id→teamName map for correct FK lookup
     const idToName = new Map<string, string>(
-      (teamRows || []).map(t => [t.id, t.name])
+      (teamRows as TeamRow[] || []).map((t: TeamRow) => [t.id, t.name])
     );
 
-    const squads = (teamRows || []).map(t => ({
+    const squads = (teamRows as TeamRow[] || []).map((t: TeamRow) => ({
       teamName: t.name,
       shortName: t.shortName,
       color: t.color,
       players: [] as { name: string; role: string; price: string }[],
     }));
-    const squadByName = Object.fromEntries(squads.map(s => [s.teamName, s]));
+    type SquadEntry = { teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string }[] };
+    const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName, s])) as Record<string, SquadEntry>;
 
-    (players || []).forEach(p => {
+    (players as PlayerRow[] || []).forEach((p: PlayerRow) => {
       const teamName = idToName.get(p.team_id as string);
       if (teamName && squadByName[teamName]) {
         squadByName[teamName].players.push({
@@ -128,8 +131,10 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       console.error("Supabase fetchFixtures team error:", teamErr);
       return [];
     }
-    const idToName = new Map<string, string>((teams || []).map(t => [t.id, t.name]));
-    return (matches || []).map(m => ({
+    type TeamIdRow = { id: string; name: string };
+    type MatchRow = { matchNo: string; stage: string; group: string | null; team1_id: string; team2_id: string; winner_id: string | null };
+    const idToName = new Map<string, string>((teams as TeamIdRow[] || []).map((t: TeamIdRow) => [t.id, t.name]));
+    return (matches as MatchRow[] || []).map((m: MatchRow) => ({
       matchNo: m.matchNo,
       stage: m.stage as any,
       group: (m as any)["group"] as any,

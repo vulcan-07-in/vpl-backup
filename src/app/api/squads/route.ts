@@ -18,15 +18,17 @@ export async function GET() {
         if (playerErr) throw new Error(playerErr.message);
 
         // Map players onto their teams
-        const result = (teams || []).map(t => ({
+        type TeamRow = { id: string; name: string; shortName: string; color: string; groupId: string };
+        type PlayerRow = { id: string; name: string; role: string; price: number; team_id: string };
+        const result = (teams as TeamRow[] || []).map((t: TeamRow) => ({
             id: t.id,
             name: t.name,
             shortName: t.shortName,
             color: t.color,
             groupId: t.groupId,
-            players: (players || [])
-                .filter(p => p.team_id === t.id)
-                .map(p => ({
+            players: (players as PlayerRow[] || [])
+                .filter((p: PlayerRow) => p.team_id === t.id)
+                .map((p: PlayerRow) => ({
                     id: p.id,
                     name: p.name,
                     role: p.role,
