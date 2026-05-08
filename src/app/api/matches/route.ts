@@ -46,6 +46,7 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "create_match") {
+            const now = new Date().toISOString();
             const { error } = await supabase.from("Match").insert({
                 id: crypto.randomUUID(),
                 matchNo: payload.matchNo,
@@ -58,6 +59,8 @@ export async function POST(request: Request) {
                     : null,
                 status: "SCHEDULED",
                 isFunMatch: payload.isFunMatch ?? false,
+                createdAt: now,
+                updatedAt: now,
             });
             if (error) throw new Error(error.message);
             revalidatePath("/matches");
