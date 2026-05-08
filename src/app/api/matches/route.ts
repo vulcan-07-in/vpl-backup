@@ -47,6 +47,7 @@ export async function POST(request: Request) {
 
         if (payload.action === "create_match") {
             const { error } = await supabase.from("Match").insert({
+                id: crypto.randomUUID(),
                 matchNo: payload.matchNo,
                 stage: payload.stage,
                 group: payload.group || null,
