@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
             const { error } = await supabase
                 .from("Match")
-                .update({ winner_id: teamRow.id, status: "COMPLETED" })
+                .update({ winnerId: teamRow.id, status: "COMPLETED" })
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);
 
@@ -52,8 +52,8 @@ export async function POST(request: Request) {
                 matchNo: payload.matchNo,
                 stage: payload.stage,
                 group: payload.group || null,
-                team1_id: payload.team1Id,
-                team2_id: payload.team2Id,
+                team1Id: payload.team1Id,
+                team2Id: payload.team2Id,
                 scheduledTime: payload.scheduledTime
                     ? new Date(payload.scheduledTime).toISOString()
                     : null,
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         if (payload.action === "clear_winner") {
             const { error } = await supabase
                 .from("Match")
-                .update({ winner_id: null, status: "SCHEDULED" })
+                .update({ winnerId: null, status: "SCHEDULED" })
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);
             revalidatePath("/matches");

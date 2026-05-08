@@ -49,7 +49,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
   if (season === 2) {
     // Fetch teams with their IDs for correct FK resolution
     type TeamRow = { id: string; name: string; shortName: string; color: string };
-    type PlayerRow = { name: string; role: string; price: number; team_id: string };
+    type PlayerRow = { name: string; role: string; price: number; teamId: string };
     const { data: teamRows, error: teamErr } = await supabase
       .from("Team")
       .select("id, name, shortName, color")
@@ -60,7 +60,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
     }
     const { data: players, error: playerErr } = await supabase
       .from("Player")
-      .select("name, role, price, team_id");
+      .select("name, role, price, teamId");
     if (playerErr) {
       console.error("Supabase fetchSquads players error:", playerErr);
       return [];
@@ -81,7 +81,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
     const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName, s])) as Record<string, SquadEntry>;
 
     (players as PlayerRow[] || []).forEach((p: PlayerRow) => {
-      const teamName = idToName.get(p.team_id as string);
+      const teamName = idToName.get(p.teamId as string);
       if (teamName && squadByName[teamName]) {
         squadByName[teamName].players.push({
           name: p.name,
@@ -120,7 +120,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
   if (season === 2) {
     const { data: matches, error: matchErr } = await supabase
       .from("Match")
-      .select("matchNo, stage, \"group\", team1_id, team2_id, winner_id")
+      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId")
       .order("matchNo", { ascending: true });
     if (matchErr) {
       console.error("Supabase fetchFixtures match error:", matchErr);
@@ -132,15 +132,15 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       return [];
     }
     type TeamIdRow = { id: string; name: string };
-    type MatchRow = { matchNo: string; stage: string; group: string | null; team1_id: string; team2_id: string; winner_id: string | null };
+    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null };
     const idToName = new Map<string, string>((teams as TeamIdRow[] || []).map((t: TeamIdRow) => [t.id, t.name]));
     return (matches as MatchRow[] || []).map((m: MatchRow) => ({
       matchNo: m.matchNo,
       stage: m.stage as any,
       group: (m as any)["group"] as any,
-      team1: idToName.get(m.team1_id) ?? "",
-      team2: idToName.get(m.team2_id) ?? "",
-      winner: m.winner_id ? idToName.get(m.winner_id) ?? "" : "",
+      team1: idToName.get(m.team1Id) ?? "",
+      team2: idToName.get(m.team2Id) ?? "",
+      winner: m.winnerId ? idToName.get(m.winnerId) ?? "" : "",
       sortOrder: parseInt(m.matchNo.replace(/[^0-9]/g, "")) || 0,
     }));
   }

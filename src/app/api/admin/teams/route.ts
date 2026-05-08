@@ -16,12 +16,12 @@ export async function GET() {
 
         const { data: players, error: playerErr } = await supabase
             .from("Player")
-            .select("id, name, role, price, team_id");
+            .select("id, name, role, price, teamId");
         if (playerErr) throw new Error(playerErr.message);
 
         // Attach players to their teams
         type TeamRow = { id: string; name: string; shortName: string; color: string; groupId: string };
-        type PlayerRow = { id: string; name: string; role: string; price: number; team_id: string };
+        type PlayerRow = { id: string; name: string; role: string; price: number; teamId: string };
         const result = (teams as TeamRow[] || []).map((t: TeamRow) => ({
             id: t.id,
             name: t.name,
@@ -29,7 +29,7 @@ export async function GET() {
             color: t.color,
             groupId: t.groupId,
             players: (players as PlayerRow[] || [])
-                .filter((p: PlayerRow) => p.team_id === t.id)
+                .filter((p: PlayerRow) => p.teamId === t.id)
                 .map((p: PlayerRow) => ({
                     id: p.id,
                     name: p.name,
