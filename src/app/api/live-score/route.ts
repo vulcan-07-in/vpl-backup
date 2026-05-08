@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         // 3. Fall back to Supabase liveState column
         if (!matchState) {
             const { data: match } = await supabase
-                .from('match')
+                .from('Match')
                 .select('liveState')
                 .eq('matchNo', matchId)
                 .single();
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
 
         // 3. Save to Supabase as a persistent backup
         await supabase
-            .from('match')
+            .from('Match')
             .update({
                 liveState: body as any,
                 status: body.status

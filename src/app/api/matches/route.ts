@@ -26,14 +26,14 @@ export async function POST(request: Request) {
         if (payload.action === "sync_result" && payload.matchNo && payload.winner) {
             // Look up winner team ID
             const { data: teamRow, error: teamErr } = await supabase
-                .from("team")
+                .from("Team")
                 .select("id")
                 .eq("name", payload.winner)
                 .single();
             if (teamErr) throw new Error(teamErr.message);
 
             const { error } = await supabase
-                .from("match")
+                .from("Match")
                 .update({ winner_id: teamRow.id, status: "COMPLETED" })
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "create_match") {
-            const { error } = await supabase.from("match").insert({
+            const { error } = await supabase.from("Match").insert({
                 matchNo: payload.matchNo,
                 stage: payload.stage,
                 group: payload.group || null,
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
         if (payload.action === "delete_match") {
             const { error } = await supabase
-                .from("match")
+                .from("Match")
                 .delete()
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
         if (payload.action === "clear_winner") {
             const { error } = await supabase
-                .from("match")
+                .from("Match")
                 .update({ winner_id: null, status: "SCHEDULED" })
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);

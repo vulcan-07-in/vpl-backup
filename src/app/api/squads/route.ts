@@ -7,13 +7,13 @@ import { revalidatePath } from "next/cache";
 export async function GET() {
     try {
         const { data: teams, error: teamErr } = await supabase
-            .from("team")
+            .from("Team")
             .select("id, name, shortName, color, groupId")
             .order("name", { ascending: true });
         if (teamErr) throw new Error(teamErr.message);
 
         const { data: players, error: playerErr } = await supabase
-            .from("player")
+            .from("Player")
             .select("id, name, role, price, team_id");
         if (playerErr) throw new Error(playerErr.message);
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "create_team") {
-            const { data, error } = await supabase.from("team").insert({
+            const { data, error } = await supabase.from("Team").insert({
                 name: payload.name,
                 shortName: payload.shortName,
                 color: payload.color || "#FFFFFF",
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "add_player") {
-            const { error } = await supabase.from("player").insert({
+            const { error } = await supabase.from("Player").insert({
                 name: payload.name,
                 role: payload.role,
                 price: parseInt(payload.price) || 0,
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "delete_player") {
-            const { error } = await supabase.from("player").delete().eq("id", payload.playerId);
+            const { error } = await supabase.from("Player").delete().eq("id", payload.playerId);
             if (error) throw new Error(error.message);
             revalidatePath("/squads");
             return NextResponse.json({ ok: true });
@@ -90,9 +90,9 @@ export async function POST(request: Request) {
 
         if (payload.action === "delete_team") {
             // Delete players first, then matches referencing the team, then the team itself
-            await supabase.from("player").delete().eq("team_id", payload.teamId);
-            await supabase.from("match").delete().or(`team1_id.eq.${payload.teamId},team2_id.eq.${payload.teamId}`);
-            const { error } = await supabase.from("team").delete().eq("id", payload.teamId);
+            await supabase.from("Player").delete().eq("team_id", payload.teamId);
+            await supabase.from("Match").delete().or(`team1_id.eq.${payload.teamId},team2_id.eq.${payload.teamId}`);
+            const { error } = await supabase.from("Team").delete().eq("id", payload.teamId);
             if (error) throw new Error(error.message);
             revalidatePath("/squads");
             revalidatePath("/points");

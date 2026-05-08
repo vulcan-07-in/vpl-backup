@@ -18,7 +18,7 @@ export async function fetchTeams(season: number = 1): Promise<Team[]> {
   noStore();
   if (season === 2) {
     const { data, error } = await supabase
-      .from("team")
+      .from("Team")
       .select("name, shortName, color")
       .order("name", { ascending: true });
     if (error) {
@@ -51,7 +51,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
     type TeamRow = { id: string; name: string; shortName: string; color: string };
     type PlayerRow = { name: string; role: string; price: number; team_id: string };
     const { data: teamRows, error: teamErr } = await supabase
-      .from("team")
+      .from("Team")
       .select("id, name, shortName, color")
       .order("name", { ascending: true });
     if (teamErr) {
@@ -59,7 +59,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       return [];
     }
     const { data: players, error: playerErr } = await supabase
-      .from("player")
+      .from("Player")
       .select("name, role, price, team_id");
     if (playerErr) {
       console.error("Supabase fetchSquads players error:", playerErr);
@@ -119,14 +119,14 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
   noStore();
   if (season === 2) {
     const { data: matches, error: matchErr } = await supabase
-      .from("match")
+      .from("Match")
       .select("matchNo, stage, \"group\", team1_id, team2_id, winner_id")
       .order("matchNo", { ascending: true });
     if (matchErr) {
       console.error("Supabase fetchFixtures match error:", matchErr);
       return [];
     }
-    const { data: teams, error: teamErr } = await supabase.from("team").select("id, name");
+    const { data: teams, error: teamErr } = await supabase.from("Team").select("id, name");
     if (teamErr) {
       console.error("Supabase fetchFixtures team error:", teamErr);
       return [];

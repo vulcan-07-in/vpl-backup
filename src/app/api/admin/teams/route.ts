@@ -9,13 +9,13 @@ export async function GET() {
         if (!isValid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { data: teams, error: teamErr } = await supabase
-            .from("team")
+            .from("Team")
             .select("id, name, shortName, color, groupId")
             .order("name", { ascending: true });
         if (teamErr) throw new Error(teamErr.message);
 
         const { data: players, error: playerErr } = await supabase
-            .from("player")
+            .from("Player")
             .select("id, name, role, price, team_id");
         if (playerErr) throw new Error(playerErr.message);
 
