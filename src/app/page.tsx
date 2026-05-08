@@ -1,11 +1,11 @@
-import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/data";
+import { fetchFixtures, fetchTeams } from "@/lib/data";
 import HomeClient from "./home-client";
 
 export default async function Home() {
-  // Fetch data on the server with ISR
+  // Fetch S2 data on the server with ISR
   const [teams, fixtures] = await Promise.all([
-    fetchTeams(),
-    fetchFixtures()
+    fetchTeams(2),
+    fetchFixtures(2),
   ]);
 
   let champion: { name: string; color: string } | null = null;

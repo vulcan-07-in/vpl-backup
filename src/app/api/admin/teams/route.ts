@@ -1,18 +1,42 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { validateAdminRequest } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
-// Returns teams with IDs for admin operations
+// Returns teams with IDs and players for admin operations (S2 — Supabase)
 export async function GET() {
     try {
         const isValid = await validateAdminRequest();
         if (!isValid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const teams = await prisma.team.findMany({
-            include: { players: true },
-            orderBy: { name: "asc" },
-        });
-        return NextResponse.json(teams);
+        const { data: teams, error: teamErr } = await supabase
+            .from("team")
+            .select("id, name, shortName, color, groupId")
+            .order("name", { ascending: true });
+        if (teamErr) throw new Error(teamErr.message);
+
+        const { data: players, error: playerErr } = await supabase
+            .from("player")
+            .select("id, name, role, price, team_id");
+        if (playerErr) throw new Error(playerErr.message);
+
+        // Attach players to their teams
+        const result = (teams || []).map(t => ({
+            id: t.id,
+            name: t.name,
+            shortName: t.shortName,
+            color: t.color,
+            groupId: t.groupId,
+            players: (players || [])
+                .filter(p => p.team_id === t.id)
+                .map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    role: p.role,
+                    price: p.price,
+                })),
+        }));
+
+        return NextResponse.json(result);
     } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }

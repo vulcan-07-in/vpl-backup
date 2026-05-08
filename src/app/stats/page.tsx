@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function StatsPage() {
-    const teams = await fetchTeams();
+    const teams = await fetchTeams(2);
     
     return (
         <div className="min-h-screen bg-black overflow-x-hidden">

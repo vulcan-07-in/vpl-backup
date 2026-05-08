@@ -6,16 +6,30 @@ export interface Team {
     color: string;
 }
 
-export type Stage = "Group A" | "Group B" | "Semi-Final 1" | "Semi-Final 2" | "Final";
+// S1 had only Group A / B and two semis.
+// S2 adds Group C, three Eliminators, two Qualifiers, and a Final.
+export type Stage =
+    | "Group A"
+    | "Group B"
+    | "Group C"
+    | "Semi-Final 1"     // kept for S1 back-compat
+    | "Semi-Final 2"     // kept for S1 back-compat
+    | "Eliminator 1"
+    | "Eliminator 2"
+    | "Eliminator 3"
+    | "Qualifier 1"
+    | "Qualifier 2"
+    | "Final";
 
 export interface Fixture {
     matchNo: string;   // e.g. "M1"
     stage: Stage;
-    group: "A" | "B" | "-";
+    group: "A" | "B" | "C" | "-";
     team1: string;
     team2: string;
     winner: string;    // blank if not played yet
     sortOrder: number;
+    isFunMatch?: boolean; // Fun matches are excluded from all standings / stats
 }
 
 // ==========================================
@@ -104,11 +118,12 @@ export interface LiveMatchState {
     winner?: string;
     result?: string;
     lastSyncedAt?: number; // Epoch timestamp of last client push
-    // Rule: Squad is 8 players. 7 wickets = All Out. 
+    // Rule: Squad is 8 players. 7 wickets = All Out.
     // BUT Last Man Standing rule applies, so player 8 bats alone until Wicket 8.
+    isFunMatch?: boolean; // Fun matches excluded from all standings/stats
 }
 
-// Round-robin pairs for a group of 4 teams
+// Round-robin pairs for a group of teams
 function roundRobin(teams: string[]): [string, string][] {
     const pairs: [string, string][] = [];
     for (let i = 0; i < teams.length; i++) {
@@ -119,11 +134,11 @@ function roundRobin(teams: string[]): [string, string][] {
     return pairs;
 }
 
-export function generateFixtures(groupA: string[], groupB: string[]): Fixture[] {
+export function generateFixtures(groupA: string[], groupB: string[], groupC?: string[]): Fixture[] {
     const fixtures: Fixture[] = [];
     let matchNum = 1;
 
-    const addMatch = (stage: Stage, group: "A" | "B" | "-", t1: string, t2: string) => {
+    const addMatch = (stage: Stage, group: "A" | "B" | "C" | "-", t1: string, t2: string) => {
         fixtures.push({
             matchNo: `M${matchNum++}`,
             stage,
@@ -137,9 +152,22 @@ export function generateFixtures(groupA: string[], groupB: string[]): Fixture[] 
 
     roundRobin(groupA).forEach(([t1, t2]) => addMatch("Group A", "A", t1, t2));
     roundRobin(groupB).forEach(([t1, t2]) => addMatch("Group B", "B", t1, t2));
-    addMatch("Semi-Final 1", "-", "1st Group A", "2nd Group B");
-    addMatch("Semi-Final 2", "-", "1st Group B", "2nd Group A");
-    addMatch("Final", "-", "Winner SF1", "Winner SF2");
+
+    if (groupC && groupC.length > 0) {
+        // Season 2: 3-group IPL-style playoffs
+        roundRobin(groupC).forEach(([t1, t2]) => addMatch("Group C", "C", t1, t2));
+        addMatch("Eliminator 1", "-", "Seed 1", "Seed 6");
+        addMatch("Eliminator 2", "-", "Seed 2", "Seed 5");
+        addMatch("Eliminator 3", "-", "Seed 3", "Seed 4");
+        addMatch("Qualifier 1", "-", "E1 Winner", "E2 Winner");
+        addMatch("Qualifier 2", "-", "Q1 Loser",  "E3 Winner");
+        addMatch("Final", "-", "Q1 Winner", "Q2 Winner");
+    } else {
+        // Season 1: 2-group semi-final format
+        addMatch("Semi-Final 1", "-", "1st Group A", "2nd Group B");
+        addMatch("Semi-Final 2", "-", "1st Group B", "2nd Group A");
+        addMatch("Final", "-", "Winner SF1", "Winner SF2");
+    }
 
     return fixtures;
 }
@@ -149,7 +177,7 @@ export function generateFixtures(groupA: string[], groupB: string[]): Fixture[] 
 export interface Standing {
     team: string;
     color: string;
-    group: "A" | "B";
+    group: "A" | "B" | "C";
     played: number;
     won: number;
     lost: number;
@@ -161,13 +189,13 @@ export function calculateStandings(
     fixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
-): { groupA: Standing[]; groupB: Standing[] } {
+): { groupA: Standing[]; groupB: Standing[]; groupC: Standing[] } {
     const colorMap: Record<string, string> = {};
     teams.forEach((t) => { colorMap[t.teamName] = t.color; });
 
     const map: Record<string, Standing & { runsScored: number, runsAgainst: number, oversFaced: number, oversBowled: number }> = {};
 
-    const ensureTeam = (name: string, group: "A" | "B") => {
+    const ensureTeam = (name: string, group: "A" | "B" | "C") => {
         if (!map[name]) {
             map[name] = {
                 team: name,
@@ -195,7 +223,8 @@ export function calculateStandings(
 
     fixtures.forEach((f) => {
         if (f.group === "-") return; // skip knockouts
-        const group = f.group as "A" | "B";
+        if (f.isFunMatch) return;   // skip fun matches
+        const group = f.group as "A" | "B" | "C";
         ensureTeam(f.team1, group);
         ensureTeam(f.team2, group);
 
@@ -230,7 +259,7 @@ export function calculateStandings(
             const normalize = (s: string) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, '');
             const t1Clean = normalize(f.team1);
             const t2Clean = normalize(f.team2);
-            
+
             // Highly tolerant matching: if inn.teamName contains the fixture team name or vice versa
             const isMatch = (innName: string, fixName: string) => {
                 const nInn = normalize(innName);
@@ -249,7 +278,6 @@ export function calculateStandings(
                 map[f.team1].runsScored += t1Score.runs;
                 map[f.team1].runsAgainst += t2Score.runs;
 
-                // For NRR, if a team is all out (8 wickets for 8-man VPL with Last Man Standing), they are considered to have faced their full overs quota
                 const t1BallsFaced = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
                 const t1BallsBowled = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
 
@@ -284,6 +312,7 @@ export function calculateStandings(
     return {
         groupA: sort(Object.values(map).filter((s) => s.group === "A")),
         groupB: sort(Object.values(map).filter((s) => s.group === "B")),
+        groupC: sort(Object.values(map).filter((s) => s.group === "C")),
     };
 }
 
@@ -295,6 +324,43 @@ export function realOvers(v: number): number {
     return Math.floor(v) + (Math.round((v % 1) * 10)) / 6;
 }
 
+// ── S2 Playoff Seeding & Bracket ─────────────────────────────────────────────
+
+export interface PlayoffSeed {
+    seed: number;       // 1–6
+    team: string;
+    group: "A" | "B" | "C";
+    nrr: number;
+    points: number;
+}
+
+/**
+ * Computes the 6 playoff seeds for Season 2.
+ * Top 2 from each of the 3 groups are collected and ranked by NRR across all groups.
+ */
+export function computePlayoffSeedings(
+    fixtures: Fixture[],
+    teams: Team[],
+    liveStates: Record<string, LiveMatchState> = {}
+): PlayoffSeed[] {
+    const { groupA, groupB, groupC } = calculateStandings(fixtures, teams, liveStates);
+
+    const qualifiers: Omit<PlayoffSeed, "seed">[] = [
+        ...(groupA.slice(0, 2).map(s => ({ team: s.team, group: "A" as const, nrr: s.nrr, points: s.points }))),
+        ...(groupB.slice(0, 2).map(s => ({ team: s.team, group: "B" as const, nrr: s.nrr, points: s.points }))),
+        ...(groupC.slice(0, 2).map(s => ({ team: s.team, group: "C" as const, nrr: s.nrr, points: s.points }))),
+    ];
+
+    // Rank by points first, then NRR
+    qualifiers.sort((a, b) => b.points - a.points || b.nrr - a.nrr);
+
+    return qualifiers.map((q, i) => ({ ...q, seed: i + 1 }));
+}
+
+/**
+ * S1: resolves 2-group knockout fixture labels.
+ * Kept for Season 1 back-compat.
+ */
 export function resolveKnockouts(
     fixtures: Fixture[],
     teams: Team[],
@@ -329,18 +395,10 @@ export function resolveKnockouts(
 
     return fixtures.map(f => {
         if (f.stage === "Semi-Final 1") {
-            return {
-                ...f,
-                team1: a1 ?? f.team1,
-                team2: b2 ?? f.team2,
-            };
+            return { ...f, team1: a1 ?? f.team1, team2: b2 ?? f.team2 };
         }
         if (f.stage === "Semi-Final 2") {
-            return {
-                ...f,
-                team1: b1 ?? f.team1,
-                team2: a2 ?? f.team2,
-            };
+            return { ...f, team1: b1 ?? f.team1, team2: a2 ?? f.team2 };
         }
         if (f.stage === "Final") {
             const sf1 = fixtures.find(x => x.stage === "Semi-Final 1");
@@ -352,6 +410,53 @@ export function resolveKnockouts(
             };
         }
         return f;
+    });
+}
+
+/**
+ * S2: resolves playoff bracket fixture labels using 3-group IPL format.
+ * Returns the full fixture list with Eliminator/Qualifier/Final labels resolved.
+ */
+export function resolveS2Playoffs(
+    fixtures: Fixture[],
+    teams: Team[],
+    liveStates: Record<string, LiveMatchState> = {}
+): Fixture[] {
+    const seeds = computePlayoffSeedings(fixtures, teams, liveStates);
+    const getTeam = (seed: number) => seeds.find(s => s.seed === seed)?.team ?? `Seed ${seed}`;
+
+    const getWinner = (stage: Stage) =>
+        fixtures.find(f => f.stage === stage)?.winner ?? "";
+
+    return fixtures.map(f => {
+        switch (f.stage) {
+            case "Eliminator 1":
+                return { ...f, team1: getTeam(1), team2: getTeam(6) };
+            case "Eliminator 2":
+                return { ...f, team1: getTeam(2), team2: getTeam(5) };
+            case "Eliminator 3":
+                return { ...f, team1: getTeam(3), team2: getTeam(4) };
+            case "Qualifier 1": {
+                const e1w = getWinner("Eliminator 1");
+                const e2w = getWinner("Eliminator 2");
+                return { ...f, team1: e1w || "E1 Winner", team2: e2w || "E2 Winner" };
+            }
+            case "Qualifier 2": {
+                const q1f = fixtures.find(x => x.stage === "Qualifier 1");
+                const q1Loser = q1f?.winner
+                    ? (q1f.winner === q1f.team1 ? q1f.team2 : q1f.team1)
+                    : "Q1 Loser";
+                const e3w = getWinner("Eliminator 3");
+                return { ...f, team1: q1Loser, team2: e3w || "E3 Winner" };
+            }
+            case "Final": {
+                const q1w = getWinner("Qualifier 1");
+                const q2w = getWinner("Qualifier 2");
+                return { ...f, team1: q1w || "Q1 Winner", team2: q2w || "Q2 Winner" };
+            }
+            default:
+                return f;
+        }
     });
 }
 

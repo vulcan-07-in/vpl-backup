@@ -3,16 +3,16 @@ import ScorerClient from "./scorer-client";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Metadata } from "next";
 
-export const revalidate = 0; // Ensure live data on refresh
+export const revalidate = 0;
 export const metadata: Metadata = {
     title: "VPL Live Scorer",
-    description: "Admin dashboard for live match scoring.",
+    description: "Admin dashboard for live match scoring — Season 2.",
 };
 
 export default async function ScorerPage() {
-    const fixtures = await fetchFixtures();
-    const teams = await fetchTeams();
-    const squadsData = await fetchSquads();
+    const fixtures = await fetchFixtures(2);
+    const teams = await fetchTeams(2);
+    const squadsData = await fetchSquads(2);
 
     // Map squads into easily accessible dictionary of names with robust matching
     const squadDictionary: Record<string, string[]> = {};

@@ -2,12 +2,16 @@ import Redis from 'ioredis';
 import { NextResponse } from 'next/server';
 import { LiveMatchState } from '@/lib/tournament';
 import { validateAdminRequest } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
 const redis = new Redis(process.env.REDIS_URL || '');
 
-// Fetch the current live match state
+// S2 Redis key prefix
+const liveKey = (matchId: string) => `s2:live_match_${matchId}`;
+const completedKey = (matchId: string) => `s2:completed_match_${matchId}`;
+
+// GET — fetch current live match state
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const matchId = searchParams.get('matchId');
@@ -17,22 +21,25 @@ export async function GET(request: Request) {
     }
 
     try {
-        const data = await redis.get(`s2:live_match_${matchId}`);
+        // 1. Try the live Redis key
+        let data = await redis.get(liveKey(matchId));
         let matchState = data ? JSON.parse(data) as LiveMatchState : null;
-        
-        // If live match isn't found in Redis, check the permanent archive in Redis
+
+        // 2. Fall back to the completed archive in Redis
         if (!matchState) {
-            const archivedData = await redis.get(`s2:completed_match_${matchId}`);
+            const archivedData = await redis.get(completedKey(matchId));
             if (archivedData) {
                 matchState = JSON.parse(archivedData) as LiveMatchState;
             }
         }
 
-        // If still not found, check the PostgreSQL backup
+        // 3. Fall back to Supabase liveState column
         if (!matchState) {
-            const match = await prisma.match.findUnique({
-                where: { matchNo: matchId }
-            });
+            const { data: match } = await supabase
+                .from('match')
+                .select('liveState')
+                .eq('matchNo', matchId)
+                .single();
             if (match?.liveState) {
                 matchState = match.liveState as unknown as LiveMatchState;
             }
@@ -53,7 +60,7 @@ export async function GET(request: Request) {
     }
 }
 
-// Update the live match state (Admin Only)
+// POST — update live match state (Admin Only)
 export async function POST(request: Request) {
     try {
         const isValid = await validateAdminRequest();
@@ -65,37 +72,36 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Match ID is required in payload' }, { status: 400 });
         }
 
-        const redisKey = `s2:live_match_${body.matchId}`;
-        
-        // 1. Race Condition Prevention: Check lastSyncedAt
+        const redisKey = liveKey(body.matchId);
+
+        // 1. Race condition prevention: check lastSyncedAt
         const existingData = await redis.get(redisKey);
         if (existingData) {
             const existingState = JSON.parse(existingData) as LiveMatchState;
             if (existingState.lastSyncedAt && body.lastSyncedAt && body.lastSyncedAt < existingState.lastSyncedAt) {
-                return NextResponse.json({ 
-                    error: 'STALE_UPDATE', 
+                return NextResponse.json({
+                    error: 'STALE_UPDATE',
                     message: 'A newer update already exists. Refreshing client...',
                     timestamp: existingState.lastSyncedAt
                 }, { status: 409 });
             }
         }
 
-        // 2. Save state to Redis (Fastest for live updates)
+        // 2. Save to Redis (fastest for live updates)
         await redis.set(redisKey, JSON.stringify(body));
 
-        // 3. Save state to PostgreSQL as a persistent backup (Slower, but safe)
-        // We only do this if it's a significant update or just always if it's infrequent
-        await prisma.match.update({
-            where: { matchNo: body.matchId },
-            data: { 
+        // 3. Save to Supabase as a persistent backup
+        await supabase
+            .from('match')
+            .update({
                 liveState: body as any,
                 status: body.status
-            }
-        });
+            })
+            .eq('matchNo', body.matchId);
 
         // 4. Archive permanent copy if the match is completed
         if (body.status === "COMPLETED") {
-            await redis.set(`s2:completed_match_${body.matchId}`, JSON.stringify(body));
+            await redis.set(completedKey(body.matchId), JSON.stringify(body));
             revalidatePath('/matches');
             revalidatePath('/points');
             revalidatePath('/stats');

@@ -1,19 +1,46 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { validateAdminRequest } from "@/lib/auth";
-import { fetchSquads } from "@/lib/data";
-
+import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 
+// GET — return teams + players from Supabase (S2)
 export async function GET() {
     try {
-        const squads = await fetchSquads();
-        return NextResponse.json(squads);
+        const { data: teams, error: teamErr } = await supabase
+            .from("team")
+            .select("id, name, shortName, color, groupId")
+            .order("name", { ascending: true });
+        if (teamErr) throw new Error(teamErr.message);
+
+        const { data: players, error: playerErr } = await supabase
+            .from("player")
+            .select("id, name, role, price, team_id");
+        if (playerErr) throw new Error(playerErr.message);
+
+        // Map players onto their teams
+        const result = (teams || []).map(t => ({
+            id: t.id,
+            name: t.name,
+            shortName: t.shortName,
+            color: t.color,
+            groupId: t.groupId,
+            players: (players || [])
+                .filter(p => p.team_id === t.id)
+                .map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    role: p.role,
+                    price: p.price,
+                })),
+        }));
+
+        return NextResponse.json(result);
     } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }
 
+// POST — CRUD actions via Supabase (S2 admin only)
 export async function POST(request: Request) {
     if (!(await validateAdminRequest())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,66 +48,61 @@ export async function POST(request: Request) {
 
     try {
         const payload = await request.json();
-        
-        // This is a simplified replacement. A full admin panel would send specific actions
-        // like "create_team", "update_team", "add_player", etc.
-        // For compatibility with any old generic 'save all' calls, we can parse it:
+
         if (Array.isArray(payload)) {
-            return NextResponse.json({ ok: true, message: "Use targeted Prisma API calls instead of bulk arrays." });
+            return NextResponse.json({ ok: true, message: "Use targeted actions instead of bulk arrays." });
         }
 
-        // Handle specific actions for the new Season 2 Admin
-        if (payload.action === 'create_team') {
-            const team = await prisma.team.create({
-                data: {
-                    name: payload.name,
-                    shortName: payload.shortName,
-                    color: payload.color || "#FFFFFF",
-                    groupId: payload.groupId || "A"
-                }
-            });
-            revalidatePath('/squads');
-            revalidatePath('/points');
-            revalidatePath('/');
-            return NextResponse.json({ ok: true, teamId: team.id });
+        if (payload.action === "create_team") {
+            const { data, error } = await supabase.from("team").insert({
+                name: payload.name,
+                shortName: payload.shortName,
+                color: payload.color || "#FFFFFF",
+                groupId: payload.groupId || "A",
+            }).select("id").single();
+            if (error) throw new Error(error.message);
+            revalidatePath("/squads");
+            revalidatePath("/points");
+            revalidatePath("/");
+            return NextResponse.json({ ok: true, teamId: data.id });
         }
 
-        if (payload.action === 'add_player') {
-            await prisma.player.create({
-                data: {
-                    name: payload.name,
-                    role: payload.role,
-                    price: parseInt(payload.price) || 0,
-                    teamId: payload.teamId
-                }
+        if (payload.action === "add_player") {
+            const { error } = await supabase.from("player").insert({
+                name: payload.name,
+                role: payload.role,
+                price: parseInt(payload.price) || 0,
+                team_id: payload.teamId,
             });
-            revalidatePath('/squads');
+            if (error) throw new Error(error.message);
+            revalidatePath("/squads");
             return NextResponse.json({ ok: true });
         }
 
-        if (payload.action === 'delete_player') {
-            await prisma.player.delete({ where: { id: payload.playerId } });
-            revalidatePath('/squads');
+        if (payload.action === "delete_player") {
+            const { error } = await supabase.from("player").delete().eq("id", payload.playerId);
+            if (error) throw new Error(error.message);
+            revalidatePath("/squads");
             return NextResponse.json({ ok: true });
         }
 
-        if (payload.action === 'delete_team') {
-            // Delete players first (cascade), then team
-            await prisma.player.deleteMany({ where: { teamId: payload.teamId } });
-            // Delete matches referencing this team
-            await prisma.match.deleteMany({ where: { OR: [{ team1Id: payload.teamId }, { team2Id: payload.teamId }] } });
-            await prisma.team.delete({ where: { id: payload.teamId } });
-            revalidatePath('/squads');
-            revalidatePath('/points');
-            revalidatePath('/matches');
-            revalidatePath('/');
+        if (payload.action === "delete_team") {
+            // Delete players first, then matches referencing the team, then the team itself
+            await supabase.from("player").delete().eq("team_id", payload.teamId);
+            await supabase.from("match").delete().or(`team1_id.eq.${payload.teamId},team2_id.eq.${payload.teamId}`);
+            const { error } = await supabase.from("team").delete().eq("id", payload.teamId);
+            if (error) throw new Error(error.message);
+            revalidatePath("/squads");
+            revalidatePath("/points");
+            revalidatePath("/matches");
+            revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
 
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
-        console.error("Prisma Squads Write Error:", message);
+        console.error("Supabase Squads Write Error:", message);
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }

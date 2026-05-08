@@ -6,8 +6,8 @@ export default async function ChampionBanner() {
     noStore(); // Prevent static generation — DB not available at build time
 
     try {
-        const teams = await fetchTeams();
-        const fixtures = await fetchFixtures();
+        const teams = await fetchTeams(2);
+        const fixtures = await fetchFixtures(2);
 
         let champion: { name: string; color: string } | null = null;
         const final = fixtures.find(f => f.stage?.trim() === "Final");
