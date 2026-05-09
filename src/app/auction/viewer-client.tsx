@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Coins, Trophy } from "lucide-react";
+import { Users, Coins, Trophy, Hammer } from "lucide-react";
 
 interface Player {
     accountId: string;
