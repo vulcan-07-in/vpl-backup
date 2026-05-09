@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw } from "lucide-react";
 
-type Tab = "hub" | "matches" | "broadcast" | "mvp" | "logs";
+type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "logs";
 
 export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [authenticated, setAuthenticated] = useState(false);
