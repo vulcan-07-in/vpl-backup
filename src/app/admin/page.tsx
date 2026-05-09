@@ -146,7 +146,7 @@ export default function AdminPage() {
         if (!newMatch.matchNo || !newMatch.team1Id || !newMatch.team2Id) return flash("Fill all match fields");
         if (newMatch.team1Id === newMatch.team2Id) return flash("Team 1 and Team 2 must be different");
         const r = await apiCall("/api/matches", { action: "create_match", ...newMatch });
-        if (r.ok) { flash("Match created ✓"); setNewMatch({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "" }); loadData(); }
+        if (r.ok) { flash("Match created ✓"); setNewMatch({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false }); loadData(); }
         else flash(`Failed: ${r.error}`);
     }
 
