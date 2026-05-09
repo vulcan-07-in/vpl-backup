@@ -35,7 +35,7 @@ interface Team {
     color: string;
 }
 
-export default function PlayersClient({ initialPlayers, teams }: { initialPlayers: Player[], teams: Team[] }) {
+export default function PlayersClient({ initialPlayers, teams, serverError }: { initialPlayers: Player[], teams: Team[], serverError?: string | null }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<"ALL" | "PENDING" | "APPROVED">("ALL");
@@ -139,6 +139,14 @@ export default function PlayersClient({ initialPlayers, teams }: { initialPlayer
                         Add Manual Player
                     </button>
                 </div>
+
+                {serverError && (
+                    <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-xl mb-8 font-mono text-sm">
+                        Database Error: {serverError}
+                        <br/>
+                        <span className="text-zinc-400 text-xs mt-2 block">If the error says "column does not exist", you need to run the ALTER TABLE SQL script in Supabase!</span>
+                    </div>
+                )}
 
                 {/* Filters Row */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

@@ -131,8 +131,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                         </h1>
                         <p className="text-zinc-500 mt-2 tracking-wide text-sm">Varchasva Premier League Season 2</p>
                     </div>
-                    <div className="flex gap-4">
-                        {['hub', 'matches', 'broadcast', 'mvp', 'logs'].map(t => (
+                    <div className="flex gap-4 flex-wrap">
+                        {['hub', 'matches', 'broadcast', 'mvp', 'teams', 'logs'].map(t => (
                             <button
                                 key={t}
                                 onClick={() => setTab(t as Tab)}
@@ -325,6 +325,54 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                         >
                             UPDATE MVP
                         </button>
+                    </div>
+                )}
+
+                {tab === "teams" && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                        <h2 className="text-xl font-black tracking-widest mb-6">Manage Teams</h2>
+                        
+                        <form className="bg-black border border-zinc-800 rounded-xl p-4 mb-8 flex gap-4" onSubmit={(e) => {
+                            e.preventDefault();
+                            const target = e.target as any;
+                            handleAction("/api/squads", { 
+                                action: "create_team", 
+                                name: target.name.value, 
+                                shortName: target.shortName.value, 
+                                color: target.color.value, 
+                                groupId: target.groupId.value 
+                            }, () => window.location.reload());
+                        }}>
+                            <input name="name" type="text" placeholder="Team Name" className="flex-[2] bg-zinc-900 border border-zinc-800 rounded px-3" required />
+                            <input name="shortName" type="text" placeholder="Short (e.g. CSK)" className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3" required />
+                            <input name="color" type="color" className="w-12 h-10 bg-zinc-900 border border-zinc-800 rounded px-1" required />
+                            <select name="groupId" className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3">
+                                <option value="A">Group A</option>
+                                <option value="B">Group B</option>
+                                <option value="C">Group C</option>
+                            </select>
+                            <button type="submit" className="bg-amber-500 text-black font-bold px-6 rounded hover:bg-amber-400">CREATE</button>
+                        </form>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {initialTeams.map(t => (
+                                <div key={t.id} className="bg-black border border-zinc-800 rounded-xl p-4 flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: t.color }} />
+                                        <div>
+                                            <p className="font-bold">{t.name}</p>
+                                            <p className="text-xs text-zinc-500">{t.shortName} | Group {t.groupId}</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleAction("/api/squads", { action: "delete_team", teamId: t.id }, () => window.location.reload())}
+                                        className="text-red-500 text-xs font-bold hover:underline"
+                                    >
+                                        DELETE
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
