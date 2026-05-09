@@ -6,7 +6,7 @@ import { Trophy, Zap, Target, BarChart3, ChevronDown, ChevronUp, Loader2 } from 
 import { type LiveMatchState, type Team } from "@/lib/tournament";
 import { calculateAllPlayerStats, getAchievements, type PlayerStats as MVPStats } from "@/lib/mvp";
 
-interface PlayerStats {
+export interface PlayerStats {
     name: string;
     team: string;
     runs: number;
@@ -18,100 +18,16 @@ interface PlayerStats {
     ballsBowled: number;
     strikeRate: number;
     economy: number;
+    catches?: number;
+    stumpings?: number;
+    runOuts?: number;
 }
 
-export default function StatsClient({ teams }: { teams: Team[] }) {
-    const [liveStates, setLiveStates] = useState<Record<string, LiveMatchState>>({});
-    const [loading, setLoading] = useState(true);
+export default function StatsClient({ teams, initialStats, initialMvpState }: { teams: Team[], initialStats: PlayerStats[], initialMvpState: { player: string | null, published: boolean } }) {
+    const [mvpState] = useState(initialMvpState);
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-    const [mvpState, setMvpState] = useState<{ player: string | null, published: boolean }>({ player: null, published: false });
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [scoresRes, mvpRes] = await Promise.all([
-                    fetch("/api/live-score/all"),
-                    fetch("/api/mvp")
-                ]);
-
-                if (scoresRes.ok) {
-                    const data = await scoresRes.json();
-                    setLiveStates(data);
-                }
-                if (mvpRes.ok) {
-                    const data = await mvpRes.json();
-                    setMvpState(data);
-                }
-            } catch (e) {
-                console.error("Failed to fetch stats:", e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, []);
-
-    const aggregatedStats = useMemo(() => {
-        const statsMap: Record<string, PlayerStats> = {};
-
-        Object.values(liveStates).forEach(match => {
-            match.timeline.forEach(ball => {
-                // Batsman Stats
-                if (!statsMap[ball.striker]) {
-                    statsMap[ball.striker] = {
-                        name: ball.striker,
-                        team: ball.innings === 1 ? match.innings1.teamName : match.innings2.teamName,
-                        runs: 0, balls: 0, fours: 0, sixes: 0,
-                        wickets: 0, runsConceded: 0, ballsBowled: 0,
-                        strikeRate: 0, economy: 0
-                    };
-                }
-                
-                const b = statsMap[ball.striker];
-                // C2 FIX: WD doesn't count for batsman at all.
-                // NB counts runs but NOT balls faced.
-                if (ball.extraType !== "WD" && ball.extraType !== "SWAP" && ball.extraType !== "DB") {
-                    b.runs += ball.runs;
-                    if (ball.extraType !== "NB") b.balls += 1; // NB does NOT count as ball faced
-                    if (ball.runs === 4) b.fours += 1;
-                    if (ball.runs === 6) b.sixes += 1;
-                }
-
-                // Bowler Stats
-                if (!statsMap[ball.bowler]) {
-                    statsMap[ball.bowler] = {
-                        name: ball.bowler,
-                        team: ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName,
-                        runs: 0, balls: 0, fours: 0, sixes: 0,
-                        wickets: 0, runsConceded: 0, ballsBowled: 0,
-                        strikeRate: 0, economy: 0
-                    };
-                }
-                const bw = statsMap[ball.bowler];
-                // Legal balls for bowler overs (WD/NB/DB/SWAP don't count)
-                if (!ball.extraType || (ball.extraType !== "WD" && ball.extraType !== "NB" && ball.extraType !== "DB" && ball.extraType !== "SWAP")) {
-                    bw.ballsBowled += 1;
-                }
-                
-                // Runs conceded (skip DB and SWAP)
-                if (ball.extraType !== "DB" && ball.extraType !== "SWAP") {
-                    bw.runsConceded += (ball.runs + ball.extras);
-                }
-                
-                // Wickets (Exclude run outs from bowler wickets)
-                if (ball.isWicket && ball.wicketType !== "RUNOUT" && ball.wicketType !== "RETIRED_HURT") {
-                    bw.wickets += 1;
-                }
-            });
-        });
-
-        // Calculate rates
-        return Object.values(statsMap).map(s => ({
-            ...s,
-            strikeRate: s.balls > 0 ? (s.runs / s.balls) * 100 : 0,
-            economy: s.ballsBowled > 0 ? (s.runsConceded / (s.ballsBowled / 6)) : 0
-        }));
-    }, [liveStates]);
+    const aggregatedStats = initialStats;
 
     const leaderboards = useMemo(() => {
         return {
@@ -126,36 +42,36 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
                 .sort((a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded),
             economy: [...aggregatedStats]
                 .filter(p => p.ballsBowled >= 18) // 3 overs
-                .sort((a, b) => a.economy - b.economy)
+                .sort((a, b) => a.economy - b.economy),
+            catches: [...aggregatedStats]
+                .filter(p => (p.catches || 0) > 0)
+                .sort((a, b) => (b.catches || 0) - (a.catches || 0)),
+            stumpings: [...aggregatedStats]
+                .filter(p => (p.stumpings || 0) > 0)
+                .sort((a, b) => (b.stumpings || 0) - (a.stumpings || 0)),
         };
     }, [aggregatedStats]);
 
-    if (loading) {
-        return (
-            <div className="h-screen flex flex-col items-center justify-center bg-black">
-                <Loader2 className="w-12 h-12 text-amber-500 animate-spin mb-4" />
-                <p className="text-zinc-500 font-bold tracking-[0.3em] text-[10px] uppercase">Compiling Tournament Data</p>
-            </div>
-        );
-    }
+
 
     const categories = [
         { id: "runs", title: "Highest Runs", icon: Trophy, data: leaderboards.runs, unit: "Runs", sub: "Min 15 balls" },
         { id: "strikeRate", title: "Best Strike Rate", icon: Zap, data: leaderboards.strikeRate, unit: "SR", sub: "Min 15 balls" },
         { id: "wickets", title: "Most Wickets", icon: Target, data: leaderboards.wickets, unit: "Wkts", sub: "Min 3 overs" },
         { id: "economy", title: "Best Economy", icon: BarChart3, data: leaderboards.economy, unit: "Econ", sub: "Min 3 overs" },
+        { id: "catches", title: "Most Catches", icon: Trophy, data: leaderboards.catches, unit: "C", sub: "Fielders & Keepers" },
+        { id: "stumpings", title: "Most Stumpings", icon: Target, data: leaderboards.stumpings, unit: "St", sub: "Wicketkeepers" },
     ];
 
     const mvpPlayer = useMemo(() => {
         if (!mvpState.published || !mvpState.player) return null;
-        const allStats = calculateAllPlayerStats(liveStates);
-        const player = allStats.find(p => p.name === mvpState.player);
+        const player = initialStats.find(p => p.name === mvpState.player);
         if (!player) return null;
         return {
             ...player,
-            achievements: getAchievements(player)
+            achievements: getAchievements(player as any)
         };
-    }, [mvpState, liveStates]);
+    }, [mvpState, initialStats]);
 
     return (
         <main className="min-h-screen pt-24 pb-20 px-4 md:px-8">
@@ -208,7 +124,7 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
                                             {mvpPlayer.team}
                                         </span>
                                         <span className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] md:text-xs font-bold text-amber-500 tracking-widest uppercase">
-                                            {mvpPlayer.mvpPoints} MVP POINTS
+                                            {(mvpPlayer as any).mvpPoints?.toFixed(1) || "0.0"} MVP POINTS
                                         </span>
                                     </div>
 
@@ -271,7 +187,9 @@ export default function StatsClient({ teams }: { teams: Team[] }) {
                                                         {cat.id === "runs" ? player.runs : 
                                                          cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
                                                          cat.id === "wickets" ? player.wickets :
-                                                         player.economy.toFixed(2)}
+                                                         cat.id === "economy" ? player.economy.toFixed(2) :
+                                                         cat.id === "catches" ? player.catches :
+                                                         player.stumpings}
                                                     </p>
                                                     <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">{cat.unit}</p>
                                                 </div>

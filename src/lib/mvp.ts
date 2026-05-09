@@ -23,6 +23,7 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
     const statsMap: Record<string, PlayerStats> = {};
 
     Object.values(liveStates).forEach(match => {
+        if (match.isFunMatch) return;
         // Track match winner for player bonuses
         const winner = match.winner;
 

@@ -738,7 +738,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                             {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
                                         </div>
                                         <span className="text-[9px] font-black text-zinc-500 font-mono tracking-tighter">
-                                            {(ball.over - 0.1).toFixed(1)}
+                                            {`${Math.floor(ball.over)}.${Math.round((ball.over % 1) * 10) + 1}`}
                                         </span>
                                     </motion.div>
                                 ))}

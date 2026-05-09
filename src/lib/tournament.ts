@@ -30,6 +30,8 @@ export interface Fixture {
     winner: string;    // blank if not played yet
     sortOrder: number;
     isFunMatch?: boolean; // Fun matches are excluded from all standings / stats
+    tossWinner?: string;
+    tossDecision?: string;
 }
 
 // ==========================================
@@ -428,6 +430,55 @@ export function resolveS2Playoffs(
     const getWinner = (stage: Stage) =>
         fixtures.find(f => f.stage === stage)?.winner ?? "";
 
+    // Helper to calculate total NRR for a specific team (Group Stage + Eliminators)
+    const calculateTotalNRR = (teamName: string): number => {
+        let runsScored = 0, runsAgainst = 0;
+        let oversFaced = 0, oversBowled = 0;
+
+        const decimalOversToBalls = (overs: number) => Math.floor(overs) * 6 + Math.round((overs % 1) * 10);
+        const normalize = (s: string) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        fixtures.forEach(f => {
+            if (f.isFunMatch || !f.winner) return;
+            if (f.team1 !== teamName && f.team2 !== teamName) return;
+            if (f.stage === "Qualifier 1" || f.stage === "Qualifier 2" || f.stage === "Final") return;
+
+            const liveMatch = liveStates[String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase()];
+            if (liveMatch && liveMatch.status === "COMPLETED") {
+                const inn1 = liveMatch.innings1;
+                const inn2 = liveMatch.innings2;
+                const isMatch = (innName: string, fixName: string) => normalize(innName).includes(normalize(fixName)) || normalize(fixName).includes(normalize(innName));
+                
+                const t1Score = isMatch(inn1.teamName, teamName) ? inn1 : (isMatch(inn2.teamName, teamName) ? inn2 : null);
+                const t2Score = (t1Score === inn1) ? inn2 : inn1;
+
+                if (t1Score && t2Score) {
+                    runsScored += t1Score.runs;
+                    runsAgainst += t2Score.runs;
+                    const matchOvers = liveMatch.matchOvers || 8;
+                    const ballsFaced = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                    const ballsBowled = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                    oversFaced += ballsFaced / 6;
+                    oversBowled += ballsBowled / 6;
+                }
+            }
+        });
+        
+        const battingRR = oversFaced > 0 ? (runsScored / oversFaced) : 0;
+        const bowlingRR = oversBowled > 0 ? (runsAgainst / oversBowled) : 0;
+        return battingRR - bowlingRR;
+    };
+
+    // Dynamically rank the Eliminator winners based on their total NRR
+    const e1w = getWinner("Eliminator 1");
+    const e2w = getWinner("Eliminator 2");
+    const e3w = getWinner("Eliminator 3");
+    
+    let rankedWinners: string[] = [];
+    if (e1w && e2w && e3w) {
+        rankedWinners = [e1w, e2w, e3w].sort((a, b) => calculateTotalNRR(b) - calculateTotalNRR(a));
+    }
+
     return fixtures.map(f => {
         switch (f.stage) {
             case "Eliminator 1":
@@ -437,17 +488,22 @@ export function resolveS2Playoffs(
             case "Eliminator 3":
                 return { ...f, team1: getTeam(3), team2: getTeam(4) };
             case "Qualifier 1": {
-                const e1w = getWinner("Eliminator 1");
-                const e2w = getWinner("Eliminator 2");
-                return { ...f, team1: e1w || "E1 Winner", team2: e2w || "E2 Winner" };
+                return { 
+                    ...f, 
+                    team1: rankedWinners[0] || e1w || "E1 Winner", 
+                    team2: rankedWinners[1] || e2w || "E2 Winner" 
+                };
             }
             case "Qualifier 2": {
                 const q1f = fixtures.find(x => x.stage === "Qualifier 1");
                 const q1Loser = q1f?.winner
                     ? (q1f.winner === q1f.team1 ? q1f.team2 : q1f.team1)
                     : "Q1 Loser";
-                const e3w = getWinner("Eliminator 3");
-                return { ...f, team1: q1Loser, team2: e3w || "E3 Winner" };
+                return { 
+                    ...f, 
+                    team1: q1Loser, 
+                    team2: rankedWinners[2] || e3w || "E3 Winner" 
+                };
             }
             case "Final": {
                 const q1w = getWinner("Qualifier 1");

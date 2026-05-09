@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { LogOut, Plus, Trash2, Radio, ScrollText, Trophy, RefreshCw } from "lucide-react";
+import { LogOut, Plus, Trash2, Radio, ScrollText, Trophy, RefreshCw, CloudRain, Edit, FileJson, CircleDot, X } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 type Tab = "broadcast" | "matches" | "teams" | "logs" | "mvp";
@@ -29,7 +29,7 @@ export default function AdminPage() {
     // Form states
     const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A" });
     const [newPlayer, setNewPlayer] = useState({ name: "", role: "Batsman", price: "0", teamId: "" });
-    const [newMatch, setNewMatch] = useState({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "" });
+    const [newMatch, setNewMatch] = useState({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false });
 
     // Broadcast state
     const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
@@ -40,6 +40,15 @@ export default function AdminPage() {
     // MVP state
     const [mvpState, setMvpState] = useState<{ player: string | null; published: boolean }>({ player: null, published: false });
     const [mvpInput, setMvpInput] = useState("");
+
+    const [editingMatch, setEditingMatch] = useState<string | null>(null);
+    const [editingJson, setEditingJson] = useState("");
+    const [savingJson, setSavingJson] = useState(false);
+
+    // Toss Logger State
+    const [tossMatch, setTossMatch] = useState<any | null>(null);
+    const [tossWinnerId, setTossWinnerId] = useState("");
+    const [tossDecision, setTossDecision] = useState<"BAT" | "BOWL">("BAT");
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
@@ -128,7 +137,8 @@ export default function AdminPage() {
     }
 
     async function deletePlayer(playerId: string) {
-        if (await apiCall("/api/squads", { action: "delete_player", playerId })) { flash("Player removed"); loadData(); }
+        const r = await apiCall("/api/squads", { action: "delete_player", playerId });
+        if (r.ok) { flash("Player removed"); loadData(); } else flash(`Failed: ${r.error}`);
     }
 
     // ── MATCH ACTIONS ──
@@ -142,7 +152,86 @@ export default function AdminPage() {
 
     async function deleteMatch(matchNo: string) {
         if (!confirm("Delete this match?")) return;
-        if (await apiCall("/api/matches", { action: "delete_match", matchNo })) { flash("Match deleted"); loadData(); }
+        const r = await apiCall("/api/matches", { action: "delete_match", matchNo });
+        if (r.ok) { flash("Match deleted"); loadData(); } else flash(`Failed: ${r.error}`);
+    }
+
+    async function autoGenerateMatches() {
+        if (!confirm("Auto-generate all group stage matches? (This will skip existing matches)")) return;
+        const r = await apiCall("/api/matches", { action: "auto_generate" });
+        if (r.ok) { flash("Matches generated"); loadData(); } else flash(`Failed: ${r.error}`);
+    }
+
+    const [draggedMatchNo, setDraggedMatchNo] = useState<string | null>(null);
+
+    async function handleDropMatch(targetMatchNo: string) {
+        if (!draggedMatchNo || draggedMatchNo === targetMatchNo) return;
+        const r = await apiCall("/api/matches", { action: "swap_sequence", match1: draggedMatchNo, match2: targetMatchNo });
+        if (r.ok) { flash("Match sequence updated"); loadData(); } else flash(`Failed: ${r.error}`);
+        setDraggedMatchNo(null);
+    }
+
+    async function clearMatchWinner(matchNo: string) {
+        if (!confirm(`Clear the winner for ${matchNo}?`)) return;
+        const r = await apiCall("/api/matches", { action: "clear_winner", matchNo });
+        if (r.ok) { flash("Winner cleared"); loadData(); } else flash(`Failed: ${r.error}`);
+    }
+
+    async function abandonMatch(matchNo: string) {
+        if (!confirm(`Abandon ${matchNo}? Points will be split if it's a group stage match.`)) return;
+        const r = await apiCall("/api/matches", { action: "abandon_match", matchNo });
+        if (r.ok) { flash("Match abandoned"); loadData(); } else flash(`Failed: ${r.error}`);
+    }
+
+    async function openLiveStateEditor(matchNo: string) {
+        setEditingMatch(matchNo);
+        setEditingJson("Loading...");
+        const res = await fetch("/api/matches", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "get_live_state", matchNo })
+        });
+        const data = await res.json();
+        if (data.ok && data.liveState) {
+            setEditingJson(JSON.stringify(data.liveState, null, 2));
+        } else {
+            setEditingJson(JSON.stringify({ error: "No live state found for this match" }, null, 2));
+        }
+    }
+
+    async function saveLiveState() {
+        if (!editingMatch) return;
+        setSavingJson(true);
+        try {
+            const parsed = JSON.parse(editingJson);
+            const r = await apiCall("/api/matches", { action: "update_live_state", matchNo: editingMatch, liveState: parsed });
+            if (r.ok) {
+                flash("Live state updated");
+                setEditingMatch(null);
+            } else {
+                flash(`Failed: ${r.error}`);
+            }
+        } catch (e) {
+            flash("Invalid JSON format");
+        }
+        setSavingJson(false);
+    }
+
+    async function saveToss() {
+        if (!tossMatch || !tossWinnerId || !tossDecision) return flash("Missing toss details");
+        const r = await apiCall("/api/matches", { 
+            action: "log_toss", 
+            matchNo: tossMatch.matchNo, 
+            tossWinnerId, 
+            tossDecision 
+        });
+        if (r.ok) {
+            flash("Toss logged successfully");
+            setTossMatch(null);
+            loadData();
+        } else {
+            flash(`Failed: ${r.error}`);
+        }
     }
 
     // ── BROADCAST ACTIONS ──
@@ -305,7 +394,12 @@ export default function AdminPage() {
                                 <div className="space-y-8">
                                     {teams.length >= 2 && (
                                         <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-6">
-                                            <h3 className="text-xs tracking-[0.3em] text-zinc-500 mb-4 uppercase font-bold flex items-center gap-2"><Plus className="w-3 h-3" /> Create Match</h3>
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="text-xs tracking-[0.3em] text-zinc-500 uppercase font-bold flex items-center gap-2"><Plus className="w-3 h-3" /> Create Match</h3>
+                                                <button onClick={autoGenerateMatches} className="px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">
+                                                    AUTO GENERATE
+                                                </button>
+                                            </div>
                                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                                                 <input className={inputCls} placeholder="Match No (e.g. M 1)" value={newMatch.matchNo} onChange={e => setNewMatch(m => ({ ...m, matchNo: e.target.value }))} />
                                                 <input className={inputCls} placeholder="Stage (e.g. Group A, Final)" value={newMatch.stage} onChange={e => setNewMatch(m => ({ ...m, stage: e.target.value }))} />
@@ -319,6 +413,10 @@ export default function AdminPage() {
                                                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                 </select>
                                                 <input className={inputCls} type="datetime-local" value={newMatch.scheduledTime} onChange={e => setNewMatch(m => ({ ...m, scheduledTime: e.target.value }))} />
+                                                <label className="flex items-center gap-2 text-xs text-zinc-400 col-span-2 md:col-span-3">
+                                                    <input type="checkbox" checked={newMatch.isFunMatch} onChange={e => setNewMatch(m => ({ ...m, isFunMatch: e.target.checked }))} className="accent-amber-500 w-4 h-4 rounded bg-white/10 border-white/20 focus:ring-amber-500/50 focus:ring-offset-0" />
+                                                    Exhibition / Fun Match (No points table impact)
+                                                </label>
                                             </div>
                                             <button onClick={createMatch} className={btnPrimary}>CREATE MATCH</button>
                                         </div>
@@ -327,15 +425,42 @@ export default function AdminPage() {
 
                                     <div className="space-y-2">
                                         {matches.map((m: any) => (
-                                            <div key={m.matchNo} className="p-4 border border-white/10 rounded-lg flex justify-between items-center bg-black/20">
-                                                <div>
-                                                    <span className="text-xs text-zinc-500 mr-4 font-mono">{m.matchNo}</span>
-                                                    <span className="text-sm font-bold tracking-wider">{m.team1} vs {m.team2}</span>
-                                                    <span className="text-[10px] text-zinc-600 ml-3 tracking-widest">{m.stage}</span>
+                                            <div 
+                                                key={m.matchNo} 
+                                                draggable
+                                                onDragStart={() => setDraggedMatchNo(m.matchNo)}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={() => handleDropMatch(m.matchNo)}
+                                                className={`p-4 border border-white/10 rounded-lg flex justify-between items-center bg-black/20 cursor-move hover:border-amber-500/30 transition-colors ${draggedMatchNo === m.matchNo ? "opacity-50" : ""}`}
+                                                title="Drag to swap with another match"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex flex-col items-center justify-center opacity-30">
+                                                        <div className="w-1 h-1 bg-white rounded-full mb-0.5"></div>
+                                                        <div className="w-1 h-1 bg-white rounded-full mb-0.5"></div>
+                                                        <div className="w-1 h-1 bg-white rounded-full"></div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs text-zinc-500 mr-4 font-mono">{m.matchNo}</span>
+                                                        <span className="text-sm font-bold tracking-wider">{m.team1} vs {m.team2}</span>
+                                                        <span className="text-[10px] text-zinc-600 ml-3 tracking-widest">{m.stage}</span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className="text-xs tracking-widest text-amber-500">{m.winner || "SCHEDULED"}</span>
-                                                    <button onClick={() => deleteMatch(m.matchNo)} className="text-zinc-800 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                    {m.winner && (
+                                                        <button onClick={() => clearMatchWinner(m.matchNo)} className="text-zinc-800 hover:text-amber-400 transition-colors" title="Clear Winner"><RefreshCw className="w-3.5 h-3.5" /></button>
+                                                    )}
+                                                    {!m.winner && m.status !== "COMPLETED" && (
+                                                        <button onClick={() => abandonMatch(m.matchNo)} className="text-zinc-800 hover:text-blue-400 transition-colors" title="Abandon Match"><CloudRain className="w-3.5 h-3.5" /></button>
+                                                    )}
+                                                    <button onClick={() => {
+                                                        setTossMatch(m);
+                                                        setTossWinnerId("");
+                                                        setTossDecision("BAT");
+                                                    }} className="text-zinc-800 hover:text-yellow-400 transition-colors" title="Log Toss"><CircleDot className="w-3.5 h-3.5" /></button>
+                                                    <button onClick={() => openLiveStateEditor(m.matchNo)} className="text-zinc-800 hover:text-purple-400 transition-colors" title="Edit Raw JSON"><FileJson className="w-3.5 h-3.5" /></button>
+                                                    <button onClick={() => deleteMatch(m.matchNo)} className="text-zinc-800 hover:text-red-400 transition-colors" title="Delete Match"><Trash2 className="w-3.5 h-3.5" /></button>
                                                 </div>
                                             </div>
                                         ))}
@@ -431,6 +556,84 @@ export default function AdminPage() {
                         </div>
                     )}
                 </div>
+
+                {/* LiveState Editor Modal */}
+                {editingMatch && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-zinc-900 border border-white/10 w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col shadow-2xl">
+                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white tracking-tight">Edit LiveState JSON</h3>
+                                    <p className="text-xs tracking-widest text-zinc-500 uppercase font-bold mt-1">Match {editingMatch}</p>
+                                </div>
+                                <button onClick={() => setEditingMatch(null)} className="p-2 text-zinc-500 hover:text-white rounded-lg hover:bg-white/5 transition-colors">
+                                    <LogOut className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-hidden p-6 flex flex-col gap-4">
+                                <p className="text-xs text-amber-500 font-bold bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                    WARNING: This is a raw JSON editor. Editing this data can break the scorer UI and match history if formatted incorrectly. Ensure you know what you are doing before saving.
+                                </p>
+                                <textarea
+                                    value={editingJson}
+                                    onChange={(e) => setEditingJson(e.target.value)}
+                                    className="flex-1 w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-xs font-mono text-zinc-300 focus:outline-none focus:border-purple-500/50 resize-none custom-scrollbar"
+                                    spellCheck={false}
+                                />
+                            </div>
+                            <div className="p-6 border-t border-white/5 flex justify-end gap-3 bg-white/[0.02]">
+                                <button onClick={() => setEditingMatch(null)} className="px-6 py-2.5 rounded-lg text-xs font-bold tracking-wider text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">CANCEL</button>
+                                <button 
+                                    onClick={saveLiveState} 
+                                    disabled={savingJson}
+                                    className="px-6 py-2.5 rounded-lg text-xs font-bold tracking-wider bg-purple-500 text-white hover:bg-purple-600 transition-colors disabled:opacity-50"
+                                >
+                                    {savingJson ? "SAVING..." : "SAVE JSON"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Toss Logger Modal */}
+                {tossMatch && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-2xl flex flex-col shadow-2xl p-6">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 className="text-xl font-bold text-white tracking-tight">Log Toss</h3>
+                                    <p className="text-xs tracking-widest text-zinc-500 uppercase mt-1">Match {tossMatch.matchNo}</p>
+                                </div>
+                                <button onClick={() => setTossMatch(null)} className="text-zinc-500 hover:text-white">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold tracking-widest text-zinc-500 mb-2">TOSS WINNER</label>
+                                    <select className={inputCls} value={tossWinnerId} onChange={(e) => setTossWinnerId(e.target.value)}>
+                                        <option value="">Select Team</option>
+                                        <option value={tossMatch.team1Id}>{tossMatch.team1}</option>
+                                        <option value={tossMatch.team2Id}>{tossMatch.team2}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold tracking-widest text-zinc-500 mb-2">DECISION</label>
+                                    <select className={inputCls} value={tossDecision} onChange={(e) => setTossDecision(e.target.value as any)}>
+                                        <option value="BAT">Bat</option>
+                                        <option value="BOWL">Bowl</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex gap-3">
+                                <button onClick={() => setTossMatch(null)} className="flex-1 py-3 rounded-xl text-xs font-bold tracking-wider text-zinc-400 bg-white/5 hover:bg-white/10 transition-colors">CANCEL</button>
+                                <button onClick={saveToss} className="flex-1 py-3 rounded-xl text-xs font-bold tracking-wider bg-amber-500 text-black hover:bg-amber-400 transition-colors">SAVE TOSS</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </ErrorBoundary>
     );

@@ -1,7 +1,10 @@
 import { unstable_noStore as noStore } from "next/cache";
 import prisma from "./prisma";
-import { Team, Fixture } from "./tournament";
+import { Team, Fixture, LiveMatchState } from "./tournament";
 import { supabase } from "./supabase";
+import Redis from "ioredis";
+
+const redis = new Redis(process.env.REDIS_URL || "");
 
 // Helper to map raw DB rows to internal types
 const mapTeam = (row: any): Team => ({
@@ -120,7 +123,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
   if (season === 2) {
     const { data: matches, error: matchErr } = await supabase
       .from("Match")
-      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId")
+      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId, status, tossWinnerId, tossDecision")
       .order("matchNo", { ascending: true });
     if (matchErr) {
       console.error("Supabase fetchFixtures match error:", matchErr);
@@ -132,7 +135,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       return [];
     }
     type TeamIdRow = { id: string; name: string };
-    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null };
+    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null; status: string; tossWinnerId: string | null; tossDecision: string | null };
     const idToName = new Map<string, string>((teams as TeamIdRow[] || []).map((t: TeamIdRow) => [t.id, t.name]));
     return (matches as MatchRow[] || []).map((m: MatchRow) => ({
       matchNo: m.matchNo,
@@ -140,7 +143,9 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       group: (m as any)["group"] as any,
       team1: idToName.get(m.team1Id) ?? "",
       team2: idToName.get(m.team2Id) ?? "",
-      winner: m.winnerId ? idToName.get(m.winnerId) ?? "" : "",
+      winner: m.status === "ABANDONED" ? "ABANDONED" : (m.winnerId ? idToName.get(m.winnerId) ?? "" : ""),
+      tossWinner: m.tossWinnerId ? idToName.get(m.tossWinnerId) ?? "" : "",
+      tossDecision: m.tossDecision ?? "",
       sortOrder: parseInt(m.matchNo.replace(/[^0-9]/g, "")) || 0,
     }));
   }
@@ -172,4 +177,54 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
     console.error("Prisma fetchFixtures error:", e);
     return [];
   }
+}
+
+/** Fetch all live states from Supabase + Redis */
+export async function fetchAllLiveStates(): Promise<Record<string, LiveMatchState>> {
+  noStore();
+  let liveStates: Record<string, any> = {};
+  const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+
+  try {
+    const { data: matches, error } = await supabase
+      .from('Match')
+      .select('matchNo, liveState, isFunMatch')
+      .not('liveState', 'is', null);
+
+    if (!error && matches) {
+      matches.forEach(m => {
+        const matchId = cleanId(m.matchNo);
+        if (m.liveState) {
+          const state = m.liveState as any;
+          if (m.isFunMatch) state.isFunMatch = true;
+          liveStates[matchId] = state;
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to fetch S2 live states from Supabase", e);
+  }
+
+  try {
+    const keys = await redis.keys('s2:live_match_*');
+    if (keys.length > 0) {
+      const values = await redis.mget(...keys);
+      keys.forEach((key, i) => {
+        const matchId = key.replace('s2:live_match_', '');
+        const data = values[i];
+        if (data) {
+          const parsed = JSON.parse(data);
+          const cid = cleanId(matchId);
+          if (liveStates[cid]?.isFunMatch) {
+            parsed.isFunMatch = true;
+          }
+          liveStates[cid] = parsed;
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to fetch S2 live states from Redis", e);
+  }
+
+  return liveStates;
 }

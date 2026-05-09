@@ -137,6 +137,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [openNonStriker, setOpenNonStriker] = useState("");
     const [openBowler, setOpenBowler] = useState("");
 
+    // Initialize Toss from fixture if available
+    useEffect(() => {
+        if (selectedMatch) {
+            if (selectedMatch.tossWinner) setTossWinner(selectedMatch.tossWinner);
+            if (selectedMatch.tossDecision) setTossDecision(selectedMatch.tossDecision as any);
+        }
+    }, [selectedMatch]);
+
     // Live Engine Local States
     const [isScoringLocked, setIsScoringLocked] = useState(true);
 
@@ -1830,7 +1838,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-[10px] font-mono text-zinc-500">OVER {ball.over.toFixed(1)}</span>
+                                                            <span className="text-[10px] font-mono text-zinc-500">OVER {Math.floor(ball.over)}.{Math.round((ball.over % 1) * 10) + 1}</span>
                                                             {ball.extraType && <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 rounded font-bold">{ball.extraType}</span>}
                                                         </div>
                                                         <p className="text-xs text-zinc-300 font-bold">

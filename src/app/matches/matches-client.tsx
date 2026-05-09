@@ -93,6 +93,11 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const t1Score = getTeamScore(fixture.team1);
         const t2Score = getTeamScore(fixture.team2);
 
+        // Toss info
+        const actualTossWinner = lm?.tossWinner || fixture.tossWinner;
+        const actualTossDecision = lm?.tossDecision || fixture.tossDecision;
+        const tossStr = actualTossWinner && actualTossDecision ? `${actualTossWinner} elected to ${actualTossDecision.toLowerCase()}` : null;
+
         let containerClasses = "relative overflow-hidden rounded-2xl border bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] group block";
         if (isFeaturedKnockout) {
             containerClasses = "relative overflow-hidden rounded-2xl border border-amber-500/40 bg-black/60 backdrop-blur-lg shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-transform hover:scale-[1.02] group block";
@@ -179,6 +184,9 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                     {isCompleted && resultStr && (
                         <p className="text-[9px] text-amber-500/80 font-bold text-center uppercase tracking-wider mt-1 truncate">{resultStr}</p>
                     )}
+                    {!isCompleted && tossStr && (
+                        <p className="text-[9px] text-zinc-500 font-bold text-center uppercase tracking-wider mt-1 truncate">{tossStr}</p>
+                    )}
                 </div>
 
                 {/* Desktop layout (md+) */}
@@ -245,6 +253,13 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             <div className="mt-3 flex flex-col items-center">
                                 <span className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em] bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 text-center max-w-[250px] truncate">
                                     {resultStr}
+                                </span>
+                            </div>
+                        )}
+                        {!isCompleted && tossStr && (
+                            <div className="mt-3 flex flex-col items-center">
+                                <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest bg-white/[0.03] px-3 py-1 rounded-full border border-white/5 text-center max-w-[250px] truncate">
+                                    {tossStr}
                                 </span>
                             </div>
                         )}
