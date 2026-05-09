@@ -4,12 +4,13 @@ import { supabase } from "@/lib/supabase";
 // PATCH /api/admin/players/[accountId] - Update approval, tier, or captaincy
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const body = await req.json();
         const { is_approved, tier, is_captain, team_name } = body;
-        const accountId = params.id;
+        const resolvedParams = await params;
+        const accountId = resolvedParams.id;
 
         const { data, error } = await supabase
             .from("vpl_registrations")
@@ -34,10 +35,11 @@ export async function PATCH(
 // DELETE /api/admin/players/[accountId] - Remove a registrant
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const accountId = params.id;
+        const resolvedParams = await params;
+        const accountId = resolvedParams.id;
 
         // Delete registration first
         await supabase.from("vpl_registrations").delete().eq("account_id", accountId).eq("season", 2);
