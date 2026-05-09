@@ -17,6 +17,7 @@ const links: NavLink[] = [
     { href: "/points", label: "STANDINGS" },
     { href: "/stats", label: "STATS" },
     { href: "/squads", label: "SQUADS" },
+    { href: "/admin", label: "ADMIN" },
 ];
 
 export default function Navbar() {

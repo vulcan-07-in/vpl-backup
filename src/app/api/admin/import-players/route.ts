@@ -26,27 +26,44 @@ export async function POST(req: Request) {
             const accountId = `VAR-${currentIdCounter.toString().padStart(3, '0')}`;
             currentIdCounter++;
 
+            let finalAccountId = accountId;
+
             // 1. Insert into varchasva_accounts
             const { error: accErr } = await supabase
                 .from('varchasva_accounts')
                 .insert({
-                    account_id: accountId,
+                    account_id: finalAccountId,
                     name: player.name,
                     mobile_number: player.mobileNumber
                 });
 
-            if (accErr && accErr.code !== '23505') { // Ignore unique violation if mobile exists
-                console.error("Account Insert Error:", accErr);
-                continue;
+            if (accErr) {
+                if (accErr.code === '23505') { // Unique violation on mobile
+                    const { data: existing } = await supabase
+                        .from('varchasva_accounts')
+                        .select('account_id')
+                        .eq('mobile_number', player.mobileNumber)
+                        .single();
+                    
+                    if (existing) {
+                        finalAccountId = existing.account_id;
+                    } else {
+                        console.error("Failed to find existing account after unique violation", player.mobileNumber);
+                        continue;
+                    }
+                } else {
+                    console.error("Account Insert Error:", accErr);
+                    continue;
+                }
             }
 
             // 2. Insert into vpl_registrations
-            const registrationId = `VPL2-${accountId}`;
+            const registrationId = `VPL2-${finalAccountId}`;
             const { error: regErr } = await supabase
                 .from('vpl_registrations')
                 .insert({
                     registration_id: registrationId,
-                    account_id: accountId,
+                    account_id: finalAccountId,
                     season: 2,
                     team_name: player.teamName || "UNSOLD",
                     role: player.role || "UNKNOWN"
@@ -55,7 +72,7 @@ export async function POST(req: Request) {
             if (regErr) {
                 console.error("Registration Insert Error:", regErr);
             } else {
-                results.push({ accountId, name: player.name, teamName: player.teamName || "UNSOLD", mobileNumber: player.mobileNumber });
+                results.push({ accountId: finalAccountId, name: player.name, teamName: player.teamName || "UNSOLD", mobileNumber: player.mobileNumber });
             }
         }
 

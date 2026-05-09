@@ -15,26 +15,32 @@ export async function GET() {
         if (teamErr) throw new Error(teamErr.message);
 
         const { data: players, error: playerErr } = await supabase
-            .from("Player")
-            .select("id, name, role, price, teamId");
+            .from("vpl_registrations")
+            .select(`
+                account_id,
+                team_name,
+                role,
+                price,
+                varchasva_accounts(name)
+            `)
+            .eq("season", 2);
         if (playerErr) throw new Error(playerErr.message);
 
         // Attach players to their teams
         type TeamRow = { id: string; name: string; shortName: string; color: string; groupId: string };
-        type PlayerRow = { id: string; name: string; role: string; price: number; teamId: string };
         const result = (teams as TeamRow[] || []).map((t: TeamRow) => ({
             id: t.id,
             name: t.name,
             shortName: t.shortName,
             color: t.color,
             groupId: t.groupId,
-            players: (players as PlayerRow[] || [])
-                .filter((p: PlayerRow) => p.teamId === t.id)
-                .map((p: PlayerRow) => ({
-                    id: p.id,
-                    name: p.name,
+            players: (players as any[] || [])
+                .filter((p: any) => p.team_name === t.name)
+                .map((p: any) => ({
+                    id: p.account_id,
+                    name: p.varchasva_accounts?.name || "Unknown",
                     role: p.role,
-                    price: p.price,
+                    price: p.price || 0,
                 })),
         }));
 

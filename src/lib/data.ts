@@ -52,47 +52,69 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
   if (season === 2) {
     // Fetch teams with their IDs for correct FK resolution
     type TeamRow = { id: string; name: string; shortName: string; color: string };
-    type PlayerRow = { name: string; role: string; price: number; teamId: string };
+    
     const { data: teamRows, error: teamErr } = await supabase
       .from("Team")
       .select("id, name, shortName, color")
       .order("name", { ascending: true });
+
     if (teamErr) {
       console.error("Supabase fetchSquads teams error:", teamErr);
       return [];
     }
-    const { data: players, error: playerErr } = await supabase
-      .from("Player")
-      .select("name, role, price, teamId");
-    if (playerErr) {
-      console.error("Supabase fetchSquads players error:", playerErr);
+
+    // Fetch players from the new Varchasva identity tables
+    const { data: registrations, error: regErr } = await supabase
+      .from("vpl_registrations")
+      .select(`
+        team_name,
+        role,
+        varchasva_accounts (
+          name,
+          account_id
+        )
+      `)
+      .eq("season", 2);
+
+    if (regErr) {
+      console.error("Supabase fetchSquads registrations error:", regErr);
       return [];
     }
-
-    // Build id→teamName map for correct FK lookup
-    const idToName = new Map<string, string>(
-      (teamRows as TeamRow[] || []).map((t: TeamRow) => [t.id, t.name])
-    );
 
     const squads = (teamRows as TeamRow[] || []).map((t: TeamRow) => ({
       teamName: t.name,
       shortName: t.shortName,
       color: t.color,
-      players: [] as { name: string; role: string; price: string }[],
+      players: [] as { name: string; role: string; price: string; accountId: string }[],
     }));
-    type SquadEntry = { teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string }[] };
-    const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName, s])) as Record<string, SquadEntry>;
 
-    (players as PlayerRow[] || []).forEach((p: PlayerRow) => {
-      const teamName = idToName.get(p.teamId as string);
-      if (teamName && squadByName[teamName]) {
-        squadByName[teamName].players.push({
-          name: p.name,
-          role: p.role,
-          price: p.price?.toString() ?? "",
+    type SquadEntry = { teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string; accountId: string }[] };
+    const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName.toLowerCase().trim(), s])) as Record<string, SquadEntry>;
+
+    // Add an "UNSOLD" bucket for the auction view
+    const unsoldSquad: SquadEntry = {
+      teamName: "UNSOLD",
+      shortName: "UNS",
+      color: "#71717a",
+      players: []
+    };
+    squadByName["unsold"] = unsoldSquad;
+    squads.push(unsoldSquad);
+
+    (registrations as any[] || []).forEach((reg: any) => {
+      const teamKey = (reg.team_name || "UNSOLD").toLowerCase().trim();
+      const targetSquad = squadByName[teamKey];
+      
+      if (targetSquad) {
+        targetSquad.players.push({
+          name: reg.varchasva_accounts?.name || "Unknown",
+          role: reg.role || "Unknown",
+          price: "0", // Default before auction
+          accountId: reg.varchasva_accounts?.account_id || ""
         });
       }
     });
+
     return squads;
   }
   // Season 1 – Prisma
