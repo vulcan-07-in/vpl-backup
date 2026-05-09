@@ -1530,7 +1530,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 ) : (
                                     Object.entries(
                                         recentTimeline.reduce((acc, ball) => {
-                                            const getOverNum = (o: number) => o === 0 ? 1 : Math.floor(o) + (Math.round(o * 10) % 10 === 0 ? 0 : 1);
+                                            const getOverNum = (o: number) => Math.floor(o) + 1;
                                             const overNum = getOverNum(ball.over);
                                             if (!acc[overNum]) acc[overNum] = [];
                                             acc[overNum].push(ball);
@@ -1543,7 +1543,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 <span className="text-zinc-400 font-bold tracking-widest text-[9px]">{balls.reduce((sum, b) => sum + b.runs + b.extras, 0)} RUNS</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                                                {balls.sort((a, b) => a.over - b.over).map(ball => (
+                                                {balls.sort((a, b) => a.timestamp - b.timestamp).map(ball => (
                                                     <div key={ball.id} className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-sm font-bold text-[10px] ${ball.isWicket ? 'bg-red-500 text-white' : ball.runs >= 4 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 text-zinc-300'}`} title={`${ball.bowler} to ${ball.striker}`}>
                                                         {ball.isWicket ? 'W' : ball.extras > 0 ? `${ball.runs || ''}${ball.extraType}` : ball.runs}
                                                     </div>
