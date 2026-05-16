@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { validateAdminRequest } from "@/lib/auth";
 
 export async function POST(req: Request) {
+    if (!(await validateAdminRequest())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
         const body = await req.json();
         const { name, mobile, role, tier } = body;

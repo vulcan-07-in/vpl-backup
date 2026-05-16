@@ -22,11 +22,15 @@ export async function GET() {
             .eq("season", 2)
             .eq("is_captain", true);
 
+        const { count: teams } = await supabase
+            .from("Team")
+            .select("*", { count: "exact", head: true });
+
         return NextResponse.json({
             registered: registered || 0,
             approved: approved || 0,
             captains: captains || 0,
-            teams: 12
+            teams: teams || 0
         });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });

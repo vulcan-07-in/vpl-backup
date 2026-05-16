@@ -41,15 +41,15 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
     }, [fixtures]);
 
     // Derive group team lists from fixtures
-    const groupTeams: Record<"A" | "B", string[]> = { A: [], B: [] };
+    const groupTeams: Record<"A" | "B" | "C", string[]> = { A: [], B: [], C: [] };
     fixtures.forEach(f => {
-        if (f.group === "A" || f.group === "B") {
+        if (f.group === "A" || f.group === "B" || f.group === "C") {
             if (!groupTeams[f.group].includes(f.team1) && !f.team1.includes("Group") && !f.team1.includes("Pool")) groupTeams[f.group].push(f.team1);
             if (!groupTeams[f.group].includes(f.team2) && !f.team2.includes("Group") && !f.team2.includes("Pool")) groupTeams[f.group].push(f.team2);
         }
     });
 
-    const hasGroupData = groupTeams.A.length > 0 || groupTeams.B.length > 0;
+    const hasGroupData = groupTeams.A.length > 0 || groupTeams.B.length > 0 || groupTeams.C.length > 0;
 
     const formatScheduledTime = (isoString?: string) => {
         if (!isoString) return null;
@@ -345,8 +345,8 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         className="space-y-12"
                     >
                         {hasGroupData && (
-                            <div className="grid grid-cols-2 gap-4">
-                                {(["A", "B"] as const).map(group => (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {(["A", "B", "C"] as const).map(group => (
                                     <motion.div variants={itemVariants} key={group} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4">
                                         <p className="text-[10px] tracking-[0.4em] text-zinc-600 mb-3" style={{ fontFamily: "var(--font-body)" }}>
                                             GROUP {group}

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { validateAdminRequest } from "@/lib/auth";
 
 export async function POST(req: Request) {
+    if (!(await validateAdminRequest())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     try {
         const body = await req.json();
         const { players } = body;
@@ -12,12 +16,18 @@ export async function POST(req: Request) {
 
         const results = [];
 
-        // Fetch current count to generate VAR-XXX IDs
-        const { count, error: countErr } = await supabase
+        // Fetch last ID to generate new VAR-XXX IDs
+        const { data: lastAcc } = await supabase
             .from('varchasva_accounts')
-            .select('*', { count: 'exact', head: true });
+            .select('account_id')
+            .order('account_id', { ascending: false })
+            .limit(1);
 
-        let currentIdCounter = (count || 0) + 1;
+        let currentIdCounter = 1;
+        if (lastAcc && lastAcc.length > 0 && lastAcc[0].account_id.startsWith('VAR-')) {
+            const lastNum = parseInt(lastAcc[0].account_id.split('-')[1], 10);
+            if (!isNaN(lastNum)) currentIdCounter = lastNum + 1;
+        }
 
         for (const player of players) {
             if (!player.name || !player.mobileNumber) continue;

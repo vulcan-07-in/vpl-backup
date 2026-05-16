@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabaseBrowser as supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS, calculateMaxBid, getBasePrice } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hammer, Undo2, Ban, Plus, Minus, UserCircle2, Loader2, RefreshCw } from "lucide-react";
@@ -22,7 +22,7 @@ interface Team {
     shortName: string;
 }
 
-export default function AuctioneerClient({ players: initialPlayers, teams }: { players: Player[], teams: Team[] }) {
+export default function AuctioneerClient({ players: initialPlayers, teams, initialPurses }: { players: Player[], teams: Team[], initialPurses: Record<string, number> }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
     const [selectedSet, setSelectedSet] = useState<string>("MARQUEE");
@@ -65,7 +65,8 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
             const roster = players.filter(p => p.teamName === t.name);
             const spent = roster.reduce((sum, p) => sum + p.price, 0);
             const count = roster.length;
-            const currentPurse = AUCTION_CONSTANTS.MAX_BUDGET - spent;
+            const startingPurse = initialPurses[t.id] ?? AUCTION_CONSTANTS.MAX_BUDGET;
+            const currentPurse = startingPurse - spent;
             // Get minimum base price for dynamic ceiling calculation
             const minBasePrice = Math.min(...Object.values(AUCTION_CONSTANTS.BASE_PRICES));
             const maxBid = calculateMaxBid(currentPurse, count, minBasePrice);
@@ -73,7 +74,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
             stats[t.id] = { spent, count, currentPurse, maxBid };
         });
         return stats;
-    }, [players, teams]);
+    }, [players, teams, initialPurses]);
 
     const performAction = async (action: string, payload: any = {}) => {
         setLoadingAction(action);

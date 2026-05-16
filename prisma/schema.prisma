@@ -13,6 +13,7 @@ model Team {
   shortName String
   color     String   @default("#FFFFFF")
   groupId   String   // e.g. "A" or "B"
+  purse     Int      @default(10000)
   players   Player[]
   
   homeMatches Match[] @relation("Team1")
@@ -79,8 +80,29 @@ model VplRegistration {
   season         Int
   teamName       String
   role           String?
+  tier           String?
+  is_approved    Boolean            @default(false)
+  is_captain     Boolean            @default(false)
+  price          Int                @default(0)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
   @@unique([accountId, season])
+}
+
+model vpl_auction_state {
+  id               Int      @id @default(1)
+  status           String
+  active_player_id String?
+  current_bid      Int      @default(0)
+  leading_team_id  String?
+  last_update      DateTime @default(now())
+}
+
+model vpl_auction_history {
+  id         Int      @id @default(autoincrement())
+  player_id  String
+  team_id    String
+  bid_amount Int
+  timestamp  DateTime @default(now())
 }

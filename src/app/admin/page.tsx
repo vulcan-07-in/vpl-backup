@@ -1,4 +1,4 @@
-import { fetchTeams } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import AdminClient from "./admin-client";
 import { Metadata } from "next";
 
@@ -10,7 +10,10 @@ export const metadata: Metadata = {
 
 export default async function AdminPage() {
     // We fetch teams on the server to pass down for Match creation
-    const teams = await fetchTeams(2);
+    const { data: teams } = await supabase
+        .from("Team")
+        .select("id, name, shortName, color, groupId")
+        .order("name", { ascending: true });
 
-    return <AdminClient initialTeams={teams} />;
+    return <AdminClient initialTeams={teams || []} />;
 }

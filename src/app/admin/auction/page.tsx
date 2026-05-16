@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import AuctioneerClient from "./auctioneer-client";
 import { Metadata } from "next";
+import Redis from "ioredis";
+import { teamPursesKey } from "@/lib/redis-keys";
 
 export const revalidate = 0;
 export const metadata: Metadata = {
@@ -38,5 +40,14 @@ export default async function AdminAuctionPage() {
         price: p.price || 0
     }));
 
-    return <AuctioneerClient players={formattedPlayers} teams={teams || []} />;
+    // 3. Fetch custom purses
+    const redis = new Redis(process.env.REDIS_URL || "");
+    const pursesStr = await redis.hgetall(teamPursesKey());
+    const initialPurses: Record<string, number> = {};
+    for (const [teamId, purse] of Object.entries(pursesStr)) {
+        initialPurses[teamId] = parseInt(purse, 10);
+    }
+    redis.disconnect();
+
+    return <AuctioneerClient players={formattedPlayers} teams={teams || []} initialPurses={initialPurses} />;
 }

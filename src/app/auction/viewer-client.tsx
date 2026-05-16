@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabaseBrowser as supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Coins, Trophy, Hammer } from "lucide-react";
@@ -22,7 +22,7 @@ interface Team {
     shortName: string;
 }
 
-export default function ViewerClient({ teams, players: initialPlayers }: { teams: Team[], players: Player[] }) {
+export default function ViewerClient({ teams, players: initialPlayers, initialPurses }: { teams: Team[], players: Player[], initialPurses: Record<string, number> }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
 
@@ -63,10 +63,11 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
             const roster = players.filter(p => p.teamName === t.name);
             const spent = roster.reduce((sum, p) => sum + p.price, 0);
             const count = roster.length;
-            stats[t.id] = { spent, count, currentPurse: AUCTION_CONSTANTS.MAX_BUDGET - spent };
+            const startingPurse = initialPurses[t.id] ?? AUCTION_CONSTANTS.MAX_BUDGET;
+            stats[t.id] = { spent, count, currentPurse: startingPurse - spent };
         });
         return stats;
-    }, [players, teams]);
+    }, [players, teams, initialPurses]);
 
     const leadingTeam = useMemo(() => teams.find(t => t.id === auctionState.leading_team_id), [teams, auctionState.leading_team_id]);
 

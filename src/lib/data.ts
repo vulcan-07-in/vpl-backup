@@ -4,7 +4,9 @@ import { Team, Fixture, LiveMatchState } from "./tournament";
 import { supabase } from "./supabase";
 import Redis from "ioredis";
 
-const redis = new Redis(process.env.REDIS_URL || "");
+const globalForRedis = global as unknown as { redis: Redis };
+const redis = globalForRedis.redis || new Redis(process.env.REDIS_URL || "");
+if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
 // Helper to map raw DB rows to internal types
 const mapTeam = (row: any): Team => ({
@@ -91,15 +93,9 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
     type SquadEntry = { teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string; accountId: string }[] };
     const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName.toLowerCase().trim(), s])) as Record<string, SquadEntry>;
 
-    // Add an "UNSOLD" bucket for the auction view
-    const unsoldSquad: SquadEntry = {
-      teamName: "UNSOLD",
-      shortName: "UNS",
-      color: "#71717a",
-      players: []
-    };
-    squadByName["unsold"] = unsoldSquad;
-    squads.push(unsoldSquad);
+    // Note: UNSOLD players are not shown in the public squads view
+    // squadByName["unsold"] = unsoldSquad;
+    // squads.push(unsoldSquad);
 
     (registrations as any[] || []).forEach((reg: any) => {
       const teamKey = (reg.team_name || "UNSOLD").toLowerCase().trim();

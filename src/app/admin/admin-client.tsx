@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins } from "lucide-react";
 
 type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "logs";
 
@@ -11,6 +12,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
     
     const [tab, setTab] = useState<Tab>("hub");
     const [stats, setStats] = useState({ registered: 0, approved: 0, captains: 0 });
@@ -36,7 +38,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
         }
     }, [authenticated]);
 
-    const fetchMatches = () => fetch("/api/matches").then(res => res.json()).then(setMatches);
+    const fetchMatches = () => fetch("/api/admin/matches").then(res => res.json()).then(setMatches);
     const fetchLogs = () => fetch("/api/logs").then(res => res.json()).then(setLogs);
 
     useEffect(() => {
@@ -183,6 +185,15 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 <p className="text-zinc-500 text-sm leading-relaxed mb-8">The command center for draft day. Draw random players by tier, execute bids, and finalize sales with automated dynamic purse enforcement.</p>
                                 <div className="flex items-center text-xs font-bold text-amber-500 tracking-widest gap-2">
                                     START AUCTION <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </Link>
+
+                            <Link href="/admin/purse" className="group bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 rounded-3xl p-8 transition-all relative overflow-hidden block">
+                                <Coins className="text-amber-500 mb-6 w-12 h-12" />
+                                <h2 className="text-2xl font-black tracking-widest mb-2">TEAM PURSE SETUP</h2>
+                                <p className="text-zinc-500 text-sm leading-relaxed mb-8">Configure custom starting budgets for each team before the draft begins.</p>
+                                <div className="flex items-center text-xs font-bold text-amber-500 tracking-widest gap-2">
+                                    OPEN PURSES <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
                                 </div>
                             </Link>
 
@@ -341,7 +352,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 shortName: target.shortName.value, 
                                 color: target.color.value, 
                                 groupId: target.groupId.value 
-                            }, () => window.location.reload());
+                            }, () => router.refresh());
                         }}>
                             <input name="name" type="text" placeholder="Team Name" className="flex-[2] bg-zinc-900 border border-zinc-800 rounded px-3" required />
                             <input name="shortName" type="text" placeholder="Short (e.g. CSK)" className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3" required />
@@ -365,8 +376,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                         </div>
                                     </div>
                                     <button 
-                                        onClick={() => handleAction("/api/squads", { action: "delete_team", teamId: t.id }, () => window.location.reload())}
-                                        className="text-red-500 text-xs font-bold hover:underline"
+                                        onClick={() => handleAction("/api/squads", { action: "delete_team", teamId: t.id }, () => router.refresh())}
+                                        className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white p-2 rounded transition-colors"
                                     >
                                         DELETE
                                     </button>
