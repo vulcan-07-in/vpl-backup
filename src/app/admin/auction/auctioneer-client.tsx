@@ -76,16 +76,23 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
         return stats;
     }, [players, teams, initialPurses]);
 
-    const performAction = async (action: string, payload: any = {}) => {
+    const performAction = async (action: string, payload: any = {}): Promise<boolean> => {
         setLoadingAction(action);
         try {
-            await fetch('/api/admin/auction/action', {
+            const res = await fetch('/api/admin/auction/action', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action, payload })
             });
-        } catch (e) {
-            console.error(e);
+            if (!res.ok) {
+                const data = await res.json();
+                alert(`❌ ${action} failed: ${data.error || 'Unknown error'}`);
+                return false;
+            }
+            return true;
+        } catch (e: any) {
+            alert(`❌ Network error: ${e.message}`);
+            return false;
         } finally {
             setLoadingAction(null);
         }
@@ -110,18 +117,36 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     };
 
     const handleBid = (teamId: string) => {
+        if (!activePlayer) return;
         const team = teamStats[teamId];
-        const nextBid = auctionState.current_bid === 0 ? getBasePrice(activePlayer?.tier) : auctionState.current_bid + 100;
+        const nextBid = auctionState.current_bid === 0 
+            ? getBasePrice(activePlayer?.tier) 
+            : auctionState.current_bid + 100;
 
         if (nextBid > team.maxBid) {
-            alert("Dynamic Ceiling Reached! Team does not have budget for this bid.");
+            alert(`❌ ${teams.find(t => t.id === teamId)?.name}: Dynamic Ceiling Reached! Max bid is ${team.maxBid}.`);
             return;
         }
         if (team.count >= AUCTION_CONSTANTS.MAX_PLAYERS) {
-            alert("Roster is full!");
+            alert(`❌ Roster full!`);
             return;
         }
 
+        performAction('BID', { amount: nextBid, teamId });
+    };
+
+    const handleBidIncrement = (delta: number) => {
+        if (!auctionState.leading_team_id) {
+            alert("No team is leading. Click a team paddle first.");
+            return;
+        }
+        const teamId = auctionState.leading_team_id;
+        const team = teamStats[teamId];
+        const nextBid = auctionState.current_bid + delta;
+        if (nextBid > team.maxBid) {
+            alert(`❌ ${teams.find(t => t.id === teamId)?.name}: Ceiling Reached! Max bid is ${team.maxBid}.`);
+            return;
+        }
         performAction('BID', { amount: nextBid, teamId });
     };
 
@@ -129,16 +154,21 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
         const val = prompt("Enter custom bid amount:");
         if (val && !isNaN(parseInt(val))) {
             const amount = parseInt(val);
-            if (auctionState.leading_team_id) {
-                const team = teamStats[auctionState.leading_team_id];
-                if (amount > team.maxBid) {
-                    alert("Exceeds Dynamic Ceiling!");
-                    return;
-                }
-                performAction('BID', { amount, teamId: auctionState.leading_team_id });
-            } else {
+            if (!auctionState.leading_team_id) {
                 alert("Select a team first by clicking their paddle.");
+                return;
             }
+            const teamId = auctionState.leading_team_id;
+            const team = teamStats[teamId];
+            if (amount <= auctionState.current_bid) {
+                alert(`Bid must be greater than current bid of ${auctionState.current_bid}`);
+                return;
+            }
+            if (amount > team.maxBid) {
+                alert(`❌ Exceeds ceiling of ${team.maxBid}!`);
+                return;
+            }
+            performAction('BID', { amount, teamId });
         }
     };
 
@@ -214,14 +244,14 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                                     <div className="flex flex-col justify-end gap-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <button 
-                                                onClick={() => performAction('BID', { amount: auctionState.current_bid + 100, teamId: auctionState.leading_team_id })}
+                                                onClick={() => handleBidIncrement(100)}
                                                 disabled={!auctionState.leading_team_id}
                                                 className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 py-4 rounded-xl font-bold text-xl transition-colors"
                                             >
                                                 + 100
                                             </button>
                                             <button 
-                                                onClick={() => performAction('BID', { amount: auctionState.current_bid + 500, teamId: auctionState.leading_team_id })}
+                                                onClick={() => handleBidIncrement(500)}
                                                 disabled={!auctionState.leading_team_id}
                                                 className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 py-4 rounded-xl font-bold text-xl transition-colors"
                                             >
@@ -267,14 +297,23 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                         )}
                     </AnimatePresence>
 
-                    {/* Undo Bar */}
-                    <div className="flex justify-end">
+                    {/* Undo + Reset Bar */}
+                    <div className="flex justify-between items-center">
+                        <button 
+                            onClick={() => {
+                                if (confirm("Emergency reset: Clear the current auction block?")) performAction('RESET');
+                            }}
+                            disabled={auctionState.status === 'IDLE'}
+                            className="text-red-500/60 hover:text-red-400 flex items-center gap-2 text-xs font-bold tracking-widest transition-colors disabled:opacity-30"
+                        >
+                            ⚠️ EMERGENCY RESET
+                        </button>
                         <button 
                             onClick={() => performAction('UNDO')}
                             disabled={loadingAction === 'UNDO' || auctionState.status !== 'IDLE'}
                             className="text-zinc-500 hover:text-white flex items-center gap-2 text-xs font-bold tracking-widest transition-colors disabled:opacity-50"
                         >
-                            <Undo2 size={14} /> UNDO LAST ACTION
+                            <Undo2 size={14} /> UNDO LAST SALE
                         </button>
                     </div>
                 </div>

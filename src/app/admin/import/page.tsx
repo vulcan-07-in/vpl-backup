@@ -8,6 +8,7 @@ export default function ImportPlayersPage() {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<any[]>([]);
     const [error, setError] = useState("");
+    const [overwriteMode, setOverwriteMode] = useState(true); // default ON since sample data exists
     
     // Column Mapping State
     const [headers, setHeaders] = useState<string[]>([]);
@@ -36,6 +37,10 @@ export default function ImportPlayersPage() {
             return;
         }
 
+        if (overwriteMode && !confirm(`⚠️ OVERWRITE MODE: This will DELETE all existing Season 2 player data and re-import ${csvText.split('\n').length - 1} rows. This cannot be undone. Proceed?`)) {
+            return;
+        }
+
         setError("");
         setLoading(true);
         setResults([]);
@@ -61,7 +66,7 @@ export default function ImportPlayersPage() {
             const res = await fetch("/api/admin/import-players", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ players: processedData })
+                body: JSON.stringify({ players: processedData, overwrite: overwriteMode })
             });
 
             const data = await res.json();
@@ -100,6 +105,20 @@ export default function ImportPlayersPage() {
                             <p className="text-xs text-zinc-500 mb-4">
                                 Paste directly from Google Sheets/Excel. Include the header row.
                             </p>
+
+                            <div className={`flex items-start gap-3 p-4 rounded-xl mb-4 border ${overwriteMode ? 'bg-red-500/10 border-red-500/30' : 'bg-zinc-800 border-zinc-700'}`}>
+                                <input
+                                    type="checkbox"
+                                    id="overwriteCheck"
+                                    checked={overwriteMode}
+                                    onChange={e => setOverwriteMode(e.target.checked)}
+                                    className="mt-0.5 w-4 h-4 accent-red-500"
+                                />
+                                <label htmlFor="overwriteCheck" className="text-sm cursor-pointer">
+                                    <span className={`font-black tracking-widest ${overwriteMode ? 'text-red-400' : 'text-zinc-400'}`}>OVERWRITE MODE</span>
+                                    <span className="text-zinc-500 ml-2 text-xs">{overwriteMode ? '— Deletes ALL existing players and re-imports. Use when replacing sample data.' : '— Appends to existing data.'}</span>
+                                </label>
+                            </div>
                             
                             <textarea 
                                 className="w-full h-64 bg-black border border-zinc-800 rounded-xl p-4 text-sm font-mono text-zinc-300 focus:border-amber-500 focus:outline-none transition-colors mb-4"

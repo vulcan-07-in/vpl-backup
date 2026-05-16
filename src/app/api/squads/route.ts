@@ -69,6 +69,7 @@ export async function POST(request: Request) {
                 shortName: payload.shortName,
                 color: payload.color || "#FFFFFF",
                 groupId: payload.groupId || "A",
+                purse: payload.purse || 10000,
                 createdAt: now,
                 updatedAt: now,
             }).select("id").single();

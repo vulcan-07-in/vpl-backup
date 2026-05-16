@@ -9,10 +9,18 @@ type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "logs";
 
 export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [authenticated, setAuthenticated] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+
+    // Check if already authenticated via cookie on mount
+    useEffect(() => {
+        fetch("/api/admin/check")
+            .then(res => { if (res.ok) setAuthenticated(true); })
+            .finally(() => setCheckingAuth(false));
+    }, []);
     
     const [tab, setTab] = useState<Tab>("hub");
     const [stats, setStats] = useState({ registered: 0, approved: 0, captains: 0 });
@@ -64,8 +72,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
         }
     }
 
-    async function handleAction(endpoint: string, payload: any, refreshFn?: () => void) {
-        if (!confirm("Are you sure?")) return;
+    async function handleAction(endpoint: string, payload: any, refreshFn?: () => void, skipConfirm = false) {
+        if (!skipConfirm && !confirm("Are you sure?")) return;
         try {
             const res = await fetch(endpoint, {
                 method: "POST",
@@ -73,14 +81,22 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                 body: JSON.stringify(payload),
             });
             if (!res.ok) {
-                const text = await res.text();
-                alert("Error: " + text);
+                const data = await res.json().catch(() => ({ error: res.statusText }));
+                alert("❌ Error: " + (data.error || res.statusText));
             } else {
                 if (refreshFn) refreshFn();
             }
         } catch (e: any) {
-            alert(e.message);
+            alert("❌ " + e.message);
         }
+    }
+
+    if (checkingAuth) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#020202]">
+                <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
     }
 
     if (!authenticated) {
