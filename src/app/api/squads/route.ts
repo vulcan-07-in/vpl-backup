@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 
 // GET — return teams + players from Supabase (S2)
 export async function GET() {
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
         if (payload.action === "create_team") {
             const now = new Date().toISOString();
             const { data, error } = await supabase.from("Team").insert({
-                id: crypto.randomUUID(),
+                id: randomUUID(),
                 name: payload.name,
                 shortName: payload.shortName,
                 color: payload.color || "#FFFFFF",
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
         if (payload.action === "add_player") {
             const now = new Date().toISOString();
             const { error } = await supabase.from("Player").insert({
-                id: crypto.randomUUID(),
+                id: randomUUID(),
                 name: payload.name,
                 role: payload.role,
                 price: parseInt(payload.price) || 0,

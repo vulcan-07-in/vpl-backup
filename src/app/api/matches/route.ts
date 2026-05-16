@@ -3,6 +3,7 @@ import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { fetchFixtures } from "@/lib/data";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 
 // GET — return S2 fixtures from Supabase
 export async function GET() {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
         if (payload.action === "create_match") {
             const now = new Date().toISOString();
             const { error } = await supabase.from("Match").insert({
-                id: crypto.randomUUID(),
+                id: randomUUID(),
                 matchNo: payload.matchNo,
                 stage: payload.stage,
                 group: payload.group || null,
