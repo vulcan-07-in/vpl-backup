@@ -222,6 +222,15 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 </div>
                             </Link>
 
+                            <Link href="/admin/teams" className="group bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 rounded-3xl p-8 transition-all relative overflow-hidden block">
+                                <Trophy className="text-amber-500 mb-6 w-12 h-12" />
+                                <h2 className="text-2xl font-black tracking-widest mb-2">TEAM MANAGEMENT</h2>
+                                <p className="text-zinc-500 text-sm leading-relaxed mb-8">Create teams, edit details, assign colors, and drag & drop between groups.</p>
+                                <div className="flex items-center text-xs font-bold text-amber-500 tracking-widest gap-2">
+                                    MANAGE TEAMS <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </Link>
+
                             <Link href="/admin/import" className="group bg-zinc-900 border border-zinc-800 hover:border-zinc-500 rounded-3xl p-8 transition-all relative overflow-hidden block">
                                 <FileSpreadsheet className="text-zinc-500 mb-6 w-12 h-12" />
                                 <h2 className="text-2xl font-black tracking-widest text-zinc-300 mb-2">DATA IMPORT UTILITY</h2>
