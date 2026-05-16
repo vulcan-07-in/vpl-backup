@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabaseBrowser as supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,10 @@ interface Team {
 export default function ViewerClient({ teams, players: initialPlayers, initialPurses }: { teams: Team[], players: Player[], initialPurses: Record<string, number> }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
+    const [soldEvent, setSoldEvent] = useState<{ player: Player, team: Team, amount: number } | null>(null);
+
+    const playersRef = useRef(players);
+    useEffect(() => { playersRef.current = players; }, [players]);
 
     // Sync state with DB in real-time
     useEffect(() => {
@@ -47,6 +51,15 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                         }));
                     }
                 });
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vpl_auction_history' }, (payload) => {
+                const history = payload.new;
+                const p = playersRef.current.find(pl => pl.accountId === history.player_id);
+                const t = teams.find(tm => tm.id === history.team_id);
+                if (p && t) {
+                    setSoldEvent({ player: p, team: t, amount: history.bid_amount });
+                    setTimeout(() => setSoldEvent(null), 7000); // clear after 7 seconds
+                }
             })
             .subscribe();
 
@@ -88,7 +101,45 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                 </div>
 
                 <AnimatePresence mode="wait">
-                    {activePlayer ? (
+                    {soldEvent ? (
+                        <motion.div 
+                            key={`sold-${soldEvent.player.accountId}`}
+                            initial={{ opacity: 0, scale: 0.5, rotate: -10 }} 
+                            animate={{ opacity: 1, scale: 1, rotate: 0 }} 
+                            exit={{ opacity: 0, y: 100 }}
+                            transition={{ type: "spring", bounce: 0.5 }}
+                            className="relative z-10 w-full max-w-4xl text-center flex flex-col items-center justify-center"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-[-1]" />
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 3 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.2, type: "spring" }}
+                                className="border-8 border-red-500 text-red-500 text-8xl md:text-[150px] font-black tracking-tighter uppercase px-12 py-4 rotate-[-15deg] absolute z-20 shadow-[0_0_50px_rgba(239,68,68,0.5)]"
+                                style={{ top: '20%', backdropFilter: 'blur(10px)' }}
+                            >
+                                SOLD
+                            </motion.div>
+
+                            <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
+                                {soldEvent.player.name.toUpperCase()}
+                            </h1>
+                            
+                            <p className="text-4xl text-zinc-400 mb-12">FOR</p>
+
+                            <div className="text-8xl md:text-[130px] font-black leading-none tracking-tighter font-mono text-emerald-400 drop-shadow-[0_0_30px_rgba(52,211,153,0.3)] mb-12">
+                                {soldEvent.amount}
+                            </div>
+
+                            <div className="inline-flex flex-col items-center gap-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-12 py-6 rounded-3xl shadow-2xl">
+                                <p className="text-zinc-500 font-bold tracking-widest uppercase">To</p>
+                                <div className="flex items-center gap-6">
+                                    <div className="w-8 h-8 rounded-full" style={{ backgroundColor: soldEvent.team.color }} />
+                                    <span className="text-4xl font-bold tracking-wider">{soldEvent.team.name}</span>
+                                </div>
+                            </div>
+                        </motion.div>
+                    ) : activePlayer ? (
                         <motion.div 
                             key={activePlayer.accountId}
                             initial={{ opacity: 0, y: 50, scale: 0.9 }} 

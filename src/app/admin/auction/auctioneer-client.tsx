@@ -27,6 +27,13 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
     const [selectedSet, setSelectedSet] = useState<string>("MARQUEE");
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
+    const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+
+    const fetchHistory = () => {
+        supabase.from('vpl_auction_history').select('*').order('timestamp', { ascending: false }).limit(5).then(({ data }) => {
+            if (data) setHistoryLogs(data);
+        });
+    };
 
     // Sync state with DB in real-time
     useEffect(() => {
@@ -34,6 +41,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
         supabase.from('vpl_auction_state').select('*').eq('id', 1).single().then(({ data }) => {
             if (data) setAuctionState(data);
         });
+        fetchHistory();
 
         const channel = supabase.channel('auction_state')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_auction_state' }, (payload) => {
@@ -49,6 +57,9 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                         }));
                     }
                 });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_auction_history' }, () => {
+                fetchHistory();
             })
             .subscribe();
 
@@ -315,6 +326,36 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                         >
                             <Undo2 size={14} /> UNDO LAST SALE
                         </button>
+                    </div>
+
+                    {/* Recent Sales Log */}
+                    <div className="mt-4 bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4">
+                        <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-4">Recent Sales</h3>
+                        <div className="space-y-2">
+                            {historyLogs.length === 0 ? (
+                                <p className="text-sm text-zinc-600">No sales yet.</p>
+                            ) : (
+                                historyLogs.map(log => {
+                                    const p = players.find(pl => pl.accountId === log.player_id);
+                                    const t = teams.find(tm => tm.id === log.team_id);
+                                    return (
+                                        <div key={log.id} className="flex items-center justify-between bg-black/50 p-3 rounded-lg border border-zinc-800/50">
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-bold">{p?.name || log.player_id}</span>
+                                                <span className="text-[10px] text-zinc-500 px-2 py-0.5 bg-zinc-800 rounded">{p?.tier || 'Unknown'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t?.color || '#555' }} />
+                                                    <span className="text-sm text-zinc-400">{t?.shortName || log.team_id}</span>
+                                                </div>
+                                                <span className="font-mono font-bold text-amber-500">{log.bid_amount}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
                 </div>
 

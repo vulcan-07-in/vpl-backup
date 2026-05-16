@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +32,6 @@ export async function POST(req: Request) {
             }
 
             const { data, error } = await supabase.from("Team").insert({
-                id: randomUUID(),
                 name: name.trim(),
                 shortName: shortName.trim().toUpperCase(),
                 color: color || "#EAB308",
