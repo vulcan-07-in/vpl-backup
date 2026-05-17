@@ -89,6 +89,7 @@ export async function POST(request: Request) {
                 }
             });
             revalidatePath("/squads");
+            revalidatePath("/admin");
             revalidatePath("/points");
             revalidatePath("/");
             return NextResponse.json({ ok: true, teamId: team.id });
@@ -124,6 +125,7 @@ export async function POST(request: Request) {
             }
             
             revalidatePath("/squads");
+            revalidatePath("/admin");
             revalidatePath("/points");
             revalidatePath("/matches");
             revalidatePath("/");
@@ -140,12 +142,14 @@ export async function POST(request: Request) {
                 }
             });
             revalidatePath("/squads");
+            revalidatePath("/admin");
             return NextResponse.json({ ok: true });
         }
 
         if (payload.action === "delete_player") {
             await prisma.player.delete({ where: { id: payload.playerId } });
             revalidatePath("/squads");
+            revalidatePath("/admin");
             return NextResponse.json({ ok: true });
         }
 
@@ -162,6 +166,7 @@ export async function POST(request: Request) {
             });
             await prisma.team.delete({ where: { id: payload.teamId } });
             revalidatePath("/squads");
+            revalidatePath("/admin");
             revalidatePath("/points");
             revalidatePath("/matches");
             revalidatePath("/");
