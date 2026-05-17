@@ -212,6 +212,23 @@ export async function POST(request: Request) {
             const { data: teams, error: teamErr } = await supabase.from("Team").select("id, name, groupId");
             if (teamErr) throw new Error(teamErr.message);
 
+            let tbdTeam = teams.find(t => t.name === "TBD");
+            if (!tbdTeam) {
+                const now = new Date().toISOString();
+                const { data: newTbd, error: tbdErr } = await supabase.from("Team").insert({
+                    name: "TBD",
+                    shortName: "TBD",
+                    color: "#333333",
+                    groupId: "-",
+                    purse: 0,
+                    createdAt: now,
+                    updatedAt: now
+                }).select("id, name, groupId").single();
+                if (tbdErr) throw new Error("Failed to create TBD team: " + tbdErr.message);
+                tbdTeam = newTbd;
+                teams.push(tbdTeam);
+            }
+
             const groupA = teams.filter(t => t.groupId === "A").map(t => t.name);
             const groupB = teams.filter(t => t.groupId === "B").map(t => t.name);
             const groupC = teams.filter(t => t.groupId === "C").map(t => t.name);
@@ -224,14 +241,9 @@ export async function POST(request: Request) {
             const now = new Date().toISOString();
 
             const inserts = generated.map(f => {
-                const team1Id = nameToId.get(f.team1) || null;
-                const team2Id = nameToId.get(f.team2) || null;
-                // If it's a knockout match, team1Id might be null because it's a placeholder like "Seed 1".
-                // In Supabase schema, team1Id and team2Id are required String fields pointing to Team.
-                // We cannot insert null! We must create placeholder teams or skip them.
-                // Wait! S2 knockouts have actual placeholder teams?
-                // No, in S1 they probably created placeholder teams or allowed null.
-                // Let's check schema: team1Id String. Not optional!
+                const team1Id = nameToId.get(f.team1) || tbdTeam?.id;
+                const team2Id = nameToId.get(f.team2) || tbdTeam?.id;
+                
                 return {
                     id: crypto.randomUUID(),
                     matchNo: f.matchNo,
@@ -244,7 +256,7 @@ export async function POST(request: Request) {
                     createdAt: now,
                     updatedAt: now,
                 };
-            }).filter(m => m.team1Id && m.team2Id); // Only insert matches where both teams are known
+            }).filter(m => m.team1Id && m.team2Id); // This will now include knockouts because of TBD fallback
 
             if (inserts.length > 0) {
                 const { error } = await supabase.from("Match").insert(inserts);

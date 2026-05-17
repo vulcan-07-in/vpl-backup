@@ -28,6 +28,10 @@ export async function POST(request: Request) {
         await redis.del('s2:vpl_notifications');
         await redis.del('s2:vpl_mvp_state_v1');
 
+        // 4. Clear Supabase Match liveState backup
+        const { supabase } = await import("@/lib/supabase");
+        await supabase.from("Match").update({ liveState: null }).neq("matchNo", "");
+
         // 4. Optional: Clear session tokens to force re-login? 
         // No, let's keep it to data for now.
 

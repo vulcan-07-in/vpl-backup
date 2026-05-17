@@ -11,6 +11,8 @@ const NAV_ITEMS = [
     { href: "/points", label: "STANDINGS" },
     { href: "/stats", label: "VIEW STATS" },
     { href: "/squads", label: "VIEW SQUADS" },
+    { href: "/auction", label: "LIVE AUCTION" },
+    { href: "/admin", label: "ADMIN HUB" },
 ];
 
 export default function HomeClient({ champion }: { champion: { name: string; color: string } | null }) {

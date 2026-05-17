@@ -83,6 +83,15 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       return [];
     }
 
+    // Fetch manual admin additions from Player table
+    const { data: manualPlayers, error: manualErr } = await supabase
+      .from("Player")
+      .select("id, name, role, price, teamId");
+
+    if (manualErr) {
+      console.error("Supabase fetchSquads manual players error:", manualErr);
+    }
+
     const squads = (teamRows as TeamRow[] || []).map((t: TeamRow) => ({
       teamName: t.name,
       shortName: t.shortName,
@@ -92,10 +101,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
 
     type SquadEntry = { teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string; accountId: string }[] };
     const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName.toLowerCase().trim(), s])) as Record<string, SquadEntry>;
-
-    // Note: UNSOLD players are not shown in the public squads view
-    // squadByName["unsold"] = unsoldSquad;
-    // squads.push(unsoldSquad);
+    const squadByTeamId = Object.fromEntries((teamRows as TeamRow[] || []).map((t) => [t.id, squadByName[t.name.toLowerCase().trim()]]));
 
     (registrations as any[] || []).forEach((reg: any) => {
       const teamKey = (reg.team_name || "UNSOLD").toLowerCase().trim();
@@ -107,6 +113,18 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
           role: reg.role || "Unknown",
           price: "0", // Default before auction
           accountId: reg.varchasva_accounts?.account_id || ""
+        });
+      }
+    });
+
+    (manualPlayers as any[] || []).forEach((p: any) => {
+      const targetSquad = squadByTeamId[p.teamId];
+      if (targetSquad) {
+        targetSquad.players.push({
+          name: p.name,
+          role: p.role,
+          price: p.price?.toString() || "0",
+          accountId: p.id // Use player ID as account ID for manual players
         });
       }
     });

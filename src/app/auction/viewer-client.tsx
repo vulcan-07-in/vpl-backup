@@ -33,7 +33,7 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
     // Sync state with DB in real-time
     useEffect(() => {
         // Initial fetch
-        supabase.from('vpl_auction_state').select('*').eq('id', 1).single().then(({ data }) => {
+        supabase.from('vpl_auction_state').select('*').eq('id', 1).maybeSingle().then(({ data }) => {
             if (data) setAuctionState(data);
         });
 

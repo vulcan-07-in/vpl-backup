@@ -20,7 +20,7 @@ export async function POST(req: Request) {
         const { action, payload } = body;
 
         // Fetch current state
-        const { data: stateData } = await supabase.from('vpl_auction_state').select('*').eq('id', 1).single();
+        const { data: stateData } = await supabase.from('vpl_auction_state').select('*').eq('id', 1).maybeSingle();
         const state = stateData || { id: 1, status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null };
 
         switch (action) {

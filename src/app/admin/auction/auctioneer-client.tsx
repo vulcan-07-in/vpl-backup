@@ -38,7 +38,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     // Sync state with DB in real-time
     useEffect(() => {
         // Initial fetch
-        supabase.from('vpl_auction_state').select('*').eq('id', 1).single().then(({ data }) => {
+        supabase.from('vpl_auction_state').select('*').eq('id', 1).maybeSingle().then(({ data }) => {
             if (data) setAuctionState(data);
         });
         fetchHistory();
