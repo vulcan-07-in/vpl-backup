@@ -1,6 +1,6 @@
 import AdminClient from "./admin-client";
 import { Metadata } from "next";
-import prisma from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 export const revalidate = 0;
 
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 
 export default async function AdminPage() {
     // We fetch teams on the server to pass down for Match creation
-    const teams = await prisma.team.findMany({
-        select: { id: true, name: true, shortName: true, color: true, groupId: true },
-        orderBy: { name: 'asc' }
-    });
+    const { data: teams } = await supabase
+        .from("Team")
+        .select("id, name, shortName, color, groupId")
+        .order("name", { ascending: true });
 
     return <AdminClient initialTeams={teams || []} />;
 }
