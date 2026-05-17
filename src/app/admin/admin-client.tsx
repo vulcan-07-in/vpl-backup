@@ -36,6 +36,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     // MVP & Logs
     const [mvpState, setMvpState] = useState<{ player: string | null; published: boolean }>({ player: null, published: false });
     const [logs, setLogs] = useState<any[]>([]);
+    const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
 
     useEffect(() => {
         if (authenticated) {
@@ -392,8 +393,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {initialTeams.map(t => {
-                                // @ts-ignore
-                                const isEditing = window.editingTeamId === t.id;
+                                const isEditing = editingTeamId === t.id;
                                 return isEditing ? (
                                     <form key={`edit-${t.id}`} className="bg-black border border-amber-500/50 rounded-xl p-4 flex flex-col gap-3" onSubmit={(e) => {
                                         e.preventDefault();
@@ -407,8 +407,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             color: target.color.value, 
                                             groupId: target.groupId.value 
                                         }, () => {
-                                            // @ts-ignore
-                                            window.editingTeamId = null;
+                                            setEditingTeamId(null);
                                             router.refresh();
                                         });
                                     }}>
@@ -425,7 +424,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                         </select>
                                         <div className="flex gap-2 mt-2">
                                             <button type="submit" className="flex-1 bg-amber-500 text-black font-bold py-1.5 rounded hover:bg-amber-400 text-xs">SAVE</button>
-                                            <button type="button" onClick={() => { /* @ts-ignore */ window.editingTeamId = null; router.refresh(); }} className="flex-1 bg-zinc-800 text-white font-bold py-1.5 rounded hover:bg-zinc-700 text-xs">CANCEL</button>
+                                            <button type="button" onClick={() => { setEditingTeamId(null); router.refresh(); }} className="flex-1 bg-zinc-800 text-white font-bold py-1.5 rounded hover:bg-zinc-700 text-xs">CANCEL</button>
                                         </div>
                                     </form>
                                 ) : (
@@ -439,7 +438,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                         </div>
                                         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button 
-                                                onClick={() => { /* @ts-ignore */ window.editingTeamId = t.id; router.refresh(); }}
+                                                onClick={() => { setEditingTeamId(t.id); router.refresh(); }}
                                                 className="bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white px-2 py-1 text-[10px] rounded transition-colors font-bold tracking-wider"
                                             >
                                                 EDIT
