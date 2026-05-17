@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 // GET — return teams + players from Supabase (S2)
 export async function GET() {
     try {
-        const { data: teams, error: teamErr } = await supabase
-            .from("Team")
-            .select("id, name, shortName, color, groupId")
-            .order("name", { ascending: true });
-        if (teamErr) throw new Error(teamErr.message);
+        const teams = await prisma.team.findMany({
+            select: { id: true, name: true, shortName: true, color: true, groupId: true },
+            orderBy: { name: 'asc' }
+        });
 
         const { data: regPlayers, error: playerErr } = await supabase
             .from("vpl_registrations")
@@ -24,10 +24,9 @@ export async function GET() {
             .eq("season", 2);
         if (playerErr) throw new Error(playerErr.message);
 
-        const { data: manualPlayers, error: manualErr } = await supabase
-            .from("Player")
-            .select("id, name, role, price, teamId");
-        if (manualErr) throw new Error(manualErr.message);
+        const manualPlayers = await prisma.player.findMany({
+            select: { id: true, name: true, role: true, price: true, teamId: true }
+        });
 
         // Map players onto their teams
         type TeamRow = { id: string; name: string; shortName: string; color: string; groupId: string };
@@ -80,36 +79,34 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "create_team") {
-            const now = new Date().toISOString();
-            const { data, error } = await supabase.from("Team").insert({
-                id: crypto.randomUUID(),
-                name: payload.name,
-                shortName: payload.shortName,
-                color: payload.color || "#FFFFFF",
-                groupId: payload.groupId || "A",
-                purse: payload.purse || 10000,
-                createdAt: now,
-                updatedAt: now,
-            }).select("id").single();
-            if (error) throw new Error(error.message);
+            const team = await prisma.team.create({
+                data: {
+                    name: payload.name,
+                    shortName: payload.shortName,
+                    color: payload.color || "#FFFFFF",
+                    groupId: payload.groupId || "A",
+                    purse: payload.purse || 10000,
+                }
+            });
             revalidatePath("/squads");
             revalidatePath("/points");
             revalidatePath("/");
-            return NextResponse.json({ ok: true, teamId: data.id });
+            return NextResponse.json({ ok: true, teamId: team.id });
         }
 
         if (payload.action === "update_team") {
             const { teamId, name, shortName, color, groupId } = payload;
             if (!teamId) throw new Error("Missing teamId");
-            const now = new Date().toISOString();
-            const { error } = await supabase.from("Team").update({
-                name,
-                shortName,
-                color,
-                groupId,
-                updatedAt: now,
-            }).eq("id", teamId);
-            if (error) throw new Error(error.message);
+            
+            await prisma.team.update({
+                where: { id: teamId },
+                data: {
+                    name,
+                    shortName,
+                    color,
+                    groupId
+                }
+            });
             
             // Note: If 'name' is updated, we theoretically need to update vpl_registrations.team_name as well!
             // Wait, team_name is hardcoded string in vpl_registrations? Yes.
@@ -134,34 +131,36 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "add_player") {
-            const now = new Date().toISOString();
-            const { error } = await supabase.from("Player").insert({
-                id: crypto.randomUUID(),
-                name: payload.name,
-                role: payload.role,
-                price: parseInt(payload.price) || 0,
-                teamId: payload.teamId,
-                createdAt: now,
-                updatedAt: now,
+            await prisma.player.create({
+                data: {
+                    name: payload.name,
+                    role: payload.role,
+                    price: parseInt(payload.price) || 0,
+                    teamId: payload.teamId,
+                }
             });
-            if (error) throw new Error(error.message);
             revalidatePath("/squads");
             return NextResponse.json({ ok: true });
         }
 
         if (payload.action === "delete_player") {
-            const { error } = await supabase.from("Player").delete().eq("id", payload.playerId);
-            if (error) throw new Error(error.message);
+            await prisma.player.delete({ where: { id: payload.playerId } });
             revalidatePath("/squads");
             return NextResponse.json({ ok: true });
         }
 
         if (payload.action === "delete_team") {
             // Delete players first, then matches referencing the team, then the team itself
-            await supabase.from("Player").delete().eq("teamId", payload.teamId);
-            await supabase.from("Match").delete().or(`team1Id.eq.${payload.teamId},team2Id.eq.${payload.teamId}`);
-            const { error } = await supabase.from("Team").delete().eq("id", payload.teamId);
-            if (error) throw new Error(error.message);
+            await prisma.player.deleteMany({ where: { teamId: payload.teamId } });
+            await prisma.match.deleteMany({
+                where: {
+                    OR: [
+                        { team1Id: payload.teamId },
+                        { team2Id: payload.teamId }
+                    ]
+                }
+            });
+            await prisma.team.delete({ where: { id: payload.teamId } });
             revalidatePath("/squads");
             revalidatePath("/points");
             revalidatePath("/matches");
