@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         if (payload.action === "create_team") {
             const now = new Date().toISOString();
             const { data, error } = await supabase.from("Team").insert({
+                id: crypto.randomUUID(),
                 name: payload.name,
                 shortName: payload.shortName,
                 color: payload.color || "#FFFFFF",
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
         if (payload.action === "add_player") {
             const now = new Date().toISOString();
             const { error } = await supabase.from("Player").insert({
+                id: crypto.randomUUID(),
                 name: payload.name,
                 role: payload.role,
                 price: parseInt(payload.price) || 0,

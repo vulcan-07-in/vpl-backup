@@ -26,6 +26,7 @@ export async function POST(req: Request) {
         }
 
         const { error: accErr } = await supabase.from("varchasva_accounts").insert({
+            id: crypto.randomUUID(),
             account_id: newId,
             name,
             mobile_number: mobile
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
 
         // 2. Create registration
         const { error: regErr } = await supabase.from("vpl_registrations").insert({
+            id: crypto.randomUUID(),
             registration_id: `VPL2-${newId}`,
             account_id: newId,
             season: 2,
