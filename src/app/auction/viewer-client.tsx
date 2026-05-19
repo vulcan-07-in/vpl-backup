@@ -201,7 +201,7 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                             >
                                 <div className="text-center">
                                     <p className="text-[10px] font-bold tracking-[0.4em] text-zinc-500 uppercase mb-2">Sold For</p>
-                                    <p className="text-5xl md:text-7xl font-black font-mono text-emerald-400">₹{soldEvent.amount}</p>
+                                    <p className="text-5xl md:text-7xl font-black font-mono text-emerald-400">{soldEvent.amount}</p>
                                 </div>
                                 <div className="w-px h-16 bg-white/10 hidden sm:block" />
                                 <div className="text-center">
@@ -243,7 +243,7 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                         transition={{ duration: 0.25 }}
                                         className="text-6xl md:text-8xl font-black font-mono text-white leading-none"
                                     >
-                                        ₹{auctionState.current_bid}
+                                        {auctionState.current_bid}
                                     </motion.div>
                                     <div className="mt-5 h-8 flex items-center justify-center">
                                         <AnimatePresence mode="wait">
@@ -327,7 +327,7 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                             : <div className="w-1 h-7 rounded-full" style={{ backgroundColor: team.color }} />}
                                         <span className="text-sm font-bold tracking-wider uppercase">{team.shortName}</span>
                                     </div>
-                                    <span className="font-mono font-black text-sm text-emerald-400">₹{stats.currentPurse}</span>
+                                    <span className="font-mono font-black text-sm text-emerald-400">{stats.currentPurse}</span>
                                 </div>
 
                                 <div className="flex items-center justify-between text-[10px] text-zinc-600 font-bold tracking-wider uppercase">
@@ -335,7 +335,7 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                         <Users size={10} />
                                         <span>{stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS}</span>
                                     </div>
-                                    <span>Spent ₹{stats.spent}</span>
+                                    <span>Spent {stats.spent}</span>
                                 </div>
 
                                 <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
@@ -370,7 +370,7 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                         <div>
                                             <h2 className="text-xl font-black uppercase tracking-wider">{selectedTeam.name}</h2>
                                             <div className="flex items-center gap-3 mt-0.5">
-                                                <span className="text-[10px] font-mono text-emerald-400 font-bold">₹{teamStats[selectedTeam.id].currentPurse} left</span>
+                                                <span className="text-[10px] font-mono text-emerald-400 font-bold">{teamStats[selectedTeam.id].currentPurse} left</span>
                                                 <span className="text-[10px] text-zinc-600">·</span>
                                                 <span className="text-[10px] text-zinc-500 font-bold">{teamStats[selectedTeam.id].count}/{AUCTION_CONSTANTS.MAX_PLAYERS} players</span>
                                             </div>
@@ -403,7 +403,7 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                                         <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mt-0.5">{p.role} · {p.tier}</p>
                                                     </div>
                                                 </div>
-                                                <span className="font-mono font-bold text-amber-500 text-sm">₹{p.price}</span>
+                                                <span className="font-mono font-bold text-amber-500 text-sm">{p.price}</span>
                                             </div>
                                         ))}
                                     </div>

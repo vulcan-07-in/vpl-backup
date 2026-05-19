@@ -78,11 +78,22 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
 
         const channel = supabase.channel('auctioneer_state')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_auction_state' }, (payload) => {
-                setAuctionState(payload.new);
-                // Release all per-team bid locks when server echo arrives
-                bidInflightSet.current.clear();
-                bidLockTimers.current.forEach(t => clearTimeout(t));
-                bidLockTimers.current.clear();
+                const incoming = payload.new;
+                setAuctionState((prev: any) => {
+                    // Ignore stale realtime echoes for current_bid/leading_team_id if we have active optimistic bids inflight
+                    // and the incoming bid is lower than our optimistic bid (unless the auction is no longer BIDDING, e.g. SOLD or PASS)
+                    if (
+                        bidInflightSet.current.size > 0 &&
+                        prev.status === 'BIDDING' &&
+                        incoming.status === 'BIDDING' &&
+                        incoming.current_bid < prev.current_bid
+                    ) {
+                        return { ...incoming, current_bid: prev.current_bid, leading_team_id: prev.leading_team_id };
+                    }
+                    return incoming;
+                });
+                // We no longer clear locks here. We let the HTTP response or the 1.5s timeout clear them, 
+                // so that a fast second click doesn't get its lock prematurely cleared by the first click's realtime echo.
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_registrations' }, () => {
                 supabase.from("vpl_registrations").select("account_id, team_name, price").eq("season", 2).then(({ data }) => {
@@ -526,7 +537,11 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                             <span>{currentIncrement > 0 ? `Current Inc: +${currentIncrement}` : 'Auto Inc'}</span>
                         </h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                            {teams.sort((a, b) => (a.paddleNumber || 999) - (b.paddleNumber || 999)).map(team => {
+                            {[...teams].sort((a, b) => {
+                                const aNum = a.paddleNumber ? Number(a.paddleNumber) : 999;
+                                const bNum = b.paddleNumber ? Number(b.paddleNumber) : 999;
+                                return aNum - bNum;
+                            }).map(team => {
                                 const stats = teamStats[team.id];
                                 const isCapped = stats.count >= AUCTION_CONSTANTS.MAX_PLAYERS;
                                 const isBankrupt = stats.maxBid <= 0;
@@ -554,7 +569,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                                     : null}
                                                 <span className={`text-sm font-black ${isLeading ? 'text-amber-500' : 'text-white'}`}>{team.paddleNumber ? `#${team.paddleNumber}` : team.shortName}</span>
                                             </div>
-                                            <span className="font-mono font-black text-emerald-400 text-sm">₹{stats.currentPurse}</span>
+                                            <span className="font-mono font-black text-emerald-400 text-sm">{stats.currentPurse}</span>
                                         </div>
 
                                         <div className="flex justify-between items-end pl-3">

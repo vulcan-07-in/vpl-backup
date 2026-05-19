@@ -129,7 +129,7 @@ function TeamCard({
                 ) : (
                     <div className="flex-1 min-w-0">
                         <p className="font-bold truncate">{team.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{team.shortName} · ₹{team.purse} {team.paddleNumber && `(Paddle #${team.paddleNumber})`}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{team.shortName} · {team.purse} {team.paddleNumber && `(Paddle #${team.paddleNumber})`}</p>
                     </div>
                 )}
             </div>
