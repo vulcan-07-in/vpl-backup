@@ -89,14 +89,26 @@ export async function POST(req: Request) {
             // Normalize role
             const role = (player.role || 'All Rounder').trim();
 
-            // 1. Create account
-            const { error: accErr } = await supabase
+            // 1. Create account (retry with accountId as mobile if phone number conflicts)
+            let { error: accErr } = await supabase
                 .from('varchasva_accounts')
                 .upsert({
                     account_id: accountId,
                     name: player.name.trim(),
                     mobile_number: mobileValue
                 }, { onConflict: 'account_id' });
+
+            // If duplicate mobile number, retry using accountId as unique placeholder
+            if (accErr && accErr.code === '23505' && accErr.message.includes('mobile_number')) {
+                const retry = await supabase
+                    .from('varchasva_accounts')
+                    .upsert({
+                        account_id: accountId,
+                        name: player.name.trim(),
+                        mobile_number: accountId
+                    }, { onConflict: 'account_id' });
+                accErr = retry.error;
+            }
 
             if (accErr) {
                 console.error("Account Error:", accErr.message, "for player:", player.name);
