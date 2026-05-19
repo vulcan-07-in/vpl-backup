@@ -51,7 +51,9 @@ export async function GET(request: Request) {
 
         return NextResponse.json(matchState, {
             headers: {
-                'Cache-Control': 's-maxage=1, stale-while-revalidate=1',
+                // Edge cache: serve stale for up to 3s (matches client poll interval)
+                // All 300 concurrent viewers share ONE upstream Redis read per 3s
+                'Cache-Control': 's-maxage=2, stale-while-revalidate=3',
             },
         });
     } catch (error) {

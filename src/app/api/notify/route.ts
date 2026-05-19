@@ -39,7 +39,9 @@ export async function GET() {
     try {
         const notifyKey = `s2:vpl_notifications`;
         const notifications = await redis.lrange(notifyKey, 0, -1);
-        return NextResponse.json(notifications.map(n => typeof n === 'string' ? JSON.parse(n) : n));
+        return NextResponse.json(notifications.map(n => typeof n === 'string' ? JSON.parse(n) : n), {
+            headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=15' }
+        });
     } catch (e) {
         return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
     }
