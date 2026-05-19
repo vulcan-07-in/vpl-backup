@@ -221,14 +221,13 @@ export async function POST(req: Request) {
             }
 
             case 'RESET': {
-                await supabase.from('vpl_auction_state').upsert({
-                    id: 1,
+                await supabase.from('vpl_auction_state').update({
                     active_player_id: null,
                     current_bid: 0,
                     leading_team_id: null,
                     status: 'IDLE',
                     last_update: new Date().toISOString()
-                });
+                }).eq('id', 1);
                 break;
             }
 

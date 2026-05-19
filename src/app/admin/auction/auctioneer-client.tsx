@@ -32,6 +32,8 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const [loadingAction, setLoadingAction] = useState<string | null>(null);
     const [historyLogs, setHistoryLogs] = useState<any[]>([]);
     const [showForcePanel, setShowForcePanel] = useState(false);
+    const [resetConfirm, setResetConfirm] = useState(false);
+    const [undoConfirm, setUndoConfirm] = useState(false);
     const [forceTeamId, setForceTeamId] = useState("");
     const [forceBidAmount, setForceBidAmount] = useState("");
     const [customIncrement, setCustomIncrement] = useState<number | null>(null);
@@ -340,12 +342,29 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
 
                     {/* Controls bar */}
                     <div className="flex justify-between items-center">
-                        <button onClick={() => { if (confirm("Emergency reset?")) performAction('RESET'); }} disabled={auctionState.status === 'IDLE'} className="text-red-500/60 hover:text-red-400 flex items-center gap-2 text-xs font-bold tracking-widest transition-colors disabled:opacity-30">
-                            ⚠️ EMERGENCY RESET
-                        </button>
-                        <button onClick={() => performAction('UNDO')} disabled={loadingAction === 'UNDO' || auctionState.status !== 'IDLE'} className="text-zinc-500 hover:text-white flex items-center gap-2 text-xs font-bold tracking-widest transition-colors disabled:opacity-50">
-                            <Undo2 size={14} /> UNDO LAST SALE
-                        </button>
+                        {resetConfirm ? (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-500">Confirm Reset?</span>
+                                <button onClick={() => { performAction('RESET'); setResetConfirm(false); }} className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">YES</button>
+                                <button onClick={() => setResetConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">NO</button>
+                            </div>
+                        ) : (
+                            <button onClick={() => setResetConfirm(true)} className="text-red-500/60 hover:text-red-400 flex items-center gap-2 text-xs font-bold tracking-widest transition-colors">
+                                ⚠️ EMERGENCY RESET
+                            </button>
+                        )}
+
+                        {undoConfirm ? (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-500">Confirm Undo?</span>
+                                <button onClick={() => { performAction('UNDO'); setUndoConfirm(false); }} className="bg-amber-500 text-black px-2 py-1 rounded text-xs font-bold">YES</button>
+                                <button onClick={() => setUndoConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">NO</button>
+                            </div>
+                        ) : (
+                            <button onClick={() => setUndoConfirm(true)} disabled={loadingAction === 'UNDO' || auctionState.status !== 'IDLE'} className="text-zinc-500 hover:text-white flex items-center gap-2 text-xs font-bold tracking-widest transition-colors disabled:opacity-50">
+                                <Undo2 size={14} /> UNDO LAST SALE
+                            </button>
+                        )}
                     </div>
 
                     {/* Recent Sales */}
