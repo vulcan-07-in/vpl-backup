@@ -1,20 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { 
-    Search, 
-    Plus, 
-    CheckCircle2, 
-    Clock, 
-    Star, 
-    Crown, 
-    Trash2, 
-    MoreHorizontal,
-    ChevronDown,
-    Filter,
-    X,
+import {
+    Search,
+    Plus,
+    CheckCircle2,
+    Crown,
+    Trash2,
     UserPlus,
-    Loader2
+    Loader2,
+    CheckCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -24,6 +19,7 @@ interface Player {
     mobile: string;
     role: string;
     tier: string;
+    gender: string;
     isApproved: boolean;
     isCaptain: boolean;
     teamName: string;
@@ -39,16 +35,20 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<"ALL" | "PENDING" | "APPROVED">("ALL");
+    const [tierFilter, setTierFilter] = useState<string>("ALL");
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    
-    // Manual Player State
-    const [newPlayer, setNewPlayer] = useState({ name: "", mobile: "", role: "All", tier: "TIER 2" });
+    const [bulkApproving, setBulkApproving] = useState(false);
+
+    const [newPlayer, setNewPlayer] = useState({ name: "", mobile: "", role: "All Rounder", tier: "TIER 2", gender: "Male" });
+
+    const tiers = Array.from(new Set(players.map(p => p.tier).filter(Boolean)));
 
     const filteredPlayers = players.filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.mobile.includes(search);
+        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.mobile?.includes(search);
         const matchesStatus = filter === "ALL" ? true : (filter === "APPROVED" ? p.isApproved : !p.isApproved);
-        return matchesSearch && matchesStatus;
+        const matchesTier = tierFilter === "ALL" || p.tier === tierFilter;
+        return matchesSearch && matchesStatus && matchesTier;
     });
 
     const updatePlayer = async (id: string, updates: Partial<Player>) => {
@@ -61,32 +61,43 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                     is_approved: updates.isApproved,
                     tier: updates.tier,
                     is_captain: updates.isCaptain,
-                    team_name: updates.teamName
+                    team_name: updates.teamName,
+                    gender: updates.gender,
                 })
             });
-            if (res.ok) {
-                setPlayers(prev => prev.map(p => p.accountId === id ? { ...p, ...updates } : p));
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoadingId(null);
-        }
+            if (res.ok) setPlayers(prev => prev.map(p => p.accountId === id ? { ...p, ...updates } : p));
+        } catch (e) { console.error(e); }
+        finally { setLoadingId(null); }
     };
 
     const deletePlayer = async (id: string) => {
-        if (!confirm("Are you sure? This will delete the account forever.")) return;
+        if (!confirm("Delete this player permanently?")) return;
         setLoadingId(id);
         try {
             const res = await fetch(`/api/admin/players/${id}`, { method: "DELETE" });
-            if (res.ok) {
-                setPlayers(prev => prev.filter(p => p.accountId !== id));
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoadingId(null);
+            if (res.ok) setPlayers(prev => prev.filter(p => p.accountId !== id));
+        } catch (e) { console.error(e); }
+        finally { setLoadingId(null); }
+    };
+
+    const handleBulkApprove = async () => {
+        const pending = filteredPlayers.filter(p => !p.isApproved);
+        if (pending.length === 0) { alert("No pending players to approve."); return; }
+        if (!confirm(`Approve ${pending.length} players?`)) return;
+
+        setBulkApproving(true);
+        for (const p of pending) {
+            await fetch(`/api/admin/players/${p.accountId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ is_approved: true })
+            });
         }
+        setPlayers(prev => prev.map(p => {
+            if (pending.find(pp => pp.accountId === p.accountId)) return { ...p, isApproved: true };
+            return p;
+        }));
+        setBulkApproving(false);
     };
 
     const handleAddPlayer = async (e: React.FormEvent) => {
@@ -106,61 +117,71 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                     mobile: newPlayer.mobile,
                     role: newPlayer.role,
                     tier: newPlayer.tier,
+                    gender: newPlayer.gender,
                     isApproved: true,
                     isCaptain: false,
                     teamName: "UNSOLD"
                 };
                 setPlayers(prev => [freshPlayer, ...prev]);
                 setIsAddModalOpen(false);
-                setNewPlayer({ name: "", mobile: "", role: "All", tier: "TIER 2" });
+                setNewPlayer({ name: "", mobile: "", role: "All Rounder", tier: "TIER 2", gender: "Male" });
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoadingId(null);
-        }
+        } catch (e) { console.error(e); }
+        finally { setLoadingId(null); }
     };
+
+    const pendingCount = players.filter(p => !p.isApproved).length;
+    const approvedCount = players.filter(p => p.isApproved).length;
 
     return (
         <div className="min-h-screen bg-[#050505] text-white pt-24 pb-12 px-6">
             <div className="max-w-6xl mx-auto">
-                
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                     <div>
                         <h1 className="text-4xl md:text-5xl font-bold mb-2 tracking-tight">Player Management</h1>
-                        <p className="text-zinc-500 text-sm">Review, approve, and tier the VPL Season 2 roster.</p>
+                        <p className="text-zinc-500 text-sm">
+                            <span className="text-amber-500 font-bold">{pendingCount}</span> pending ·
+                            <span className="text-emerald-500 font-bold ml-1">{approvedCount}</span> approved ·
+                            <span className="font-bold ml-1">{players.length}</span> total
+                        </p>
                     </div>
-                    <button 
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black px-6 py-3 rounded-full font-bold transition-all transform active:scale-95"
-                    >
-                        <UserPlus size={20} />
-                        Add Manual Player
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handleBulkApprove}
+                            disabled={bulkApproving}
+                            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-full font-bold transition-all"
+                        >
+                            {bulkApproving ? <Loader2 size={18} className="animate-spin" /> : <CheckCheck size={18} />}
+                            Approve All Visible
+                        </button>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black px-5 py-3 rounded-full font-bold transition-all"
+                        >
+                            <UserPlus size={18} /> Add Player
+                        </button>
+                    </div>
                 </div>
 
                 {serverError && (
                     <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-xl mb-8 font-mono text-sm">
                         Database Error: {serverError}
-                        <br/>
-                        <span className="text-zinc-400 text-xs mt-2 block">If the error says "column does not exist", you need to run the ALTER TABLE SQL script in Supabase!</span>
                     </div>
                 )}
 
-                {/* Filters Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Search name or mobile..." 
+                        <input
+                            type="text"
+                            placeholder="Search name..."
                             className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-amber-500/50 transition-colors"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    
                     <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
                         {["ALL", "PENDING", "APPROVED"].map((f) => (
                             <button
@@ -172,14 +193,21 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                             </button>
                         ))}
                     </div>
-
+                    <select
+                        value={tierFilter}
+                        onChange={e => setTierFilter(e.target.value)}
+                        className="bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-amber-500/50"
+                    >
+                        <option value="ALL">All Tiers</option>
+                        {tiers.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                     <div className="flex items-center justify-end text-sm text-zinc-500">
-                        Showing {filteredPlayers.length} of {players.length} players
+                        Showing {filteredPlayers.length} of {players.length}
                     </div>
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <AnimatePresence mode="popLayout">
                         {filteredPlayers.map((player) => (
                             <motion.div
@@ -188,99 +216,73 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className={`relative bg-zinc-900/30 border ${player.isApproved ? 'border-zinc-800' : 'border-amber-500/20 bg-amber-500/[0.02]'} rounded-2xl p-6 transition-all group overflow-hidden`}
+                                className={`relative bg-zinc-900/30 border ${player.isApproved ? 'border-zinc-800' : 'border-amber-500/20 bg-amber-500/[0.02]'} rounded-2xl p-5 transition-all group overflow-hidden`}
                             >
-                                {/* Tier Badge */}
-                                <div className="absolute top-4 right-4 flex gap-2">
-                                    <span className={`text-[10px] font-black px-2 py-1 rounded-md tracking-tighter ${
-                                        player.tier === 'MARQUEE' ? 'bg-amber-500 text-black' : 
-                                        player.tier === 'FEMALE' ? 'bg-pink-500 text-white' : 
+                                <div className="absolute top-4 right-4 flex gap-1.5">
+                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                                        player.tier === 'MARQUEE' ? 'bg-amber-500 text-black' :
+                                        player.tier === 'TIER 1' ? 'bg-blue-500 text-white' :
                                         'bg-zinc-800 text-zinc-400'
-                                    }`}>
-                                        {player.tier}
-                                    </span>
+                                    }`}>{player.tier}</span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                        player.gender?.toLowerCase() === 'female' ? 'bg-pink-500/20 text-pink-400' : 'bg-zinc-800 text-zinc-500'
+                                    }`}>{player.gender?.charAt(0)}</span>
                                 </div>
 
-                                <div className="flex items-start gap-4 mb-6">
-                                    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-xl font-bold border border-zinc-700">
-                                        {player.name[0]}
-                                    </div>
+                                <div className="flex items-start gap-3 mb-5">
+                                    <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg font-bold border border-zinc-700">{player.name[0]}</div>
                                     <div>
-                                        <h3 className="font-bold text-lg leading-none mb-1">{player.name}</h3>
-                                        <p className="text-zinc-500 text-xs font-mono">{player.mobile}</p>
-                                        <div className="flex items-center gap-2 mt-2">
+                                        <h3 className="font-bold text-base leading-none mb-1">{player.name}</h3>
+                                        <div className="flex items-center gap-2 mt-1.5">
                                             <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{player.role}</span>
-                                            <span className="text-[10px] text-zinc-600 font-mono">{player.accountId}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Controls */}
-                                <div className="space-y-3">
-                                    <div className="flex gap-2">
-                                        {!player.isApproved ? (
-                                            <button 
-                                                onClick={() => updatePlayer(player.accountId, { isApproved: true })}
-                                                className="flex-1 bg-white text-black py-2 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-                                                disabled={loadingId === player.accountId}
+                                <div className="space-y-2">
+                                    {!player.isApproved ? (
+                                        <button
+                                            onClick={() => updatePlayer(player.accountId, { isApproved: true })}
+                                            className="w-full bg-white text-black py-2 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+                                            disabled={loadingId === player.accountId}
+                                        >
+                                            {loadingId === player.accountId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} APPROVE
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={player.tier}
+                                                onChange={(e) => updatePlayer(player.accountId, { tier: e.target.value })}
+                                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg py-1.5 px-2 text-[10px] font-bold"
                                             >
-                                                {loadingId === player.accountId ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                                                APPROVE
-                                            </button>
-                                        ) : (
-                                            <div className="flex-1 flex gap-2">
-                                                <select 
-                                                    value={player.tier}
-                                                    onChange={(e) => updatePlayer(player.accountId, { tier: e.target.value })}
-                                                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg py-2 px-3 text-[10px] font-bold focus:outline-none focus:border-amber-500/50"
-                                                >
-                                                    <option value="MARQUEE">MARQUEE</option>
-                                                    <option value="FEMALE">FEMALE</option>
-                                                    <option value="TIER 1">TIER 1</option>
-                                                    <option value="TIER 2">TIER 2</option>
-                                                </select>
-                                                
-                                                <select 
-                                                    value={player.isCaptain ? player.teamName : "NOT_CAPTAIN"}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        if (val === "NOT_CAPTAIN") {
-                                                            updatePlayer(player.accountId, { isCaptain: false, teamName: "UNSOLD" });
-                                                        } else {
-                                                            updatePlayer(player.accountId, { isCaptain: true, teamName: val });
-                                                        }
-                                                    }}
-                                                    className={`flex-1 bg-zinc-800 border ${player.isCaptain ? 'border-amber-500/50 text-amber-500' : 'border-zinc-700 text-zinc-400'} rounded-lg py-2 px-3 text-[10px] font-bold focus:outline-none`}
-                                                >
-                                                    <option value="NOT_CAPTAIN">NO CAPTAINCY</option>
-                                                    {teams.map(t => (
-                                                        <option key={t.id} value={t.name}>CAPTAIN: {t.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
-                                    </div>
-                                    
+                                                <option value="MARQUEE">MARQUEE</option>
+                                                <option value="TIER 1">TIER 1</option>
+                                                <option value="TIER 2">TIER 2</option>
+                                            </select>
+                                            <select
+                                                value={player.gender || "Male"}
+                                                onChange={(e) => updatePlayer(player.accountId, { gender: e.target.value })}
+                                                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg py-1.5 px-2 text-[10px] font-bold"
+                                            >
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                            </select>
+                                        </div>
+                                    )}
                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
+                                        <button
                                             onClick={() => updatePlayer(player.accountId, { isApproved: false })}
-                                            className="flex-1 bg-zinc-800 text-zinc-400 py-2 rounded-lg text-[10px] font-bold hover:text-white"
-                                        >
-                                            UNAPPROVE
-                                        </button>
-                                        <button 
+                                            className="flex-1 bg-zinc-800 text-zinc-400 py-1.5 rounded-lg text-[10px] font-bold hover:text-white"
+                                        >UNAPPROVE</button>
+                                        <button
                                             onClick={() => deletePlayer(player.accountId)}
-                                            className="w-10 bg-red-500/10 text-red-500 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                            className="w-9 bg-red-500/10 text-red-500 py-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+                                        ><Trash2 size={12} /></button>
                                     </div>
                                 </div>
 
                                 {player.isCaptain && (
-                                    <div className="absolute -left-8 top-6 -rotate-45 bg-amber-500 text-black px-10 py-1 text-[10px] font-black tracking-widest shadow-lg">
-                                        CAPTAIN
-                                    </div>
+                                    <div className="absolute -left-8 top-5 -rotate-45 bg-amber-500 text-black px-10 py-0.5 text-[10px] font-black tracking-widest shadow-lg">CAPTAIN</div>
                                 )}
                             </motion.div>
                         ))}
@@ -292,12 +294,8 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
             <AnimatePresence>
                 {isAddModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                            onClick={() => setIsAddModalOpen(false)}
-                        />
-                        <motion.div 
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsAddModalOpen(false)} />
+                        <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -307,59 +305,30 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                             <form onSubmit={handleAddPlayer} className="space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-zinc-500 mb-2 tracking-widest uppercase">Full Name</label>
-                                    <input 
-                                        required
-                                        type="text" 
-                                        className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500/50"
-                                        value={newPlayer.name}
-                                        onChange={e => setNewPlayer({...newPlayer, name: e.target.value})}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-zinc-500 mb-2 tracking-widest uppercase">Mobile Number</label>
-                                    <input 
-                                        required
-                                        type="text" 
-                                        className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500/50"
-                                        value={newPlayer.mobile}
-                                        onChange={e => setNewPlayer({...newPlayer, mobile: e.target.value})}
-                                    />
+                                    <input required type="text" className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500/50" value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-zinc-500 mb-2 tracking-widest uppercase">Role</label>
-                                        <select 
-                                            className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500/50"
-                                            value={newPlayer.role}
-                                            onChange={e => setNewPlayer({...newPlayer, role: e.target.value})}
-                                        >
-                                            <option>All</option>
-                                            <option>Batsman</option>
-                                            <option>Bowler</option>
-                                            <option>Wicketkeeper</option>
+                                        <select className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4" value={newPlayer.role} onChange={e => setNewPlayer({...newPlayer, role: e.target.value})}>
+                                            <option>All Rounder</option><option>Batsman</option><option>Bowler</option><option>Wicketkeeper</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-zinc-500 mb-2 tracking-widest uppercase">Tier</label>
-                                        <select 
-                                            className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500/50"
-                                            value={newPlayer.tier}
-                                            onChange={e => setNewPlayer({...newPlayer, tier: e.target.value})}
-                                        >
-                                            <option value="MARQUEE">MARQUEE</option>
-                                            <option value="FEMALE">FEMALE</option>
-                                            <option value="TIER 1">TIER 1</option>
-                                            <option value="TIER 2">TIER 2</option>
+                                        <select className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4" value={newPlayer.tier} onChange={e => setNewPlayer({...newPlayer, tier: e.target.value})}>
+                                            <option value="MARQUEE">MARQUEE</option><option value="TIER 1">TIER 1</option><option value="TIER 2">TIER 2</option>
                                         </select>
                                     </div>
                                 </div>
-                                <button 
-                                    type="submit"
-                                    className="w-full bg-amber-500 hover:bg-amber-400 text-black py-4 rounded-xl font-bold mt-6 flex items-center justify-center gap-2"
-                                    disabled={loadingId === "NEW"}
-                                >
-                                    {loadingId === "NEW" ? <Loader2 className="animate-spin" /> : <Plus />}
-                                    Create & Approve Player
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 mb-2 tracking-widest uppercase">Gender</label>
+                                    <select className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4" value={newPlayer.gender} onChange={e => setNewPlayer({...newPlayer, gender: e.target.value})}>
+                                        <option>Male</option><option>Female</option>
+                                    </select>
+                                </div>
+                                <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-black py-4 rounded-xl font-bold mt-6 flex items-center justify-center gap-2" disabled={loadingId === "NEW"}>
+                                    {loadingId === "NEW" ? <Loader2 className="animate-spin" /> : <Plus />} Create & Approve
                                 </button>
                             </form>
                         </motion.div>

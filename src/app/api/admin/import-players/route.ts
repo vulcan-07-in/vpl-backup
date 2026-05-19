@@ -16,16 +16,18 @@ export async function POST(req: Request) {
 
         // If overwrite mode: wipe all season 2 data first
         if (overwrite) {
+            // Delete registrations first (FK dependency)
             const { error: regDelErr } = await supabase
                 .from('vpl_registrations')
                 .delete()
                 .eq('season', 2);
             if (regDelErr) throw new Error(`Failed to clear registrations: ${regDelErr.message}`);
 
+            // Then delete accounts
             const { error: accDelErr } = await supabase
                 .from('varchasva_accounts')
                 .delete()
-                .neq('account_id', '0'); // delete all
+                .neq('account_id', '___NEVER_MATCH___'); // delete all
             if (accDelErr) throw new Error(`Failed to clear accounts: ${accDelErr.message}`);
         }
 
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
                 .select('account_id')
                 .like('account_id', 'VAR-%')
                 .order('account_id', { ascending: false })
-                .limit(20); // fetch top 20 to find true max numerically
+                .limit(20);
 
             if (lastAcc && lastAcc.length > 0) {
                 const nums = lastAcc
@@ -49,77 +51,78 @@ export async function POST(req: Request) {
             }
         }
 
-        const usedMobiles = new Set<string>();
-
         for (const player of players) {
-            if (!player.name || !player.mobileNumber) continue;
-
-            // Normalize mobile
-            let mobile = player.mobileNumber.replace(/[^0-9]/g, '');
-            if (mobile.startsWith('91') && mobile.length > 10) mobile = mobile.substring(2);
-            if (mobile.length > 10) mobile = mobile.substring(mobile.length - 10);
-
-            // Deduplicate within batch
-            const mobileKey = usedMobiles.has(mobile) ? `${mobile}_DUP${currentIdCounter}` : mobile;
-            usedMobiles.add(mobile);
+            if (!player.name || !player.name.trim()) continue;
 
             const accountId = `VAR-${currentIdCounter.toString().padStart(3, '0')}`;
             currentIdCounter++;
-            let finalAccountId = accountId;
 
-            // 1. Upsert account
+            // Normalize contact number (if provided)
+            let contactNumber = player.contactNumber || '';
+            if (contactNumber) {
+                contactNumber = contactNumber.replace(/[^0-9]/g, '');
+                if (contactNumber.startsWith('91') && contactNumber.length > 10) {
+                    contactNumber = contactNumber.substring(contactNumber.length - 10);
+                }
+            }
+            // If no contact, use accountId as mobile placeholder
+            const mobileValue = contactNumber || accountId;
+
+            // Normalize tier
+            let tier = (player.tier || 'TIER 2').toUpperCase().trim();
+            // Map common variations
+            if (tier === 'MARQUEE' || tier === 'MARQUEE PLAYER') tier = 'MARQUEE';
+            else if (tier === 'T1' || tier === 'TIER1') tier = 'TIER 1';
+            else if (tier === 'T2' || tier === 'TIER2') tier = 'TIER 2';
+
+            // Normalize gender
+            const gender = (player.gender || 'Male').trim();
+
+            // Normalize role
+            const role = (player.role || 'All Rounder').trim();
+
+            // 1. Create account
             const { error: accErr } = await supabase
                 .from('varchasva_accounts')
                 .upsert({
                     id: crypto.randomUUID(),
-                    account_id: finalAccountId,
+                    account_id: accountId,
                     name: player.name.trim(),
-                    mobile_number: mobileKey
+                    mobile_number: mobileValue
                 }, { onConflict: 'account_id' });
 
             if (accErr) {
-                // If mobile unique violation, find existing
-                if (accErr.code === '23505') {
-                    const { data: existing } = await supabase
-                        .from('varchasva_accounts')
-                        .select('account_id')
-                        .eq('mobile_number', mobile)
-                        .single();
-                    if (existing) {
-                        finalAccountId = existing.account_id;
-                    } else {
-                        console.error("Dupe mobile, cannot find:", mobile);
-                        continue;
-                    }
-                } else {
-                    console.error("Account Error:", accErr.message);
-                    continue;
-                }
+                console.error("Account Error:", accErr.message, "for player:", player.name);
+                continue;
             }
 
-            // 2. Upsert registration
+            // 2. Create registration
             const { error: regErr } = await supabase
                 .from('vpl_registrations')
                 .upsert({
                     id: crypto.randomUUID(),
-                    registration_id: `VPL2-${finalAccountId}`,
-                    account_id: finalAccountId,
+                    registration_id: `VPL2-${accountId}`,
+                    account_id: accountId,
                     season: 2,
                     team_name: 'UNSOLD',
-                    role: (player.role || 'UNKNOWN').trim(),
+                    role: role,
+                    tier: tier,
+                    gender: gender,
                     is_approved: false,
                     is_captain: false,
                     price: 0
                 }, { onConflict: 'registration_id' });
 
             if (regErr) {
-                console.error("Registration Error:", regErr.message);
+                console.error("Registration Error:", regErr.message, "for player:", player.name);
             } else {
                 results.push({
-                    accountId: finalAccountId,
-                    name: player.name,
-                    teamName: 'UNSOLD',
-                    mobileNumber: mobile
+                    accountId: accountId,
+                    name: player.name.trim(),
+                    tier: tier,
+                    role: role,
+                    gender: gender,
+                    teamName: 'UNSOLD'
                 });
             }
         }

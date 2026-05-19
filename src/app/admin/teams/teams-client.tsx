@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Pencil, Check, X, GripVertical, Lock } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, Check, X, GripVertical, Crown, Users } from "lucide-react";
 
 interface Team {
     id: string;
@@ -12,20 +12,34 @@ interface Team {
     color: string;
     groupId: string;
     purse: number;
+    captainId: string | null;
+    captainName: string | null;
+}
+
+interface ApprovedPlayer {
+    accountId: string;
+    name: string;
+    tier: string;
+    isCaptain: boolean;
+    teamName: string;
 }
 
 const GROUPS = ["A", "B", "C"] as const;
 
 function TeamCard({
     team,
+    approvedPlayers,
     onUpdate,
     onDelete,
+    onAssignCaptain,
     onDragStart,
     dragging,
 }: {
     team: Team;
+    approvedPlayers: ApprovedPlayer[];
     onUpdate: (id: string, fields: Partial<Team>) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    onAssignCaptain: (teamId: string, captainAccountId: string | null) => Promise<void>;
     onDragStart: (id: string) => void;
     dragging: boolean;
 }) {
@@ -33,6 +47,11 @@ function TeamCard({
     const [fields, setFields] = useState({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse });
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    // Available captains: approved players who are not already captains of other teams
+    const availableCaptains = approvedPlayers.filter(
+        p => !p.isCaptain || p.teamName === team.name
+    );
 
     const handleSave = async () => {
         setSaving(true);
@@ -87,7 +106,7 @@ function TeamCard({
                 ) : (
                     <div className="flex-1 min-w-0">
                         <p className="font-bold truncate">{team.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{team.shortName}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{team.shortName} · ₹{team.purse}</p>
                     </div>
                 )}
             </div>
@@ -103,6 +122,23 @@ function TeamCard({
                     />
                 </div>
             )}
+
+            {/* Captain Assignment */}
+            <div className="mb-3 flex items-center gap-2">
+                <Crown size={14} className={team.captainName ? "text-amber-500" : "text-zinc-600"} />
+                <select
+                    value={team.captainId || ""}
+                    onChange={e => onAssignCaptain(team.id, e.target.value || null)}
+                    className={`flex-1 bg-black border rounded px-2 py-1.5 text-xs font-bold ${
+                        team.captainName ? 'border-amber-500/30 text-amber-500' : 'border-zinc-700 text-zinc-400'
+                    }`}
+                >
+                    <option value="">No Captain</option>
+                    {availableCaptains.map(p => (
+                        <option key={p.accountId} value={p.accountId}>{p.name}</option>
+                    ))}
+                </select>
+            </div>
 
             <div className="flex gap-2">
                 {editing ? (
@@ -146,8 +182,10 @@ function TeamCard({
 function GroupDropZone({
     group,
     teams,
+    approvedPlayers,
     onUpdate,
     onDelete,
+    onAssignCaptain,
     draggingId,
     onDragStart,
     onDrop,
@@ -155,8 +193,10 @@ function GroupDropZone({
 }: {
     group: string;
     teams: Team[];
+    approvedPlayers: ApprovedPlayer[];
     onUpdate: (id: string, fields: Partial<Team>) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    onAssignCaptain: (teamId: string, captainAccountId: string | null) => Promise<void>;
     draggingId: string | null;
     onDragStart: (id: string) => void;
     onDrop: (group: string) => void;
@@ -187,8 +227,10 @@ function GroupDropZone({
                     <TeamCard
                         key={team.id}
                         team={team}
+                        approvedPlayers={approvedPlayers}
                         onUpdate={onUpdate}
                         onDelete={onDelete}
+                        onAssignCaptain={onAssignCaptain}
                         onDragStart={onDragStart}
                         dragging={draggingId === team.id}
                     />
@@ -202,12 +244,13 @@ export default function TeamsClient() {
     const router = useRouter();
     const [authed, setAuthed] = useState(false);
     const [teams, setTeams] = useState<Team[]>([]);
+    const [approvedPlayers, setApprovedPlayers] = useState<ApprovedPlayer[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [draggingId, setDraggingId] = useState<string | null>(null);
 
     // New team form
-    const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000 });
+    const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "" });
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState("");
 
@@ -224,11 +267,22 @@ export default function TeamsClient() {
         }
     };
 
+    const fetchPlayers = async () => {
+        try {
+            const res = await fetch("/api/admin/players/approved");
+            const data = await res.json();
+            if (res.ok) setApprovedPlayers(data);
+        } catch (e: any) {
+            console.error("Failed to fetch players:", e);
+        }
+    };
+
     useEffect(() => {
         fetch("/api/admin/check").then(res => {
             if (!res.ok) { router.replace("/admin"); return; }
             setAuthed(true);
             fetchTeams();
+            fetchPlayers();
         });
     }, []);
 
@@ -249,7 +303,8 @@ export default function TeamsClient() {
             const data = await res.json();
             if (res.ok && data.team) {
                 setTeams(prev => [...prev, data.team]);
-                setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000 });
+                setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "" });
+                fetchPlayers(); // Refresh available captains
             } else {
                 setCreateError(data.error || "Failed to create team");
             }
@@ -282,8 +337,25 @@ export default function TeamsClient() {
         const data = await res.json();
         if (res.ok) {
             setTeams(prev => prev.filter(t => t.id !== id));
+            fetchPlayers(); // Refresh available captains
         } else {
             alert("❌ " + (data.error || "Delete failed"));
+        }
+    };
+
+    const handleAssignCaptain = async (teamId: string, captainAccountId: string | null) => {
+        const res = await fetch("/api/admin/teams", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "assign_captain", teamId, captainAccountId }),
+        });
+        if (res.ok) {
+            // Refresh both teams and players
+            fetchTeams();
+            fetchPlayers();
+        } else {
+            const data = await res.json();
+            alert("❌ " + (data.error || "Captain assignment failed"));
         }
     };
 
@@ -292,11 +364,9 @@ export default function TeamsClient() {
         const team = teams.find(t => t.id === draggingId);
         if (!team || team.groupId === targetGroup) { setDraggingId(null); return; }
 
-        // Optimistic update
         setTeams(prev => prev.map(t => t.id === draggingId ? { ...t, groupId: targetGroup } : t));
         setDraggingId(null);
 
-        // Persist to server
         const res = await fetch("/api/admin/teams", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -304,7 +374,7 @@ export default function TeamsClient() {
         });
         if (!res.ok) {
             alert("❌ Failed to update group");
-            fetchTeams(); // re-sync
+            fetchTeams();
         }
     };
 
@@ -328,7 +398,7 @@ export default function TeamsClient() {
                 <div className="flex items-center justify-between mb-10">
                     <div>
                         <h1 className="text-4xl font-black uppercase tracking-tight">Team Management</h1>
-                        <p className="text-zinc-500 text-sm mt-1 tracking-wide">Drag teams between groups · Edit details inline</p>
+                        <p className="text-zinc-500 text-sm mt-1 tracking-wide">Create teams · Assign captains · Drag between groups</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-amber-500" />
@@ -367,16 +437,14 @@ export default function TeamsClient() {
                         </div>
                         <div className="w-20">
                             <label className="text-[10px] text-zinc-600 tracking-widest uppercase block mb-1">Color</label>
-                            <div className="relative">
-                                <input
-                                    type="color"
-                                    value={newTeam.color}
-                                    onChange={e => setNewTeam(n => ({ ...n, color: e.target.value }))}
-                                    className="w-full h-[46px] rounded-xl cursor-pointer border border-zinc-700 bg-black px-1"
-                                />
-                            </div>
+                            <input
+                                type="color"
+                                value={newTeam.color}
+                                onChange={e => setNewTeam(n => ({ ...n, color: e.target.value }))}
+                                className="w-full h-[46px] rounded-xl cursor-pointer border border-zinc-700 bg-black px-1"
+                            />
                         </div>
-                        <div className="w-32">
+                        <div className="w-28">
                             <label className="text-[10px] text-zinc-600 tracking-widest uppercase block mb-1">Group</label>
                             <select
                                 value={newTeam.groupId}
@@ -389,13 +457,17 @@ export default function TeamsClient() {
                             </select>
                         </div>
                         <div className="w-32">
-                            <label className="text-[10px] text-zinc-600 tracking-widest uppercase block mb-1">Purse</label>
-                            <input
-                                type="number"
-                                value={newTeam.purse}
-                                onChange={e => setNewTeam(n => ({ ...n, purse: parseInt(e.target.value, 10) || 0 }))}
-                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono text-emerald-400 font-bold focus:border-amber-500 outline-none transition-colors"
-                            />
+                            <label className="text-[10px] text-zinc-600 tracking-widest uppercase block mb-1">Captain</label>
+                            <select
+                                value={newTeam.captainAccountId}
+                                onChange={e => setNewTeam(n => ({ ...n, captainAccountId: e.target.value }))}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-3 text-sm font-bold focus:border-amber-500 outline-none transition-colors"
+                            >
+                                <option value="">None</option>
+                                {approvedPlayers.filter(p => !p.isCaptain).map(p => (
+                                    <option key={p.accountId} value={p.accountId}>{p.name}</option>
+                                ))}
+                            </select>
                         </div>
                         <button
                             type="submit"
@@ -410,7 +482,7 @@ export default function TeamsClient() {
                     )}
                 </div>
 
-                {/* Group Boards — Drag & Drop */}
+                {/* Group Boards */}
                 {loading ? (
                     <div className="flex items-center justify-center h-48 text-zinc-600">Loading teams...</div>
                 ) : error ? (
@@ -426,8 +498,10 @@ export default function TeamsClient() {
                                     key={group}
                                     group={group}
                                     teams={teamsByGroup(group)}
+                                    approvedPlayers={approvedPlayers}
                                     onUpdate={handleUpdate}
                                     onDelete={handleDelete}
+                                    onAssignCaptain={handleAssignCaptain}
                                     draggingId={draggingId}
                                     onDragStart={setDraggingId}
                                     onDrop={handleDrop}

@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { getBasePrice, AUCTION_CONSTANTS, calculateMaxBid } from "@/lib/auction";
+import { getBasePrice, AUCTION_CONSTANTS, calculateMaxBid, getBidIncrement } from "@/lib/auction";
 import { validateAdminRequest } from "@/lib/auth";
 import Redis from "ioredis";
 import { teamPursesKey } from "@/lib/redis-keys";
-
-// Singleton Redis to avoid per-request connection creation
-const globalForRedis = global as unknown as { auctionRedis: Redis };
-const redis = globalForRedis.auctionRedis || new Redis(process.env.REDIS_URL || "");
-if (process.env.NODE_ENV !== "production") globalForRedis.auctionRedis = redis;
 
 export async function POST(req: Request) {
     if (!(await validateAdminRequest())) {
@@ -19,9 +14,9 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { action, payload } = body;
 
-        // Fetch current state
+        // Fetch current auction state
         const { data: stateData } = await supabase.from('vpl_auction_state').select('*').eq('id', 1).maybeSingle();
-        const state = stateData || { id: 1, status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null };
+        const state = stateData || { id: 1, status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null, active_pool: null, bid_increment: null, show_pool_to_viewers: true };
 
         switch (action) {
             case 'DRAW': {
@@ -30,20 +25,21 @@ export async function POST(req: Request) {
                 }
                 const { data: player } = await supabase
                     .from('vpl_registrations')
-                    .select('team_name')
+                    .select('team_name, tier')
                     .eq('account_id', payload.accountId)
                     .eq('season', 2)
                     .single();
                 if (!player || (player.team_name !== 'UNSOLD' && player.team_name !== 'PASSED')) {
                     throw new Error("Player is already sold or not eligible for draft.");
                 }
-                const basePrice = getBasePrice(payload.tier);
+                const basePrice = getBasePrice(payload.tier || player.tier);
                 await supabase.from('vpl_auction_state').upsert({
                     id: 1,
                     active_player_id: payload.accountId,
                     current_bid: basePrice,
                     leading_team_id: null,
                     status: 'BIDDING',
+                    active_pool: payload.tier || player.tier || state.active_pool,
                     last_update: new Date().toISOString()
                 });
                 break;
@@ -57,11 +53,15 @@ export async function POST(req: Request) {
                     throw new Error(`Bid must be higher than current bid of ${state.current_bid}`);
                 }
 
-                // Fetch team name
+                // Fetch team
                 const { data: team } = await supabase.from('Team').select('name').eq('id', payload.teamId).single();
                 if (!team) throw new Error("Team not found");
 
-                // Fetch roster
+                const redis = new Redis(process.env.REDIS_URL || "");
+                const purseStr = await redis.hget(teamPursesKey(), payload.teamId);
+                const purse = purseStr ? parseInt(purseStr, 10) : AUCTION_CONSTANTS.MAX_BUDGET;
+
+                // Fetch roster (count players already assigned to this team, including captain)
                 const { data: roster } = await supabase
                     .from('vpl_registrations')
                     .select('price')
@@ -74,11 +74,7 @@ export async function POST(req: Request) {
                 }
 
                 const spent = (roster || []).reduce((sum: number, p: any) => sum + (p.price || 0), 0);
-
-                // Fetch custom purse from Redis singleton
-                const purseStr = await redis.hget(teamPursesKey(), payload.teamId);
-                const startingPurse = purseStr ? parseInt(purseStr, 10) : AUCTION_CONSTANTS.MAX_BUDGET;
-                const currentPurse = startingPurse - spent;
+                const currentPurse = purse - spent;
 
                 const minBasePrice = Math.min(...Object.values(AUCTION_CONSTANTS.BASE_PRICES));
                 const maxBid = calculateMaxBid(currentPurse, currentRosterSize, minBasePrice);
@@ -116,7 +112,7 @@ export async function POST(req: Request) {
                     throw new Error(`${teamSold.name}'s roster is full — cannot complete sale.`);
                 }
 
-                // Update registration + history + reset state atomically (best-effort — Supabase doesn't have true transactions)
+                // Update registration + history + reset state
                 const [regResult, histResult, resetResult] = await Promise.all([
                     supabase.from('vpl_registrations').update({
                         team_name: teamSold.name,
@@ -133,11 +129,57 @@ export async function POST(req: Request) {
                         active_player_id: null,
                         current_bid: 0,
                         leading_team_id: null,
-                        status: 'IDLE'
+                        status: 'IDLE',
+                        last_update: new Date().toISOString()
                     }).eq('id', 1)
                 ]);
 
                 if (regResult.error) throw new Error(`Sale failed: ${regResult.error.message}`);
+                break;
+            }
+
+            case 'FORCE_SELL': {
+                // Manual override — auctioneer enters final bid + team
+                const { teamId, amount, playerId } = payload;
+                const activePlayerId = playerId || state.active_player_id;
+
+                if (!activePlayerId) throw new Error("No active player.");
+                if (!teamId) throw new Error("Must select a team.");
+                if (!amount || amount <= 0) throw new Error("Must enter a valid bid amount.");
+
+                const { data: teamForce } = await supabase.from('Team').select('name').eq('id', teamId).single();
+                if (!teamForce) throw new Error("Team not found");
+
+                // Roster check
+                const { data: rosterForce } = await supabase
+                    .from('vpl_registrations')
+                    .select('id')
+                    .eq('team_name', teamForce.name)
+                    .eq('season', 2);
+                if ((rosterForce?.length || 0) >= AUCTION_CONSTANTS.MAX_PLAYERS) {
+                    throw new Error(`${teamForce.name}'s roster is full.`);
+                }
+
+                await Promise.all([
+                    supabase.from('vpl_registrations').update({
+                        team_name: teamForce.name,
+                        price: amount
+                    }).eq('account_id', activePlayerId).eq('season', 2),
+
+                    supabase.from('vpl_auction_history').insert({
+                        player_id: activePlayerId,
+                        bid_amount: amount,
+                        team_id: teamId
+                    }),
+
+                    supabase.from('vpl_auction_state').update({
+                        active_player_id: null,
+                        current_bid: 0,
+                        leading_team_id: null,
+                        status: 'IDLE',
+                        last_update: new Date().toISOString()
+                    }).eq('id', 1)
+                ]);
                 break;
             }
 
@@ -151,7 +193,8 @@ export async function POST(req: Request) {
                     active_player_id: null,
                     current_bid: 0,
                     leading_team_id: null,
-                    status: 'IDLE'
+                    status: 'IDLE',
+                    last_update: new Date().toISOString()
                 }).eq('id', 1);
                 break;
             }
@@ -166,7 +209,7 @@ export async function POST(req: Request) {
                 if (history && history.length > 0) {
                     const lastSale = history[0];
                     await supabase.from('vpl_registrations').update({
-                        team_name: 'UNSOLD', // Always revert to UNSOLD for re-drawing
+                        team_name: 'UNSOLD',
                         price: 0
                     }).eq('account_id', lastSale.player_id).eq('season', 2);
 
@@ -178,7 +221,6 @@ export async function POST(req: Request) {
             }
 
             case 'RESET': {
-                // Emergency reset — clears stuck BIDDING state
                 await supabase.from('vpl_auction_state').upsert({
                     id: 1,
                     active_player_id: null,
@@ -187,6 +229,17 @@ export async function POST(req: Request) {
                     status: 'IDLE',
                     last_update: new Date().toISOString()
                 });
+                break;
+            }
+
+            case 'UPDATE_CONFIG': {
+                // Update auction config (pool visibility, active pool, bid increment)
+                const update: any = { last_update: new Date().toISOString() };
+                if (payload.show_pool_to_viewers !== undefined) update.show_pool_to_viewers = payload.show_pool_to_viewers;
+                if (payload.active_pool !== undefined) update.active_pool = payload.active_pool;
+                if (payload.bid_increment !== undefined) update.bid_increment = payload.bid_increment;
+
+                await supabase.from('vpl_auction_state').update(update).eq('id', 1);
                 break;
             }
 

@@ -13,7 +13,7 @@ export async function PATCH(
 
     try {
         const body = await req.json();
-        const { is_approved, tier, is_captain, team_name } = body;
+        const { is_approved, tier, is_captain, team_name, gender } = body;
         const resolvedParams = await params;
         const accountId = resolvedParams.id;
 
@@ -30,14 +30,16 @@ export async function PATCH(
             }
         }
 
+        const updateObj: any = {};
+        if (is_approved !== undefined) updateObj.is_approved = is_approved;
+        if (tier !== undefined) updateObj.tier = tier;
+        if (is_captain !== undefined) updateObj.is_captain = is_captain;
+        if (team_name !== undefined) updateObj.team_name = team_name || 'UNSOLD';
+        if (gender !== undefined) updateObj.gender = gender;
+
         const { data, error } = await supabase
             .from("vpl_registrations")
-            .update({
-                is_approved,
-                tier,
-                is_captain,
-                team_name: team_name || 'UNSOLD'
-            })
+            .update(updateObj)
             .eq("account_id", accountId)
             .eq("season", 2)
             .select();

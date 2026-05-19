@@ -3,6 +3,7 @@ import ViewerClient from "./viewer-client";
 import { Metadata } from "next";
 import Redis from "ioredis";
 import { teamPursesKey } from "@/lib/redis-keys";
+import { AUCTION_CONSTANTS } from "@/lib/auction";
 
 export const revalidate = 60;
 export const metadata: Metadata = {
@@ -11,17 +12,26 @@ export const metadata: Metadata = {
 };
 
 export default async function AuctionViewerPage() {
-    // 1. Fetch Teams
-    const { data: teams } = await supabase
+    // Fetch Teams (without purse)
+    const { data: teamsData } = await supabase
         .from("Team")
         .select("id, name, color, shortName")
         .order("name", { ascending: true });
 
-    // 2. Fetch all registered players to calculate purses
+    // Fetch purses from Redis
+    const redis = new Redis(process.env.REDIS_URL || "");
+    const pursesHash = await redis.hgetall(teamPursesKey());
+
+    const teams = (teamsData || []).map(t => ({
+        ...t,
+        purse: pursesHash[t.id] ? parseInt(pursesHash[t.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET
+    }));
+
     const { data: players } = await supabase
         .from("vpl_registrations")
-        .select("account_id, team_name, price, varchasva_accounts(name, mobile_number), tier, role")
-        .eq("season", 2);
+        .select("account_id, team_name, price, varchasva_accounts(name, mobile_number), tier, role, gender, is_captain")
+        .eq("season", 2)
+        .eq("is_approved", true);
 
     const formattedPlayers = (players || []).map((p: any) => ({
         accountId: p.account_id,
@@ -29,17 +39,10 @@ export default async function AuctionViewerPage() {
         teamName: p.team_name,
         price: p.price || 0,
         tier: p.tier,
-        role: p.role
+        role: p.role,
+        gender: p.gender || "Male",
+        isCaptain: p.is_captain || false,
     }));
 
-    // 3. Fetch custom purses
-    const redis = new Redis(process.env.REDIS_URL || "");
-    const pursesStr = await redis.hgetall(teamPursesKey());
-    const initialPurses: Record<string, number> = {};
-    for (const [teamId, purse] of Object.entries(pursesStr)) {
-        initialPurses[teamId] = parseInt(purse, 10);
-    }
-    redis.disconnect();
-
-    return <ViewerClient teams={teams || []} players={formattedPlayers} initialPurses={initialPurses} />;
+    return <ViewerClient teams={teams} players={formattedPlayers} />;
 }

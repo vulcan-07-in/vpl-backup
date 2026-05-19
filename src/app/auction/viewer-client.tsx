@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { supabaseBrowser as supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Coins, Trophy, Hammer } from "lucide-react";
+import { Users, Coins, Trophy, Hammer, Crown } from "lucide-react";
 
 interface Player {
     accountId: string;
@@ -13,6 +13,8 @@ interface Player {
     price: number;
     tier: string;
     role: string;
+    gender: string;
+    isCaptain: boolean;
 }
 
 interface Team {
@@ -20,41 +22,18 @@ interface Team {
     name: string;
     color: string;
     shortName: string;
+    purse: number;
 }
 
-export default function ViewerClient({ teams, players: initialPlayers, initialPurses }: { teams: Team[], players: Player[], initialPurses: Record<string, number> }) {
+export default function ViewerClient({ teams, players: initialPlayers }: { teams: Team[], players: Player[] }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
-    const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
+    const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null, active_pool: null, show_pool_to_viewers: true });
     const [soldEvent, setSoldEvent] = useState<{ player: Player, team: Team, amount: number } | null>(null);
-    const [hasAuctionStarted, setHasAuctionStarted] = useState(true);
-    const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
-
-    useEffect(() => {
-        const targetDate = new Date("2026-05-20T17:00:00+05:30").getTime();
-        const checkTime = () => {
-            const now = Date.now();
-            setHasAuctionStarted(now >= targetDate);
-            if (now < targetDate) {
-                const diff = targetDate - now;
-                setTimeLeft({
-                    d: Math.floor(diff / (1000 * 60 * 60 * 24)),
-                    h: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-                    m: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
-                    s: Math.floor((diff % (1000 * 60)) / 1000),
-                });
-            }
-        };
-        checkTime();
-        const interval = setInterval(checkTime, 1000);
-        return () => clearInterval(interval);
-    }, []);
 
     const playersRef = useRef(players);
     useEffect(() => { playersRef.current = players; }, [players]);
 
-    // Sync state with DB in real-time
     useEffect(() => {
-        // Initial fetch
         supabase.from('vpl_auction_state').select('*').eq('id', 1).maybeSingle().then(({ data }) => {
             if (data) setAuctionState(data);
         });
@@ -64,7 +43,6 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                 setAuctionState(payload.new);
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_registrations' }, () => {
-                // Refresh players silently if someone is sold
                 supabase.from("vpl_registrations").select("account_id, team_name, price").eq("season", 2).then(({ data }) => {
                     if (data) {
                         setPlayers(prev => prev.map(p => {
@@ -80,7 +58,7 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                 const t = teams.find(tm => tm.id === history.team_id);
                 if (p && t) {
                     setSoldEvent({ player: p, team: t, amount: history.bid_amount });
-                    setTimeout(() => setSoldEvent(null), 7000); // clear after 7 seconds
+                    setTimeout(() => setSoldEvent(null), 7000);
                 }
             })
             .subscribe();
@@ -88,236 +66,169 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
         return () => { supabase.removeChannel(channel); };
     }, []);
 
-    // Derived logic
     const activePlayer = useMemo(() => players.find(p => p.accountId === auctionState.active_player_id), [players, auctionState.active_player_id]);
-    
-    // Team Budgets & Slots
+
     const teamStats = useMemo(() => {
         const stats: Record<string, { spent: number, count: number, currentPurse: number }> = {};
         teams.forEach(t => {
             const roster = players.filter(p => p.teamName === t.name);
             const spent = roster.reduce((sum, p) => sum + p.price, 0);
-            const count = roster.length;
-            const startingPurse = initialPurses[t.id] ?? AUCTION_CONSTANTS.MAX_BUDGET;
-            stats[t.id] = { spent, count, currentPurse: startingPurse - spent };
+            stats[t.id] = { spent, count: roster.length, currentPurse: t.purse - spent };
         });
         return stats;
-    }, [players, teams, initialPurses]);
+    }, [players, teams]);
 
     const leadingTeam = useMemo(() => teams.find(t => t.id === auctionState.leading_team_id), [teams, auctionState.leading_team_id]);
 
-    if (!hasAuctionStarted) {
-        return (
-            <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center relative overflow-hidden p-6 text-white">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] rounded-full bg-amber-500/10 blur-[120px] pointer-events-none" />
-                
-                <motion.div 
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="relative z-10 flex flex-col items-center text-center w-full max-w-5xl"
-                >
-                    <div className="mb-10 w-24 h-24 md:w-32 md:h-32 rounded-full border border-amber-500/30 bg-amber-500/5 flex items-center justify-center backdrop-blur-md relative shadow-[0_0_40px_rgba(245,158,11,0.2)]">
-                        <div className="absolute inset-0 rounded-full border-t-2 border-amber-500/50 animate-[spin_3s_linear_infinite]" />
-                        <Trophy className="text-amber-500 w-10 h-10 md:w-12 md:h-12 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
-                    </div>
-
-                    <h1 className="text-5xl md:text-8xl lg:text-[9rem] font-black uppercase italic tracking-tighter leading-none mb-6 drop-shadow-2xl" style={{ color: "#f59e0b", textShadow: "0 0 30px rgba(245,158,11,0.5)" }}>
-                        Live Auction
-                    </h1>
-                    
-                    <p className="text-lg md:text-3xl text-zinc-400 font-light tracking-[0.4em] uppercase mb-16">
-                        Begins Soon
-                    </p>
-
-                    {timeLeft && (
-                        <div className="flex gap-4 md:gap-8 mb-16">
-                            <div className="flex flex-col items-center">
-                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.d.toString().padStart(2, '0')}</span>
-                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">DAYS</span>
-                            </div>
-                            <span className="text-4xl md:text-6xl font-black text-amber-500/30">:</span>
-                            <div className="flex flex-col items-center">
-                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.h.toString().padStart(2, '0')}</span>
-                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">HRS</span>
-                            </div>
-                            <span className="text-4xl md:text-6xl font-black text-amber-500/30">:</span>
-                            <div className="flex flex-col items-center">
-                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.m.toString().padStart(2, '0')}</span>
-                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">MIN</span>
-                            </div>
-                            <span className="text-4xl md:text-6xl font-black text-amber-500/30">:</span>
-                            <div className="flex flex-col items-center">
-                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.s.toString().padStart(2, '0')}</span>
-                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">SEC</span>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-xs md:text-sm font-bold tracking-[0.2em] text-zinc-300 uppercase w-full max-w-3xl mx-auto">
-                        <span className="flex-1 flex justify-center items-center gap-3 w-full py-4 rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-md">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            20th May
-                        </span>
-                        <span className="flex-1 flex justify-center items-center py-4 w-full rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-md">
-                            5:00 PM
-                        </span>
-                        <span className="flex-1 flex justify-center items-center py-4 w-full rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-md">
-                            Saraswati Hall
-                        </span>
-                    </div>
-                </motion.div>
-            </div>
-        );
-    }
+    // Pool players for display
+    const poolPlayers = useMemo(() => {
+        if (!auctionState.show_pool_to_viewers || !auctionState.active_pool) return [];
+        return players.filter(p => {
+            if (p.isCaptain) return false;
+            const matchesPool = p.tier?.toUpperCase() === auctionState.active_pool?.toUpperCase();
+            return matchesPool && (p.teamName === 'UNSOLD' || p.teamName === 'PASSED' || p.teamName !== 'UNSOLD');
+        });
+    }, [players, auctionState.active_pool, auctionState.show_pool_to_viewers]);
 
     return (
         <div className="min-h-screen bg-[#020202] text-white flex flex-col md:flex-row overflow-hidden">
-            
+
             {/* LEFT: Live Stage */}
-            <div className="flex-[3] relative flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r border-white/5">
-                {/* Background glow based on leading team */}
-                <div 
+            <div className="flex-[3] relative flex flex-col items-center justify-center p-6 md:p-8 border-b md:border-b-0 md:border-r border-white/5 min-h-[60vh]">
+                <div
                     className="absolute inset-0 opacity-20 blur-[150px] transition-colors duration-1000"
                     style={{ backgroundColor: leadingTeam?.color || '#3f3f46' }}
                 />
 
-                <div className="absolute top-8 left-8 flex items-center gap-4">
-                    <Trophy className="text-amber-500" />
+                <div className="absolute top-6 left-6 flex items-center gap-3">
+                    <Trophy className="text-amber-500" size={20} />
                     <span className="text-xs font-black tracking-[0.4em] uppercase">VPL S2 Auction</span>
                 </div>
 
                 <AnimatePresence mode="wait">
                     {soldEvent ? (
-                        <motion.div 
+                        <motion.div
                             key={`sold-${soldEvent.player.accountId}`}
-                            initial={{ opacity: 0, scale: 0.5, rotate: -10 }} 
-                            animate={{ opacity: 1, scale: 1, rotate: 0 }} 
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, y: 100 }}
                             transition={{ type: "spring", bounce: 0.5 }}
                             className="relative z-10 w-full max-w-4xl text-center flex flex-col items-center justify-center"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-[-1]" />
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, scale: 3 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: 0.2, type: "spring" }}
-                                className="border-8 border-red-500 text-red-500 text-8xl md:text-[150px] font-black tracking-tighter uppercase px-12 py-4 rotate-[-15deg] absolute z-20 shadow-[0_0_50px_rgba(239,68,68,0.5)]"
-                                style={{ top: '20%', backdropFilter: 'blur(10px)' }}
+                                className="border-8 border-red-500 text-red-500 text-6xl md:text-[120px] font-black tracking-tighter uppercase px-8 py-3 rotate-[-15deg] absolute z-20 shadow-[0_0_50px_rgba(239,68,68,0.5)]"
+                                style={{ top: '15%', backdropFilter: 'blur(10px)' }}
                             >
                                 SOLD
                             </motion.div>
-
-                            <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
-                                {soldEvent.player.name.toUpperCase()}
-                            </h1>
-                            
-                            <p className="text-4xl text-zinc-400 mb-12">FOR</p>
-
-                            <div className="text-8xl md:text-[130px] font-black leading-none tracking-tighter font-mono text-emerald-400 drop-shadow-[0_0_30px_rgba(52,211,153,0.3)] mb-12">
+                            <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter">{soldEvent.player.name.toUpperCase()}</h1>
+                            <p className="text-3xl text-zinc-400 mb-8">FOR</p>
+                            <div className="text-7xl md:text-[110px] font-black leading-none font-mono text-emerald-400 drop-shadow-[0_0_30px_rgba(52,211,153,0.3)] mb-8">
                                 {soldEvent.amount}
                             </div>
-
-                            <div className="inline-flex flex-col items-center gap-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-12 py-6 rounded-3xl shadow-2xl">
-                                <p className="text-zinc-500 font-bold tracking-widest uppercase">To</p>
-                                <div className="flex items-center gap-6">
-                                    <div className="w-8 h-8 rounded-full" style={{ backgroundColor: soldEvent.team.color }} />
-                                    <span className="text-4xl font-bold tracking-wider">{soldEvent.team.name}</span>
+                            <div className="inline-flex flex-col items-center gap-3 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-10 py-5 rounded-3xl">
+                                <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm">To</p>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: soldEvent.team.color }} />
+                                    <span className="text-3xl font-bold tracking-wider">{soldEvent.team.name}</span>
                                 </div>
                             </div>
                         </motion.div>
                     ) : activePlayer ? (
-                        <motion.div 
+                        <motion.div
                             key={activePlayer.accountId}
-                            initial={{ opacity: 0, y: 50, scale: 0.9 }} 
-                            animate={{ opacity: 1, y: 0, scale: 1 }} 
+                            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -50, scale: 0.9 }}
                             transition={{ type: "spring", damping: 25 }}
                             className="relative z-10 w-full max-w-3xl text-center"
                         >
-                            <div className="flex items-center justify-center gap-3 mb-6">
-                                <span className="bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-black px-4 py-1.5 rounded-full tracking-widest uppercase shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                                    {activePlayer.tier}
-                                </span>
-                                <span className="bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] font-bold px-4 py-1.5 rounded-full tracking-widest uppercase">
-                                    {activePlayer.role}
-                                </span>
+                            <div className="flex items-center justify-center gap-3 mb-5">
+                                <span className="bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-black px-4 py-1.5 rounded-full tracking-widest uppercase">{activePlayer.tier}</span>
+                                <span className="bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] font-bold px-4 py-1.5 rounded-full tracking-widest uppercase">{activePlayer.role}</span>
                             </div>
-
-                            <h1 className="text-6xl md:text-8xl font-black mb-4 tracking-tighter" style={{ fontFamily: "var(--font-display)" }}>
-                                {activePlayer.name.toUpperCase()}
-                            </h1>
-                            
-                            <div className="h-px w-32 bg-gradient-to-r from-transparent via-zinc-500 to-transparent mx-auto mb-12" />
-
-                            <div className="relative inline-block">
-                                <motion.div 
-                                    key={auctionState.current_bid}
-                                    initial={{ scale: 1.2, color: '#fff' }}
-                                    animate={{ scale: 1, color: '#f59e0b' }}
-                                    className="text-8xl md:text-[150px] font-black leading-none tracking-tighter font-mono drop-shadow-[0_0_30px_rgba(245,158,11,0.3)]"
-                                >
-                                    {auctionState.current_bid}
-                                </motion.div>
-                                <p className="text-sm font-bold tracking-[0.5em] text-zinc-500 uppercase mt-4">Current Bid</p>
-                            </div>
-
+                            <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter">{activePlayer.name.toUpperCase()}</h1>
+                            <div className="h-px w-32 bg-gradient-to-r from-transparent via-zinc-500 to-transparent mx-auto mb-8" />
+                            <motion.div
+                                key={auctionState.current_bid}
+                                initial={{ scale: 1.2, color: '#fff' }}
+                                animate={{ scale: 1, color: '#f59e0b' }}
+                                className="text-7xl md:text-[120px] font-black leading-none font-mono drop-shadow-[0_0_30px_rgba(245,158,11,0.3)]"
+                            >
+                                {auctionState.current_bid}
+                            </motion.div>
+                            <p className="text-sm font-bold tracking-[0.5em] text-zinc-500 uppercase mt-3">Current Bid</p>
                             {leadingTeam && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                                    className="mt-12 inline-flex items-center gap-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-8 py-4 rounded-full shadow-2xl"
+                                    className="mt-8 inline-flex items-center gap-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-8 py-3 rounded-full shadow-2xl"
                                 >
                                     <div className="w-4 h-4 rounded-full animate-pulse" style={{ backgroundColor: leadingTeam.color }} />
-                                    <span className="text-2xl font-bold tracking-wider">{leadingTeam.name}</span>
+                                    <span className="text-xl font-bold tracking-wider">{leadingTeam.name}</span>
                                 </motion.div>
                             )}
-
                         </motion.div>
                     ) : (
-                        <motion.div 
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                            className="relative z-10 flex flex-col items-center text-zinc-600"
-                        >
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative z-10 flex flex-col items-center text-zinc-600">
                             <Hammer size={80} className="mb-8 opacity-20" />
                             <p className="text-2xl font-black tracking-[0.5em] uppercase opacity-50">Waiting for next player</p>
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* Pool display at bottom */}
+                {auctionState.show_pool_to_viewers && auctionState.active_pool && !soldEvent && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-4 md:p-6">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Users size={14} className="text-amber-500" />
+                            <span className="text-xs font-bold tracking-widest text-zinc-400 uppercase">{auctionState.active_pool} Pool</span>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                            {poolPlayers.map(p => {
+                                const isSold = p.teamName !== 'UNSOLD' && p.teamName !== 'PASSED';
+                                const isActive = p.accountId === auctionState.active_player_id;
+                                return (
+                                    <div key={p.accountId} className={`shrink-0 px-3 py-2 rounded-lg border text-xs transition-all ${
+                                        isActive ? 'border-amber-500 bg-amber-500/10 text-amber-500' :
+                                        isSold ? 'border-zinc-800 bg-zinc-900/50 text-zinc-600 line-through opacity-50' :
+                                        'border-zinc-800 bg-zinc-900/50 text-zinc-300'
+                                    }`}>
+                                        <p className="font-bold">{p.name}</p>
+                                        {isSold && <p className="text-[9px] text-zinc-600 mt-0.5">{p.teamName}</p>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* RIGHT: Live Purse Tracker */}
             <div className="flex-[1] bg-black relative flex flex-col max-h-screen">
-                <div className="p-6 border-b border-white/5 bg-zinc-950 sticky top-0 z-20">
+                <div className="p-4 md:p-6 border-b border-white/5 bg-zinc-950 sticky top-0 z-20">
                     <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase flex items-center gap-2">
                         <Coins size={14}/> Live Purse Tracker
                     </h3>
                 </div>
-                
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3 relative z-10">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-3 relative z-10">
                     {teams.map(team => {
                         const stats = teamStats[team.id];
                         const fillPercentage = (stats.count / AUCTION_CONSTANTS.MAX_PLAYERS) * 100;
-
                         return (
                             <div key={team.id} className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-4 relative overflow-hidden group hover:border-zinc-700 transition-colors">
-                                {/* Subtle progress bar background */}
-                                <div 
-                                    className="absolute left-0 bottom-0 top-0 opacity-10 transition-all duration-1000"
-                                    style={{ width: `${fillPercentage}%`, backgroundColor: team.color }}
-                                />
-                                
-                                <div className="relative z-10 flex items-center justify-between mb-3">
+                                <div className="absolute left-0 bottom-0 top-0 opacity-10 transition-all duration-1000" style={{ width: `${fillPercentage}%`, backgroundColor: team.color }} />
+                                <div className="relative z-10 flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
                                         <div className="w-2 h-6 rounded-full" style={{ backgroundColor: team.color }} />
                                         <p className="font-bold text-sm tracking-wide">{team.shortName}</p>
                                     </div>
                                     <p className="font-mono font-bold text-emerald-400">{stats.currentPurse}</p>
                                 </div>
-
                                 <div className="relative z-10 flex items-center justify-between text-[10px] text-zinc-500 font-bold tracking-widest uppercase">
-                                    <div className="flex items-center gap-1.5">
-                                        <Users size={12} /> {stats.count} / {AUCTION_CONSTANTS.MAX_PLAYERS}
-                                    </div>
+                                    <div className="flex items-center gap-1.5"><Users size={12} /> {stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS}</div>
                                     <span>Spent: {stats.spent}</span>
                                 </div>
                             </div>

@@ -8,7 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPlayersPage() {
-    // 1. Fetch all registrants for Season 2
     const { data: registrations, error } = await supabase
         .from("vpl_registrations")
         .select(`
@@ -16,6 +15,7 @@ export default async function AdminPlayersPage() {
             account_id,
             role,
             tier,
+            gender,
             is_approved,
             is_captain,
             team_name,
@@ -27,19 +27,14 @@ export default async function AdminPlayersPage() {
         .eq("season", 2)
         .order("is_approved", { ascending: true });
 
-    if (error) {
-        console.error("Supabase Error:", error);
-    }
+    if (error) console.error("Supabase Error:", error);
 
-    // 2. Fetch teams for captain assignment
     const { data: teams, error: teamsError } = await supabase
         .from("Team")
         .select("id, name, color")
         .order("name", { ascending: true });
-        
-    if (teamsError) {
-        console.error("Teams Supabase Error:", teamsError);
-    }
+
+    if (teamsError) console.error("Teams Error:", teamsError);
 
     const formattedPlayers = (registrations || []).map((reg: any) => ({
         accountId: reg.account_id,
@@ -47,6 +42,7 @@ export default async function AdminPlayersPage() {
         mobile: reg.varchasva_accounts?.mobile_number || "",
         role: reg.role,
         tier: reg.tier,
+        gender: reg.gender || "Male",
         isApproved: reg.is_approved,
         isCaptain: reg.is_captain,
         teamName: reg.team_name
@@ -55,9 +51,9 @@ export default async function AdminPlayersPage() {
     const errorMsg = error ? error.message : (teamsError ? teamsError.message : null);
 
     return (
-        <PlayersClient 
-            initialPlayers={formattedPlayers} 
-            teams={teams || []} 
+        <PlayersClient
+            initialPlayers={formattedPlayers}
+            teams={teams || []}
             serverError={errorMsg}
         />
     );

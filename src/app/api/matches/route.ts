@@ -216,6 +216,7 @@ export async function POST(request: Request) {
             if (!tbdTeam) {
                 const now = new Date().toISOString();
                 const { data: newTbd, error: tbdErr } = await supabase.from("Team").insert({
+                    id: randomUUID(),
                     name: "TBD",
                     shortName: "TBD",
                     color: "#333333",

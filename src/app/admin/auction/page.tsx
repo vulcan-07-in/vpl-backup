@@ -3,6 +3,7 @@ import AuctioneerClient from "./auctioneer-client";
 import { Metadata } from "next";
 import Redis from "ioredis";
 import { teamPursesKey } from "@/lib/redis-keys";
+import { AUCTION_CONSTANTS } from "@/lib/auction";
 
 export const revalidate = 0;
 export const metadata: Metadata = {
@@ -19,16 +20,27 @@ export default async function AdminAuctionPage() {
             tier,
             team_name,
             price,
+            gender,
+            is_captain,
             varchasva_accounts (name, mobile_number)
         `)
         .eq("season", 2)
         .eq("is_approved", true);
 
-    // 2. Fetch Teams
-    const { data: teams } = await supabase
+    // 2. Fetch Teams (without purse)
+    const { data: teamsData } = await supabase
         .from("Team")
         .select("id, name, color, shortName")
         .order("name", { ascending: true });
+
+    // 3. Fetch purses from Redis
+    const redis = new Redis(process.env.REDIS_URL || "");
+    const pursesHash = await redis.hgetall(teamPursesKey());
+
+    const teams = (teamsData || []).map(t => ({
+        ...t,
+        purse: pursesHash[t.id] ? parseInt(pursesHash[t.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET
+    }));
 
     // Format players
     const formattedPlayers = (players || []).map((p: any) => ({
@@ -36,18 +48,11 @@ export default async function AdminAuctionPage() {
         name: p.varchasva_accounts?.name || "Unknown",
         role: p.role,
         tier: p.tier,
-        teamName: p.team_name, // UNSOLD, PASSED, or a Team Name
-        price: p.price || 0
+        gender: p.gender || "Male",
+        teamName: p.team_name,
+        price: p.price || 0,
+        isCaptain: p.is_captain || false,
     }));
 
-    // 3. Fetch custom purses
-    const redis = new Redis(process.env.REDIS_URL || "");
-    const pursesStr = await redis.hgetall(teamPursesKey());
-    const initialPurses: Record<string, number> = {};
-    for (const [teamId, purse] of Object.entries(pursesStr)) {
-        initialPurses[teamId] = parseInt(purse, 10);
-    }
-    redis.disconnect();
-
-    return <AuctioneerClient players={formattedPlayers} teams={teams || []} initialPurses={initialPurses} />;
+    return <AuctioneerClient players={formattedPlayers} teams={teams} />;
 }
