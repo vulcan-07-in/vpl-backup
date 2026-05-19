@@ -24,6 +24,7 @@ interface Team {
     shortName: string;
     purse: number;
     paddleNumber?: number;
+    logoUrl?: string | null;
 }
 
 export default function AuctioneerClient({ players: initialPlayers, teams }: { players: Player[], teams: Team[] }) {
@@ -361,12 +362,17 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                             <p className="text-xs text-zinc-500 font-bold tracking-widest uppercase mb-2">Current Bid</p>
                                             <div className="text-6xl font-mono font-bold text-amber-500">{auctionState.current_bid}</div>
                                             <p className="text-xs text-zinc-600 mt-1">Increment: +{currentIncrement}</p>
-                                            {auctionState.leading_team_id && (
-                                                <div className="mt-3 flex items-center gap-2">
-                                                    <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: teams.find(t => t.id === auctionState.leading_team_id)?.color }} />
-                                                    <span className="font-bold text-zinc-300">{teams.find(t => t.id === auctionState.leading_team_id)?.name}</span>
-                                                </div>
-                                            )}
+                                            {auctionState.leading_team_id && (() => {
+                                                const lt = teams.find(t => t.id === auctionState.leading_team_id);
+                                                return (
+                                                    <div className="mt-3 flex items-center gap-2">
+                                                        {lt?.logoUrl
+                                                            ? <img src={lt.logoUrl} alt={lt.name} className="w-7 h-7 rounded-full object-cover ring-2 ring-amber-500/40" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                            : <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lt?.color }} />}
+                                                        <span className="font-bold text-zinc-300">{lt?.name}</span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                     <div className="flex flex-col justify-end gap-3">
@@ -538,16 +544,20 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                                 : 'bg-zinc-900 border-zinc-800 hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-zinc-800'
                                         }`}
                                     >
+                                        {/* Left colour strip */}
                                         <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: team.color }} />
-                                        
-                                        <div className="flex justify-between items-start pl-2">
+
+                                        <div className="flex justify-between items-start pl-3">
                                             <div className="flex items-center gap-2">
+                                                {team.logoUrl
+                                                    ? <img src={team.logoUrl} alt={team.shortName} className="w-6 h-6 rounded-full object-cover shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                                    : null}
                                                 <span className={`text-sm font-black ${isLeading ? 'text-amber-500' : 'text-white'}`}>{team.paddleNumber ? `#${team.paddleNumber}` : team.shortName}</span>
                                             </div>
                                             <span className="font-mono font-black text-emerald-400 text-sm">₹{stats.currentPurse}</span>
                                         </div>
-                                        
-                                        <div className="flex justify-between items-end pl-2">
+
+                                        <div className="flex justify-between items-end pl-3">
                                             <div className="flex flex-col">
                                                 <span className="text-[10px] text-zinc-400 font-bold truncate max-w-[80px]">{team.shortName}</span>
                                                 <span className="text-[9px] text-zinc-600 tracking-wider">{stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS}</span>
