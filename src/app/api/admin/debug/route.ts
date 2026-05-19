@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import Redis from "ioredis";
+import { validateAdminRequest } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-// Temporary diagnostic endpoint — REMOVE AFTER DEBUGGING
+// Temporary diagnostic endpoint — remove after debugging is complete
 export async function GET() {
+    if (!(await validateAdminRequest())) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT_SET';
     const redisUrl = process.env.REDIS_URL || 'NOT_SET';
     const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
