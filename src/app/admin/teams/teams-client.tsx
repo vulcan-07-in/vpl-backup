@@ -135,49 +135,58 @@ function TeamCard({
             </div>
 
             {editing && (
-                <div className="space-y-2 mb-3">
-                    <div className="flex items-center gap-2">
-                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Purse</label>
+                <div className="space-y-3 mb-3 bg-black/40 p-3 rounded-xl border border-zinc-800">
+                    <div>
+                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">Purse</label>
                         <input
                             type="number"
                             value={fields.purse}
                             onChange={e => setFields(f => ({ ...f, purse: parseInt(e.target.value, 10) || 0 }))}
-                            className="bg-black border border-zinc-700 rounded px-2 py-1 text-sm font-mono text-emerald-400 w-28"
+                            className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono text-emerald-400"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Paddle</label>
+                    <div>
+                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">Paddle Number</label>
                         <input
                             type="number"
                             value={fields.paddleNumber}
                             onChange={e => setFields(f => ({ ...f, paddleNumber: e.target.value }))}
-                            className="bg-black border border-zinc-700 rounded px-2 py-1 text-sm font-mono text-amber-500 w-16"
-                            placeholder="No."
+                            className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono text-amber-500"
+                            placeholder="e.g. 1"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Logo</label>
-                        <div className="flex-1 flex items-center gap-2">
-                            {/* File upload button */}
-                            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploading}
-                                className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded text-[10px] font-bold transition-colors shrink-0"
-                            >
-                                <Upload size={10} /> {uploading ? 'Uploading...' : 'Upload'}
-                            </button>
-                            {/* URL paste fallback */}
+                    <div>
+                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">Team Logo</label>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    className="flex-1 flex justify-center items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-xs font-bold transition-colors"
+                                >
+                                    <Upload size={12} /> {uploading ? 'Uploading...' : 'Upload Image'}
+                                </button>
+                                {fields.logoUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFields(f => ({ ...f, logoUrl: '' }))}
+                                        className="flex justify-center items-center gap-1 bg-red-950 hover:bg-red-900 text-red-500 px-3 rounded-lg text-xs font-bold transition-colors"
+                                        title="Remove Logo"
+                                    >
+                                        <X size={12} /> Remove
+                                    </button>
+                                )}
+                            </div>
                             <input
                                 type="url"
                                 value={fields.logoUrl}
                                 onChange={e => setFields(f => ({ ...f, logoUrl: e.target.value }))}
-                                placeholder="or paste URL"
-                                className="flex-1 bg-black border border-zinc-700 rounded px-2 py-1 text-[10px] text-zinc-400 min-w-0"
+                                placeholder="or paste image URL directly"
+                                className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-400"
                             />
                         </div>
-                        {fields.logoUrl && <img src={fields.logoUrl} alt="preview" className="w-8 h-8 rounded-full object-cover border border-zinc-700" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />}
                     </div>
                 </div>
             )}
