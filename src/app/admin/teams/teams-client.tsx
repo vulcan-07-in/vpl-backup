@@ -15,6 +15,7 @@ interface Team {
     logoUrl?: string | null;
     captainId: string | null;
     captainName: string | null;
+    paddleNumber?: string | null;
 }
 
 interface ApprovedPlayer {
