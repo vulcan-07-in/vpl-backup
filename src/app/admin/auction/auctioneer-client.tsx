@@ -78,7 +78,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
 
         const channel = supabase.channel('auctioneer_state')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_auction_state' }, (payload) => {
-                const incoming = payload.new;
+                const incoming = payload.new as any;
                 setAuctionState((prev: any) => {
                     // Ignore stale realtime echoes for current_bid/leading_team_id if we have active optimistic bids inflight
                     // and the incoming bid is lower than our optimistic bid (unless the auction is no longer BIDDING, e.g. SOLD or PASS)
