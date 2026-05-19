@@ -42,6 +42,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const [customIncrement, setCustomIncrement] = useState<number | null>(null);
     const [poolQueue, setPoolQueue] = useState<Player[]>([]);
     const [customBasePrice, setCustomBasePrice] = useState<string>("");
+    const [shakeTeam, setShakeTeam] = useState<string | null>(null);
 
     // Per-team inflight lock — prevents double-tap race conditions per paddle
     // Using a Set so different teams can be clicked in quick succession
@@ -185,7 +186,11 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
             ? state.current_bid
             : state.current_bid + increment;
 
-        if (nextBid > team.maxBid) { alert(`❌ ${teams.find(t => t.id === teamId)?.name}: Ceiling reached! Max bid: ${team.maxBid}`); return; }
+        if (nextBid > team.maxBid) { 
+            setShakeTeam(teamId);
+            setTimeout(() => setShakeTeam(null), 400);
+            return; 
+        }
         if (team.count >= AUCTION_CONSTANTS.MAX_PLAYERS) { alert(`❌ Roster full!`); return; }
 
         // Lock this team's paddle immediately
@@ -544,38 +549,55 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                             }).map(team => {
                                 const stats = teamStats[team.id];
                                 const isCapped = stats.count >= AUCTION_CONSTANTS.MAX_PLAYERS;
-                                const isBankrupt = stats.maxBid <= 0;
-                                const isDisabled = !activePlayer || isCapped || isBankrupt;
+                                
+                                const nextBidForPlayer = auctionState.current_bid === 0 
+                                    ? getBasePrice(activePlayer?.tier) 
+                                    : auctionState.current_bid + getBidIncrement(auctionState.current_bid, currentIncrement);
+                                    
+                                const isBankrupt = stats.maxBid < nextBidForPlayer;
+                                const isLowFunds = !isBankrupt && (stats.maxBid - nextBidForPlayer) < (nextBidForPlayer * 2);
+                                
+                                const isDisabled = !activePlayer || isCapped;
                                 const isLeading = auctionState.leading_team_id === team.id;
+                                const isShaking = shakeTeam === team.id;
+
+                                let paddleBg = 'bg-zinc-900 border-zinc-800 hover:border-zinc-500';
+                                if (isLeading) {
+                                    paddleBg = 'bg-amber-500/20 border-amber-500 ring-2 ring-amber-500';
+                                } else if (isBankrupt) {
+                                    paddleBg = 'bg-red-950/30 border-red-900/50 hover:border-red-700/80 text-red-500';
+                                } else if (isLowFunds) {
+                                    paddleBg = 'bg-yellow-950/20 border-yellow-900/50 hover:border-yellow-600/80';
+                                }
 
                                 return (
                                     <button
                                         key={team.id}
                                         onClick={() => handleBid(team.id)}
-                                        disabled={isDisabled}
-                                        className={`relative w-full p-3 rounded-xl border transition-all text-left flex flex-col justify-between h-[85px] overflow-hidden group ${
-                                            isLeading
-                                                ? 'bg-amber-500/20 border-amber-500 ring-2 ring-amber-500'
-                                                : 'bg-zinc-900 border-zinc-800 hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-zinc-800'
-                                        }`}
+                                        disabled={isDisabled && !isBankrupt} // Let bankrupt clicks go through to trigger shake
+                                        className={`relative w-full p-3 rounded-xl border transition-all text-left flex flex-col justify-between h-[85px] overflow-hidden group ${paddleBg} ${isShaking ? 'animate-shake border-red-500 bg-red-950/60' : ''} ${isDisabled ? 'opacity-30' : ''}`}
                                     >
                                         {/* Left colour strip */}
                                         <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: team.color }} />
 
-                                        <div className="flex justify-between items-start pl-3">
-                                            <div className="flex items-center gap-2">
+                                        <div className="flex justify-between items-start pl-3 w-full">
+                                            <div className="flex items-center gap-1.5 overflow-hidden">
                                                 {team.logoUrl
                                                     ? <img src={team.logoUrl} alt={team.shortName} className="w-6 h-6 rounded-full object-cover shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                                     : null}
-                                                <span className={`text-sm font-black ${isLeading ? 'text-amber-500' : 'text-white'}`}>{team.paddleNumber ? `#${team.paddleNumber}` : team.shortName}</span>
+                                                <span className={`text-base sm:text-lg font-black truncate ${isLeading ? 'text-amber-500' : isBankrupt ? 'text-red-400' : 'text-white'}`}>
+                                                    {team.paddleNumber ? `#${team.paddleNumber}` : team.shortName}
+                                                </span>
                                             </div>
-                                            <span className="font-mono font-black text-emerald-400 text-sm">{stats.currentPurse}</span>
+                                            <div className="flex flex-col items-end shrink-0 pl-2">
+                                                <span className="font-mono font-black text-emerald-400 text-sm leading-none">{stats.currentPurse}</span>
+                                            </div>
                                         </div>
 
-                                        <div className="flex justify-between items-end pl-3">
+                                        <div className="flex justify-between items-end pl-3 w-full mt-1">
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] text-zinc-400 font-bold truncate max-w-[80px]">{team.shortName}</span>
-                                                <span className="text-[9px] text-zinc-600 tracking-wider">{stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS}</span>
+                                                <span className={`text-[10px] font-bold truncate max-w-[80px] ${isBankrupt ? 'text-red-400/70' : 'text-zinc-400'}`}>{team.shortName}</span>
+                                                <span className="text-[9px] text-zinc-600 tracking-wider leading-none mt-0.5">{stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS}</span>
                                             </div>
                                             {isLeading && (
                                                 <div className="bg-amber-500 text-black text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded shadow-lg shadow-amber-500/20 animate-pulse">
