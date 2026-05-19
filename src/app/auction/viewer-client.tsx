@@ -197,18 +197,39 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                         </motion.div>
                     ) : !hasAuctionStarted ? (
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.9 }} 
+                            initial={{ opacity: 0, scale: 0.8 }} 
                             animate={{ opacity: 1, scale: 1 }}
-                            className="relative z-10 flex flex-col items-center text-amber-500/80"
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className="relative z-10 flex flex-col items-center text-amber-500"
                         >
                             <motion.div
-                                animate={{ y: [0, -20, 0], rotate: [0, -10, 0] }}
-                                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                                animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                className="absolute top-10 w-64 h-64 bg-amber-500/20 rounded-full blur-[80px] -z-10"
+                            />
+                            <motion.div
+                                animate={{ y: [0, -15, 0], rotateZ: [0, -15, 0] }}
+                                transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
                             >
-                                <Hammer size={100} className="mb-8 drop-shadow-[0_0_30px_rgba(245,158,11,0.5)]" />
+                                <Hammer size={120} className="mb-8 drop-shadow-[0_0_40px_rgba(245,158,11,0.8)]" />
                             </motion.div>
-                            <p className="text-2xl md:text-4xl font-black tracking-[0.3em] uppercase text-center drop-shadow-xl" style={{ fontFamily: "var(--font-display)" }}>Auction Begins Soon</p>
-                            <p className="text-xs sm:text-sm font-bold tracking-widest text-amber-500/50 uppercase mt-4">20th May • 5:00 PM • Saraswati Hall</p>
+                            <motion.p 
+                                animate={{ opacity: [0.7, 1, 0.7], textShadow: ["0 0 10px rgba(245,158,11,0.2)", "0 0 30px rgba(245,158,11,0.8)", "0 0 10px rgba(245,158,11,0.2)"] }}
+                                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                                className="text-3xl md:text-5xl font-black tracking-[0.3em] uppercase text-center" 
+                                style={{ fontFamily: "var(--font-display)" }}
+                            >
+                                Auction Begins Soon
+                            </motion.p>
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.5, duration: 0.8 }}
+                                className="flex items-center gap-3 mt-6 bg-amber-500/10 border border-amber-500/30 px-6 py-3 rounded-full backdrop-blur-sm"
+                            >
+                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                <p className="text-xs sm:text-sm font-bold tracking-widest text-amber-400 uppercase">20th May • 5:00 PM • Saraswati Hall</p>
+                            </motion.div>
                         </motion.div>
                     ) : (
                         <motion.div 

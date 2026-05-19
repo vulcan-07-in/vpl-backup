@@ -12,11 +12,11 @@ interface NavLink {
 
 const links: NavLink[] = [
     { href: "/", label: "HOME" },
-    { href: "/live", label: "LIVE MATCH" },
-    { href: "/matches", label: "MATCHES" },
-    { href: "/points", label: "STANDINGS" },
-    { href: "/stats", label: "STATS" },
-    { href: "/squads", label: "SQUADS" },
+    // { href: "/live", label: "LIVE MATCH" },
+    // { href: "/matches", label: "MATCHES" },
+    // { href: "/points", label: "STANDINGS" },
+    // { href: "/stats", label: "STATS" },
+    // { href: "/squads", label: "SQUADS" },
     { href: "/auction", label: "AUCTION" },
     { href: "/admin", label: "ADMIN" },
 ];
