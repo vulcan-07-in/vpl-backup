@@ -27,10 +27,23 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
     const [soldEvent, setSoldEvent] = useState<{ player: Player, team: Team, amount: number } | null>(null);
     const [hasAuctionStarted, setHasAuctionStarted] = useState(true);
+    const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
 
     useEffect(() => {
         const targetDate = new Date("2026-05-20T17:00:00+05:30").getTime();
-        const checkTime = () => setHasAuctionStarted(Date.now() >= targetDate);
+        const checkTime = () => {
+            const now = Date.now();
+            setHasAuctionStarted(now >= targetDate);
+            if (now < targetDate) {
+                const diff = targetDate - now;
+                setTimeLeft({
+                    d: Math.floor(diff / (1000 * 60 * 60 * 24)),
+                    h: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+                    m: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+                    s: Math.floor((diff % (1000 * 60)) / 1000),
+                });
+            }
+        };
         checkTime();
         const interval = setInterval(checkTime, 1000);
         return () => clearInterval(interval);
@@ -92,6 +105,71 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
     }, [players, teams, initialPurses]);
 
     const leadingTeam = useMemo(() => teams.find(t => t.id === auctionState.leading_team_id), [teams, auctionState.leading_team_id]);
+
+    if (!hasAuctionStarted) {
+        return (
+            <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center relative overflow-hidden p-6 text-white">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] max-w-[800px] max-h-[800px] rounded-full bg-amber-500/10 blur-[120px] pointer-events-none" />
+                
+                <motion.div 
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="relative z-10 flex flex-col items-center text-center w-full max-w-5xl"
+                >
+                    <div className="mb-10 w-24 h-24 md:w-32 md:h-32 rounded-full border border-amber-500/30 bg-amber-500/5 flex items-center justify-center backdrop-blur-md relative shadow-[0_0_40px_rgba(245,158,11,0.2)]">
+                        <div className="absolute inset-0 rounded-full border-t-2 border-amber-500/50 animate-[spin_3s_linear_infinite]" />
+                        <Trophy className="text-amber-500 w-10 h-10 md:w-12 md:h-12 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+                    </div>
+
+                    <h1 className="text-5xl md:text-8xl lg:text-[9rem] font-black uppercase italic tracking-tighter leading-none mb-6 drop-shadow-2xl" style={{ color: "#f59e0b", textShadow: "0 0 30px rgba(245,158,11,0.5)" }}>
+                        Live Auction
+                    </h1>
+                    
+                    <p className="text-lg md:text-3xl text-zinc-400 font-light tracking-[0.4em] uppercase mb-16">
+                        Begins Soon
+                    </p>
+
+                    {timeLeft && (
+                        <div className="flex gap-4 md:gap-8 mb-16">
+                            <div className="flex flex-col items-center">
+                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.d.toString().padStart(2, '0')}</span>
+                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">DAYS</span>
+                            </div>
+                            <span className="text-4xl md:text-6xl font-black text-amber-500/30">:</span>
+                            <div className="flex flex-col items-center">
+                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.h.toString().padStart(2, '0')}</span>
+                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">HRS</span>
+                            </div>
+                            <span className="text-4xl md:text-6xl font-black text-amber-500/30">:</span>
+                            <div className="flex flex-col items-center">
+                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.m.toString().padStart(2, '0')}</span>
+                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">MIN</span>
+                            </div>
+                            <span className="text-4xl md:text-6xl font-black text-amber-500/30">:</span>
+                            <div className="flex flex-col items-center">
+                                <span className="text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.4)] font-mono">{timeLeft.s.toString().padStart(2, '0')}</span>
+                                <span className="text-xs md:text-sm text-amber-500/60 tracking-[0.3em] mt-2 font-bold">SEC</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-xs md:text-sm font-bold tracking-[0.2em] text-zinc-300 uppercase w-full max-w-3xl mx-auto">
+                        <span className="flex-1 flex justify-center items-center gap-3 w-full py-4 rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            20th May
+                        </span>
+                        <span className="flex-1 flex justify-center items-center py-4 w-full rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                            5:00 PM
+                        </span>
+                        <span className="flex-1 flex justify-center items-center py-4 w-full rounded-2xl border border-white/5 bg-zinc-900/50 backdrop-blur-md">
+                            Saraswati Hall
+                        </span>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#020202] text-white flex flex-col md:flex-row overflow-hidden">
@@ -194,42 +272,6 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                                 </motion.div>
                             )}
 
-                        </motion.div>
-                    ) : !hasAuctionStarted ? (
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.8 }} 
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                            className="relative z-10 flex flex-col items-center text-amber-500"
-                        >
-                            <motion.div
-                                animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
-                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                                className="absolute top-10 w-64 h-64 bg-amber-500/20 rounded-full blur-[80px] -z-10"
-                            />
-                            <motion.div
-                                animate={{ y: [0, -15, 0], rotateZ: [0, -15, 0] }}
-                                transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-                            >
-                                <Hammer size={120} className="mb-8 drop-shadow-[0_0_40px_rgba(245,158,11,0.8)]" />
-                            </motion.div>
-                            <motion.p 
-                                animate={{ opacity: [0.7, 1, 0.7], textShadow: ["0 0 10px rgba(245,158,11,0.2)", "0 0 30px rgba(245,158,11,0.8)", "0 0 10px rgba(245,158,11,0.2)"] }}
-                                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                                className="text-3xl md:text-5xl font-black tracking-[0.3em] uppercase text-center" 
-                                style={{ fontFamily: "var(--font-display)" }}
-                            >
-                                Auction Begins Soon
-                            </motion.p>
-                            <motion.div 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5, duration: 0.8 }}
-                                className="flex items-center gap-3 mt-6 bg-amber-500/10 border border-amber-500/30 px-6 py-3 rounded-full backdrop-blur-sm"
-                            >
-                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                <p className="text-xs sm:text-sm font-bold tracking-widest text-amber-400 uppercase">20th May • 5:00 PM • Saraswati Hall</p>
-                            </motion.div>
                         </motion.div>
                     ) : (
                         <motion.div 
