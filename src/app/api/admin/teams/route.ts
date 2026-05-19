@@ -15,7 +15,13 @@ export async function GET() {
         .select("id, name, shortName, color, groupId")
         .order("groupId", { ascending: true });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({
+        error: error.message,
+        detail: error.details,
+        hint: error.hint,
+        code: error.code,
+        supabaseUrl: process.env.SUPABASE_URL?.replace(/^(https?:\/\/[^.]+).*/, '$1…')
+    }, { status: 500 });
 
     const redis = new Redis(process.env.REDIS_URL || "");
     const pursesHash = await redis.hgetall(teamPursesKey());
@@ -63,6 +69,7 @@ export async function POST(req: Request) {
             }
 
             const teamId = crypto.randomUUID();
+            console.log(`[Team Create] teamId=${teamId}, name=${name}, supabaseUrl=${process.env.SUPABASE_URL}`);
 
             // Create the team
             const { data, error } = await supabase.from("Team").insert({
@@ -75,7 +82,18 @@ export async function POST(req: Request) {
                 updatedAt: new Date().toISOString(),
             }).select("id, name, shortName, color, groupId").single();
 
-            if (error) throw new Error(error.message);
+            if (error) {
+                console.error('[Team Create] Supabase insert error:', JSON.stringify(error));
+                return NextResponse.json({
+                    error: error.message,
+                    detail: error.details,
+                    hint: error.hint,
+                    code: error.code,
+                    supabaseUrl: process.env.SUPABASE_URL?.replace(/^(https?:\/\/[^.]+).*/, '$1…'),
+                    teamId,
+                    step: 'supabase_insert'
+                }, { status: 500 });
+            }
 
             const initialPurse = purse || AUCTION_CONSTANTS.MAX_BUDGET;
             await redis.hset(teamPursesKey(), teamId, initialPurse);
@@ -221,6 +239,13 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        console.error('[Teams API] Unhandled error:', e);
+        return NextResponse.json({
+            error: e.message,
+            stack: process.env.NODE_ENV !== 'production' ? e.stack : undefined,
+            supabaseUrl: process.env.SUPABASE_URL?.replace(/^(https?:\/\/[^.]+).*/, '$1…'),
+            redisUrl: process.env.REDIS_URL ? 'SET' : 'MISSING',
+            step: 'unhandled'
+        }, { status: 500 });
     }
 }

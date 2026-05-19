@@ -259,7 +259,7 @@ export default function TeamsClient() {
             const res = await fetch("/api/admin/teams");
             const data = await res.json();
             if (res.ok) setTeams(data);
-            else setError(data.error);
+            else setError(JSON.stringify(data, null, 2));
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -306,7 +306,8 @@ export default function TeamsClient() {
                 setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "" });
                 fetchPlayers(); // Refresh available captains
             } else {
-                setCreateError(data.error || "Failed to create team");
+                // Show full error JSON for debugging
+                setCreateError(JSON.stringify(data, null, 2));
             }
         } catch (e: any) {
             setCreateError(e.message);
@@ -478,7 +479,10 @@ export default function TeamsClient() {
                         </button>
                     </form>
                     {createError && (
-                        <p className="text-red-400 text-sm font-bold mt-3">❌ {createError}</p>
+                        <div className="mt-3 bg-red-950/50 border border-red-500/30 rounded-xl p-4">
+                            <p className="text-red-400 text-xs font-bold mb-2 tracking-widest uppercase">❌ Error Details</p>
+                            <pre className="text-red-300 text-xs font-mono whitespace-pre-wrap break-all">{createError}</pre>
+                        </div>
                     )}
                 </div>
 
@@ -486,7 +490,10 @@ export default function TeamsClient() {
                 {loading ? (
                     <div className="flex items-center justify-center h-48 text-zinc-600">Loading teams...</div>
                 ) : error ? (
-                    <div className="text-red-400 text-center py-12">❌ {error}</div>
+                    <div className="bg-red-950/50 border border-red-500/30 rounded-xl p-6 text-center py-12">
+                        <p className="text-red-400 font-bold mb-2">❌ Failed to load teams</p>
+                        <pre className="text-red-300 text-xs font-mono whitespace-pre-wrap break-all text-left mt-2">{error}</pre>
+                    </div>
                 ) : (
                     <>
                         <p className="text-xs text-zinc-600 tracking-widest uppercase mb-4 text-center">
