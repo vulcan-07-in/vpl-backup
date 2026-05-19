@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Menu, X } from "lucide-react";
 
 interface NavLink {
@@ -24,6 +24,7 @@ const links: NavLink[] = [
 export default function Navbar() {
     const [open, setOpen] = useState(false);
     const [isMatchLive, setIsMatchLive] = useState(false);
+    const [auctionActive, setAuctionActive] = useState(false);
 
     useEffect(() => {
         const checkLive = async () => {
@@ -35,10 +36,34 @@ export default function Navbar() {
                 }
             } catch (e) {}
         };
+        const checkAuction = async () => {
+            try {
+                const { supabaseBrowser } = await import('@/lib/supabase');
+                const { data } = await supabaseBrowser.from('vpl_auction_state').select('status').eq('id', 1).single();
+                if (data && data.status !== 'WAITING') {
+                    setAuctionActive(true);
+                } else {
+                    setAuctionActive(false);
+                }
+            } catch (e) {}
+        };
+        
         checkLive();
-        const interval = setInterval(checkLive, 30000); // Check every 30s
+        checkAuction();
+        const interval = setInterval(() => {
+            checkLive();
+            checkAuction();
+        }, 30000); // Check every 30s
         return () => clearInterval(interval);
     }, []);
+
+    const activeLinks = useMemo(() => {
+        const _links = [...links];
+        if (auctionActive) {
+            _links.push({ href: "/squads", label: "SQUADS" });
+        }
+        return _links;
+    }, [auctionActive]);
 
     return (
         <>
@@ -66,7 +91,7 @@ export default function Navbar() {
                 <div className="flex items-center gap-4">
                     {/* Desktop links */}
                     <div className="hidden md:flex items-center gap-8">
-                        {links.map((l) => {
+                        {activeLinks.map((l) => {
                             const isLiveLink = l.href === "/live";
                             return (
                                 <Link
@@ -107,7 +132,7 @@ export default function Navbar() {
                 <div className="fixed inset-0 z-40 flex flex-col pt-16" onClick={() => setOpen(false)}>
                     <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
                     <nav className="relative z-10 flex flex-col items-center justify-center flex-1 gap-10">
-                        {links.map((l) => (
+                        {activeLinks.map((l) => (
                             <Link
                                 key={l.href}
                                 href={l.href}

@@ -45,7 +45,7 @@ function TeamCard({
     dragging: boolean;
 }) {
     const [editing, setEditing] = useState(false);
-    const [fields, setFields] = useState({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '' });
+    const [fields, setFields] = useState({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '', paddleNumber: team.paddleNumber || '' });
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -74,7 +74,7 @@ function TeamCard({
 
     const handleSave = async () => {
         setSaving(true);
-        await onUpdate(team.id, { ...fields, logoUrl: fields.logoUrl || null });
+        await onUpdate(team.id, { ...fields, logoUrl: fields.logoUrl || null, paddleNumber: fields.paddleNumber || null });
         setSaving(false);
         setEditing(false);
     };
@@ -128,7 +128,7 @@ function TeamCard({
                 ) : (
                     <div className="flex-1 min-w-0">
                         <p className="font-bold truncate">{team.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{team.shortName} · ₹{team.purse}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{team.shortName} · ₹{team.purse} {team.paddleNumber && `(Paddle #${team.paddleNumber})`}</p>
                     </div>
                 )}
             </div>
@@ -142,6 +142,16 @@ function TeamCard({
                             value={fields.purse}
                             onChange={e => setFields(f => ({ ...f, purse: parseInt(e.target.value, 10) || 0 }))}
                             className="bg-black border border-zinc-700 rounded px-2 py-1 text-sm font-mono text-emerald-400 w-28"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Paddle</label>
+                        <input
+                            type="number"
+                            value={fields.paddleNumber}
+                            onChange={e => setFields(f => ({ ...f, paddleNumber: e.target.value }))}
+                            className="bg-black border border-zinc-700 rounded px-2 py-1 text-sm font-mono text-amber-500 w-16"
+                            placeholder="No."
                         />
                     </div>
                     <div className="flex items-center gap-2">
@@ -199,7 +209,7 @@ function TeamCard({
                             <Check size={12} /> {saving ? "Saving..." : "Save"}
                         </button>
                         <button
-                            onClick={() => { setEditing(false); setFields({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '' }); }}
+                            onClick={() => { setEditing(false); setFields({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '', paddleNumber: team.paddleNumber || '' }); }}
                             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-800 hover:bg-zinc-700 transition-colors"
                         >
                             <X size={12} />
@@ -314,7 +324,7 @@ export default function TeamsClient() {
     const [draggingId, setDraggingId] = useState<string | null>(null);
 
     // New team form
-    const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "" });
+    const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "", paddleNumber: "" });
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState("");
 
@@ -367,7 +377,7 @@ export default function TeamsClient() {
             const data = await res.json();
             if (res.ok && data.team) {
                 setTeams(prev => [...prev, data.team]);
-                setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "" });
+                setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "", paddleNumber: "" });
                 fetchPlayers(); // Refresh available captains
             } else {
                 // Show full error JSON for debugging
@@ -528,11 +538,21 @@ export default function TeamsClient() {
                                 onChange={e => setNewTeam(n => ({ ...n, captainAccountId: e.target.value }))}
                                 className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-3 text-sm font-bold focus:border-amber-500 outline-none transition-colors"
                             >
-                                <option value="">None</option>
+                                <option value="">No Captain</option>
                                 {approvedPlayers.filter(p => !p.isCaptain).map(p => (
                                     <option key={p.accountId} value={p.accountId}>{p.name}</option>
                                 ))}
                             </select>
+                        </div>
+                        <div className="w-24">
+                            <label className="text-[10px] text-zinc-600 tracking-widest uppercase block mb-1">Paddle</label>
+                            <input
+                                type="number"
+                                value={newTeam.paddleNumber}
+                                onChange={e => setNewTeam(n => ({ ...n, paddleNumber: e.target.value }))}
+                                placeholder="No."
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-amber-500 outline-none transition-colors"
+                            />
                         </div>
                         <button
                             type="submit"

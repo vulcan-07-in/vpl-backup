@@ -3,18 +3,20 @@ import prisma from "./prisma";
 import { Team, Fixture, LiveMatchState } from "./tournament";
 import { supabase } from "./supabase";
 import Redis from "ioredis";
-import { teamLogosKey } from "./redis-keys";
+import { teamLogosKey, teamPaddlesKey } from "./redis-keys";
 
 const globalForRedis = global as unknown as { redis: Redis };
 const redis = globalForRedis.redis || new Redis(process.env.REDIS_URL || "");
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
 // Helper to map raw DB rows to internal types
-const mapTeam = (row: any, logoUrl?: string): Team => ({
+const mapTeam = (row: any, logoUrl?: string, paddleNumber?: number): Team => ({
+  id: row.id,
   teamName: row.name,
   shortName: row.shortName,
   color: row.color,
   logoUrl: logoUrl || undefined,
+  paddleNumber: paddleNumber,
 });
 
 /**
@@ -48,10 +50,14 @@ export async function fetchTeams(season: number = 1): Promise<Team[]> {
       console.error("Supabase fetchTeams error:", error);
       return [];
     }
-    // Fetch logos from Redis
+    // Fetch logos and paddles from Redis
     let logosHash: Record<string, string> = {};
-    try { logosHash = await redis.hgetall(teamLogosKey()) || {}; } catch {}
-    return (data || []).map((row: any) => mapTeam(row, logosHash[row.id]));
+    let paddlesHash: Record<string, string> = {};
+    try { 
+      logosHash = await redis.hgetall(teamLogosKey()) || {}; 
+      paddlesHash = await redis.hgetall(teamPaddlesKey()) || {};
+    } catch {}
+    return (data || []).map((row: any) => mapTeam(row, logosHash[row.id], paddlesHash[row.id] ? parseInt(paddlesHash[row.id], 10) : undefined));
   }
   // Season 1 – Prisma
   try {

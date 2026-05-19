@@ -24,3 +24,6 @@ export const teamPursesKey = (): string =>
 
 export const teamLogosKey = (): string =>
     "s2:team_logos";
+
+export const teamPaddlesKey = (): string =>
+    "s2:team_paddles";

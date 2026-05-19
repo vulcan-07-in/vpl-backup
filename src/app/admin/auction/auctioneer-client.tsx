@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabaseBrowser as supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS, calculateMaxBid, getBasePrice, getBidIncrement } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
-import { Hammer, Undo2, Ban, UserCircle2, Loader2, RefreshCw, Shuffle, Eye, EyeOff, Settings, Zap } from "lucide-react";
+import { Hammer, Undo2, Ban, UserCircle2, Loader2, RefreshCw, Shuffle, Eye, EyeOff, Settings, Zap, Play, Pause } from "lucide-react";
 
 interface Player {
     accountId: string;
@@ -23,6 +23,7 @@ interface Team {
     color: string;
     shortName: string;
     purse: number;
+    paddleNumber?: number;
 }
 
 export default function AuctioneerClient({ players: initialPlayers, teams }: { players: Player[], teams: Team[] }) {
@@ -33,6 +34,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const [historyLogs, setHistoryLogs] = useState<any[]>([]);
     const [showForcePanel, setShowForcePanel] = useState(false);
     const [resetConfirm, setResetConfirm] = useState(false);
+    const [wipeConfirm, setWipeConfirm] = useState(false);
     const [undoConfirm, setUndoConfirm] = useState(false);
     const [forceTeamId, setForceTeamId] = useState("");
     const [forceBidAmount, setForceBidAmount] = useState("");
@@ -174,11 +176,13 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const currentIncrement = getBidIncrement(auctionState.current_bid, customIncrement || auctionState.bid_increment);
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white pt-24 pb-12 px-4 md:px-8">
-            <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="min-h-screen bg-[#050505] text-white pt-20 pb-[300px] px-4 md:px-6">
+            <div className="max-w-[1600px] mx-auto flex flex-col gap-4">
 
-                {/* LEFT: Player Under Hammer */}
-                <div className="lg:col-span-8 flex flex-col gap-4">
+                {/* Top Section: Controls, Player, and History */}
+                <div className="flex flex-col xl:flex-row gap-4">
+                    {/* Left Col: Player & Controls */}
+                    <div className="flex-[3] flex flex-col gap-4">
                     {/* Top bar: Pool selector + controls */}
                     <div className="flex flex-wrap items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 gap-3">
                         <div className="flex items-center gap-4">
@@ -211,6 +215,23 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                 {loadingAction === 'DRAW' ? <Loader2 className="animate-spin" size={16}/> : <Shuffle size={16}/>}
                                 DRAW
                             </button>
+                            {auctionState.status === 'WAITING' && (
+                                <button
+                                    onClick={() => performAction('START')}
+                                    className="bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2"
+                                >
+                                    <Play size={16}/> START AUCTION
+                                </button>
+                            )}
+                            {(auctionState.status === 'IDLE' || auctionState.status === 'PAUSED' || auctionState.status === 'BIDDING') && (
+                                <button
+                                    onClick={() => performAction(auctionState.status === 'PAUSED' ? 'START' : 'PAUSE')}
+                                    className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${auctionState.status === 'PAUSED' ? 'bg-amber-500 hover:bg-amber-400 text-black' : 'bg-zinc-800 hover:bg-zinc-700 text-amber-500'}`}
+                                >
+                                    {auctionState.status === 'PAUSED' ? <Play size={16}/> : <Pause size={16}/>}
+                                    {auctionState.status === 'PAUSED' ? 'RESUME' : 'PAUSE'}
+                                </button>
+                            )}
                             <button
                                 onClick={() => performAction('UPDATE_CONFIG', { show_pool_to_viewers: !auctionState.show_pool_to_viewers })}
                                 className={`p-2 rounded-lg border transition-all ${auctionState.show_pool_to_viewers ? 'border-emerald-500 text-emerald-500' : 'border-zinc-700 text-zinc-500'}`}
@@ -347,18 +368,32 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                     </AnimatePresence>
 
                     {/* Controls bar */}
-                    <div className="flex justify-between items-center">
-                        {resetConfirm ? (
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-zinc-500">Confirm Reset?</span>
-                                <button onClick={() => { performAction('RESET'); setResetConfirm(false); }} className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">YES</button>
-                                <button onClick={() => setResetConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">NO</button>
-                            </div>
-                        ) : (
-                            <button onClick={() => setResetConfirm(true)} className="text-red-500/60 hover:text-red-400 flex items-center gap-2 text-xs font-bold tracking-widest transition-colors">
-                                ⚠️ EMERGENCY RESET
-                            </button>
-                        )}
+                    <div className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div className="flex items-center gap-4">
+                            {resetConfirm ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-zinc-500">Confirm Reset?</span>
+                                    <button onClick={() => { performAction('RESET'); setResetConfirm(false); }} className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">YES</button>
+                                    <button onClick={() => setResetConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">NO</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setResetConfirm(true)} className="text-amber-500/80 hover:text-amber-400 flex items-center gap-2 text-[10px] font-bold tracking-widest transition-colors uppercase">
+                                    ⚠️ Reset Current
+                                </button>
+                            )}
+
+                            {wipeConfirm ? (
+                                <div className="flex items-center gap-2 border-l border-zinc-800 pl-4">
+                                    <span className="text-xs text-red-500 font-bold">Wipe ALL data?</span>
+                                    <button onClick={() => { performAction('WIPE_ALL'); setWipeConfirm(false); }} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold animate-pulse">DO IT</button>
+                                    <button onClick={() => setWipeConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">CANCEL</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setWipeConfirm(true)} className="text-red-500/60 hover:text-red-400 flex items-center gap-2 text-[10px] font-bold tracking-widest transition-colors uppercase border-l border-zinc-800 pl-4">
+                                    ☢️ WIPE ALL DATA
+                                </button>
+                            )}
+                        </div>
 
                         {undoConfirm ? (
                             <div className="flex items-center gap-2">
@@ -373,69 +408,108 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                         )}
                     </div>
 
-                    {/* Recent Sales */}
-                    <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4">
-                        <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-3">Recent Sales</h3>
-                        <div className="space-y-2">
-                            {historyLogs.length === 0 ? <p className="text-sm text-zinc-600">No sales yet.</p> : historyLogs.slice(0, 5).map(log => {
-                                const p = players.find(pl => pl.accountId === log.player_id);
-                                const t = teams.find(tm => tm.id === log.team_id);
-                                return (
-                                    <div key={log.id} className="flex items-center justify-between bg-black/50 p-3 rounded-lg border border-zinc-800/50">
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-bold text-sm">{p?.name || log.player_id}</span>
-                                            <span className="text-[10px] text-zinc-500 px-2 py-0.5 bg-zinc-800 rounded">{p?.tier}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t?.color || '#555' }} />
-                                                <span className="text-xs text-zinc-400">{t?.shortName}</span>
-                                            </div>
-                                            <span className="font-mono font-bold text-amber-500">{log.bid_amount}</span>
-                                        </div>
+                        {showForcePanel && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-zinc-900 border border-amber-500/30 p-4 rounded-xl mt-4">
+                                <h4 className="text-amber-500 font-bold tracking-widest uppercase text-xs flex items-center gap-2 mb-4"><Zap size={14}/> Manual Override</h4>
+                                <div className="flex gap-4 items-end">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] text-zinc-500 uppercase block mb-1">Force Sell To</label>
+                                        <select value={forceTeamId} onChange={e => setForceTeamId(e.target.value)} className="w-full bg-black border border-zinc-800 rounded px-3 py-2 text-sm font-bold">
+                                            <option value="">Select Team...</option>
+                                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
                                     </div>
-                                );
-                            })}
+                                    <div className="w-32">
+                                        <label className="text-[10px] text-zinc-500 uppercase block mb-1">Amount</label>
+                                        <input type="number" value={forceBidAmount} onChange={e => setForceBidAmount(e.target.value)} className="w-full bg-black border border-zinc-800 rounded px-3 py-2 text-sm font-bold font-mono text-emerald-400" placeholder="0" />
+                                    </div>
+                                    <button onClick={handleForceSell} className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 rounded font-bold text-sm h-[38px]">EXECUTE</button>
+                                    <button onClick={() => { setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' })); performAction('PASS'); setShowForcePanel(false); }} className="bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded font-bold text-sm h-[38px] transition-colors border border-red-500/50">FORCE PASS</button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+
+                    {/* Right Col: Recent Sales */}
+                    <div className="flex-[1] flex flex-col gap-4">
+                        <div className="bg-zinc-900/30 rounded-2xl border border-zinc-800 p-4 flex-1">
+                            <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-3">Recent Sales</h3>
+                            <div className="space-y-2">
+                                {historyLogs.length === 0 ? <p className="text-sm text-zinc-600">No sales yet.</p> : historyLogs.slice(0, 8).map(log => {
+                                    const p = players.find(pl => pl.accountId === log.player_id);
+                                    const t = teams.find(tm => tm.id === log.team_id);
+                                    return (
+                                        <div key={log.id} className="flex items-center justify-between bg-black/50 p-2.5 rounded-lg border border-zinc-800/50">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-sm truncate max-w-[120px]">{p?.name || log.player_id}</span>
+                                                <span className="text-[9px] text-zinc-500">{p?.tier}</span>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <span className="font-mono font-bold text-amber-500 text-sm">{log.bid_amount}</span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: t?.color || '#555' }} />
+                                                    <span className="text-[9px] text-zinc-400 uppercase tracking-wider">{t?.shortName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* RIGHT: Team Paddles */}
-                <div className="lg:col-span-4 flex flex-col gap-3 lg:h-[85vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase sticky top-0 bg-[#050505] py-2 z-10">
-                        Team Paddles — Tap to Bid
-                    </h3>
-                    {teams.map(team => {
-                        const stats = teamStats[team.id];
-                        const isCapped = stats.count >= AUCTION_CONSTANTS.MAX_PLAYERS;
-                        const isBankrupt = stats.maxBid <= 0;
-                        const isDisabled = !activePlayer || isCapped || isBankrupt;
+                {/* BOTTOM FLOATING PANEL: Team Paddles Grid */}
+                <div className="fixed bottom-0 left-0 right-0 bg-[#050505]/95 backdrop-blur-xl border-t border-zinc-800 z-50 p-4 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+                    <div className="max-w-[1600px] mx-auto">
+                        <h3 className="text-[10px] font-black tracking-[0.2em] text-zinc-500 uppercase mb-3 flex items-center justify-between">
+                            <span>Team Paddles</span>
+                            <span>{currentIncrement > 0 ? `Current Inc: +${currentIncrement}` : 'Auto Inc'}</span>
+                        </h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                            {teams.sort((a, b) => (a.paddleNumber || 999) - (b.paddleNumber || 999)).map(team => {
+                                const stats = teamStats[team.id];
+                                const isCapped = stats.count >= AUCTION_CONSTANTS.MAX_PLAYERS;
+                                const isBankrupt = stats.maxBid <= 0;
+                                const isDisabled = !activePlayer || isCapped || isBankrupt;
+                                const isLeading = auctionState.leading_team_id === team.id;
 
-                        return (
-                            <button
-                                key={team.id}
-                                onClick={() => handleBid(team.id)}
-                                disabled={isDisabled}
-                                className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left ${
-                                    auctionState.leading_team_id === team.id
-                                        ? 'bg-amber-500/10 border-amber-500 ring-1 ring-amber-500/50'
-                                        : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 disabled:opacity-40'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2 h-8 rounded-full" style={{ backgroundColor: team.color }} />
-                                    <div>
-                                        <p className="font-bold">{team.shortName}</p>
-                                        <p className="text-[10px] text-zinc-500 font-mono">{stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS} squad</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-mono font-bold text-emerald-400">{stats.currentPurse}</p>
-                                    <p className="text-[9px] text-zinc-600 tracking-widest uppercase">Max: {stats.maxBid}</p>
-                                </div>
-                            </button>
-                        );
-                    })}
+                                return (
+                                    <button
+                                        key={team.id}
+                                        onClick={() => handleBid(team.id)}
+                                        disabled={isDisabled}
+                                        className={`relative w-full p-3 rounded-xl border transition-all text-left flex flex-col justify-between h-[85px] overflow-hidden group ${
+                                            isLeading
+                                                ? 'bg-amber-500/20 border-amber-500 ring-2 ring-amber-500'
+                                                : 'bg-zinc-900 border-zinc-800 hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-zinc-800'
+                                        }`}
+                                    >
+                                        <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: team.color }} />
+                                        
+                                        <div className="flex justify-between items-start pl-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-sm font-black ${isLeading ? 'text-amber-500' : 'text-white'}`}>{team.paddleNumber ? `#${team.paddleNumber}` : team.shortName}</span>
+                                            </div>
+                                            <span className="font-mono font-black text-emerald-400 text-sm">₹{stats.currentPurse}</span>
+                                        </div>
+                                        
+                                        <div className="flex justify-between items-end pl-2">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] text-zinc-400 font-bold truncate max-w-[80px]">{team.shortName}</span>
+                                                <span className="text-[9px] text-zinc-600 tracking-wider">{stats.count}/{AUCTION_CONSTANTS.MAX_PLAYERS}</span>
+                                            </div>
+                                            {isLeading && (
+                                                <div className="bg-amber-500 text-black text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded shadow-lg shadow-amber-500/20 animate-pulse">
+                                                    BIDDING
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,10 +1,11 @@
-
-
 export interface Team {
+    id?: string;
     teamName: string;
     shortName: string;
     color: string;
     logoUrl?: string;
+    paddleNumber?: number;
+    purse?: number;
 }
 
 // S1 had only Group A / B and two semis.

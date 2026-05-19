@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 import Redis from "ioredis";
-import { teamPursesKey, teamLogosKey } from "@/lib/redis-keys";
+import { teamPursesKey, teamLogosKey, teamPaddlesKey } from "@/lib/redis-keys";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +26,7 @@ export async function GET() {
     const redis = new Redis(process.env.REDIS_URL || "");
     const pursesHash = await redis.hgetall(teamPursesKey());
     const logosHash = await redis.hgetall(teamLogosKey());
+    const paddlesHash = await redis.hgetall(teamPaddlesKey());
 
     // Fetch captains for each team
     const teamList = teams || [];
@@ -42,11 +43,13 @@ export async function GET() {
 
         const purse = pursesHash[team.id] ? parseInt(pursesHash[team.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET;
         const logoUrl = logosHash?.[team.id] || null;
+        const paddleNumber = paddlesHash?.[team.id] ? parseInt(paddlesHash[team.id], 10) : null;
 
         enrichedTeams.push({
             ...team,
             purse,
             logoUrl,
+            paddleNumber,
             captainId: captain?.account_id || null,
             captainName: (captain as any)?.varchasva_accounts?.name || null,
         });
@@ -101,6 +104,7 @@ export async function POST(req: Request) {
             const initialPurse = purse || AUCTION_CONSTANTS.MAX_BUDGET;
             await redis.hset(teamPursesKey(), teamId, initialPurse);
             if (body.logoUrl) await redis.hset(teamLogosKey(), teamId, body.logoUrl);
+            if (body.paddleNumber) await redis.hset(teamPaddlesKey(), teamId, parseInt(body.paddleNumber, 10));
 
             // If captain is specified, assign them
             let captainName = null;
@@ -136,7 +140,7 @@ export async function POST(req: Request) {
         }
 
         if (action === "update") {
-            const { teamId, name, shortName, color, groupId, purse } = body;
+            const { teamId, name, shortName, color, groupId, purse, paddleNumber } = body;
             if (!teamId) return NextResponse.json({ error: "teamId required" }, { status: 400 });
 
             // Get old team name for updating registrations
@@ -159,6 +163,13 @@ export async function POST(req: Request) {
 
             if (purse !== undefined) {
                 await redis.hset(teamPursesKey(), teamId, parseInt(purse, 10));
+            }
+            if (paddleNumber !== undefined) {
+                if (paddleNumber !== null && paddleNumber !== "") {
+                    await redis.hset(teamPaddlesKey(), teamId, parseInt(paddleNumber, 10));
+                } else {
+                    await redis.hdel(teamPaddlesKey(), teamId);
+                }
             }
             if (body.logoUrl !== undefined) {
                 if (body.logoUrl) {
@@ -242,6 +253,7 @@ export async function POST(req: Request) {
 
             await redis.hdel(teamPursesKey(), teamId);
             await redis.hdel(teamLogosKey(), teamId);
+            await redis.hdel(teamPaddlesKey(), teamId);
 
             revalidatePath("/squads");
             revalidatePath("/points");

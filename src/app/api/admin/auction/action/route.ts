@@ -231,7 +231,44 @@ export async function POST(req: Request) {
                     active_player_id: null,
                     current_bid: 0,
                     leading_team_id: null,
+                    status: 'WAITING',
+                    last_update: new Date().toISOString()
+                }).eq('id', 1);
+                break;
+            }
+
+            case 'WIPE_ALL': {
+                // 1. Reset auction state
+                await supabase.from('vpl_auction_state').update({
+                    active_player_id: null,
+                    current_bid: 0,
+                    leading_team_id: null,
+                    status: 'WAITING',
+                    last_update: new Date().toISOString()
+                }).eq('id', 1);
+
+                // 2. Clear all auction history
+                await supabase.from('vpl_auction_history').delete().neq('id', 0); // Delete all
+
+                // 3. Reset all players to UNSOLD, EXCEPT captains
+                await supabase.from('vpl_registrations')
+                    .update({ team_name: 'UNSOLD', price: 0 })
+                    .eq('season', 2)
+                    .eq('is_captain', false);
+                break;
+            }
+
+            case 'START': {
+                await supabase.from('vpl_auction_state').update({
                     status: 'IDLE',
+                    last_update: new Date().toISOString()
+                }).eq('id', 1);
+                break;
+            }
+
+            case 'PAUSE': {
+                await supabase.from('vpl_auction_state').update({
+                    status: 'PAUSED',
                     last_update: new Date().toISOString()
                 }).eq('id', 1);
                 break;
