@@ -3,17 +3,36 @@ import prisma from "./prisma";
 import { Team, Fixture, LiveMatchState } from "./tournament";
 import { supabase } from "./supabase";
 import Redis from "ioredis";
+import { teamLogosKey } from "./redis-keys";
 
 const globalForRedis = global as unknown as { redis: Redis };
 const redis = globalForRedis.redis || new Redis(process.env.REDIS_URL || "");
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
 // Helper to map raw DB rows to internal types
-const mapTeam = (row: any): Team => ({
+const mapTeam = (row: any, logoUrl?: string): Team => ({
   teamName: row.name,
   shortName: row.shortName,
   color: row.color,
+  logoUrl: logoUrl || undefined,
 });
+
+/**
+ * Fetch team logos from Redis — returns { teamName: logoUrl }
+ */
+export async function fetchTeamLogos(): Promise<Record<string, string>> {
+  try {
+    const { data: teams } = await supabase.from("Team").select("id, name");
+    const logosHash = await redis.hgetall(teamLogosKey());
+    const byName: Record<string, string> = {};
+    (teams || []).forEach((t: any) => {
+      if (logosHash[t.id]) byName[t.name] = logosHash[t.id];
+    });
+    return byName;
+  } catch {
+    return {};
+  }
+}
 
 /**
  * Fetch teams – works for both seasons.
@@ -23,13 +42,16 @@ export async function fetchTeams(season: number = 1): Promise<Team[]> {
   if (season === 2) {
     const { data, error } = await supabase
       .from("Team")
-      .select("name, shortName, color")
+      .select("id, name, shortName, color")
       .order("name", { ascending: true });
     if (error) {
       console.error("Supabase fetchTeams error:", error);
       return [];
     }
-    return (data || []).map(mapTeam);
+    // Fetch logos from Redis
+    let logosHash: Record<string, string> = {};
+    try { logosHash = await redis.hgetall(teamLogosKey()) || {}; } catch {}
+    return (data || []).map((row: any) => mapTeam(row, logosHash[row.id]));
   }
   // Season 1 – Prisma
   try {
@@ -90,14 +112,20 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       console.error("Supabase fetchSquads manual players error:", manualErr);
     }
 
+    // Fetch logos from Redis for squads
+    let logosHash: Record<string, string> = {};
+    try { logosHash = await redis.hgetall(teamLogosKey()) || {}; } catch {}
+    const logoByTeamId = Object.fromEntries((teamRows as TeamRow[] || []).map((t: TeamRow) => [t.id, logosHash[t.id] || undefined]));
+
     const squads = (teamRows as TeamRow[] || []).map((t: TeamRow) => ({
       teamName: t.name,
       shortName: t.shortName,
       color: t.color,
+      logoUrl: logoByTeamId[t.id],
       players: [] as { name: string; role: string; price: string; accountId: string }[],
     }));
 
-    type SquadEntry = { teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string; accountId: string }[] };
+    type SquadEntry = { teamName: string; shortName: string; color: string; logoUrl?: string; players: { name: string; role: string; price: string; accountId: string }[] };
     const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName.toLowerCase().trim(), s])) as Record<string, SquadEntry>;
     const squadByTeamId = Object.fromEntries((teamRows as TeamRow[] || []).map((t) => [t.id, squadByName[t.name.toLowerCase().trim()]]));
 

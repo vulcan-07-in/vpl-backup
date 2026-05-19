@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import AuctioneerClient from "./auctioneer-client";
 import { Metadata } from "next";
 import Redis from "ioredis";
-import { teamPursesKey } from "@/lib/redis-keys";
+import { teamPursesKey, teamLogosKey } from "@/lib/redis-keys";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 
 export const revalidate = 0;
@@ -33,13 +33,17 @@ export default async function AdminAuctionPage() {
         .select("id, name, color, shortName")
         .order("name", { ascending: true });
 
-    // 3. Fetch purses from Redis
+    // 3. Fetch purses and logos from Redis
     const redis = new Redis(process.env.REDIS_URL || "");
-    const pursesHash = await redis.hgetall(teamPursesKey());
+    const [pursesHash, logosHash] = await Promise.all([
+        redis.hgetall(teamPursesKey()),
+        redis.hgetall(teamLogosKey()),
+    ]);
 
     const teams = (teamsData || []).map(t => ({
         ...t,
-        purse: pursesHash[t.id] ? parseInt(pursesHash[t.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET
+        purse: pursesHash[t.id] ? parseInt(pursesHash[t.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET,
+        logoUrl: logosHash[t.id] || null,
     }));
 
     // Format players

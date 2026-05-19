@@ -4,6 +4,7 @@ export interface Team {
     teamName: string;
     shortName: string;
     color: string;
+    logoUrl?: string;
 }
 
 // S1 had only Group A / B and two semis.

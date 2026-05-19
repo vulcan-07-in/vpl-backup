@@ -14,6 +14,7 @@ interface Team {
     teamName: string;
     shortName: string;
     color: string;
+    logoUrl?: string;
     players: Player[];
 }
 
@@ -96,15 +97,14 @@ export default function SquadsClient({ initialData }: { initialData: Team[] }) {
                                 />
 
                                 <div className="flex-1 flex items-center justify-between px-5 md:px-8 py-5 md:py-6 border-b border-white/[0.04] group-hover:bg-white/[0.02] transition-colors">
-                                    {/* Left: index + names */}
+                                    {/* Left: logo + names */}
                                     <div className="flex items-center gap-5 md:gap-8 min-w-0">
-                                        {/* Index number */}
-                                        <span
-                                            className="text-xs text-zinc-800 w-5 shrink-0 text-right tabular-nums"
-                                            style={{ fontFamily: "var(--font-mono)" }}
-                                        >
-                                            {String(idx + 1).padStart(2, "0")}
-                                        </span>
+                                        {/* Logo or index */}
+                                        {team.logoUrl
+                                            ? <img src={team.logoUrl} alt={team.shortName} className="w-10 h-10 rounded-full object-cover border border-white/10 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                                            : <span className="text-xs text-zinc-800 w-5 shrink-0 text-right tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
+                                                {String(idx + 1).padStart(2, "0")}
+                                              </span>}
 
                                         {/* Short name pill */}
                                         <span
@@ -175,24 +175,20 @@ export default function SquadsClient({ initialData }: { initialData: Team[] }) {
 
                             {/* Modal Header */}
                             <div className="px-6 pt-6 pb-5 flex items-start justify-between gap-4 border-b border-white/[0.05]">
-                                <div className="min-w-0">
-                                    <p
-                                        className="text-[10px] tracking-[0.5em] text-zinc-600 mb-1"
-                                        style={{ fontFamily: "var(--font-body)" }}
-                                    >
-                                        {selectedTeam.shortName} · {selectedTeam.players.length} PLAYERS
-                                    </p>
-                                    <h2
-                                        className="text-3xl md:text-4xl text-white leading-none"
-                                        style={{ fontFamily: "var(--font-display)" }}
-                                    >
-                                        {selectedTeam.teamName.toUpperCase()}
-                                    </h2>
+                                <div className="flex items-center gap-4 min-w-0">
+                                    {selectedTeam.logoUrl && (
+                                        <img src={selectedTeam.logoUrl} alt={selectedTeam.shortName} className="w-14 h-14 rounded-full object-cover border border-white/10 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                                    )}
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] tracking-[0.5em] text-zinc-600 mb-1" style={{ fontFamily: "var(--font-body)" }}>
+                                            {selectedTeam.shortName} · {selectedTeam.players.length} PLAYERS
+                                        </p>
+                                        <h2 className="text-3xl md:text-4xl text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                                            {selectedTeam.teamName.toUpperCase()}
+                                        </h2>
+                                    </div>
                                 </div>
-                                <button
-                                    onClick={() => setSelectedTeam(null)}
-                                    className="mt-1 p-2 text-zinc-700 hover:text-white transition-colors shrink-0"
-                                >
+                                <button onClick={() => setSelectedTeam(null)} className="mt-1 p-2 text-zinc-700 hover:text-white transition-colors shrink-0">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>

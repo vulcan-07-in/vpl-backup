@@ -23,6 +23,7 @@ interface Team {
     color: string;
     shortName: string;
     purse: number;
+    logoUrl?: string | null;
 }
 
 export default function ViewerClient({ teams, players: initialPlayers }: { teams: Team[], players: Player[] }) {
@@ -132,7 +133,9 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                             <div className="inline-flex flex-col items-center gap-3 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-10 py-5 rounded-3xl">
                                 <p className="text-zinc-500 font-bold tracking-widest uppercase text-sm">To</p>
                                 <div className="flex items-center gap-4">
-                                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: soldEvent.team.color }} />
+                                    {soldEvent.team.logoUrl
+                                        ? <img src={soldEvent.team.logoUrl} alt={soldEvent.team.name} className="w-12 h-12 rounded-full object-cover border-2 border-white/20" />
+                                        : <div className="w-6 h-6 rounded-full" style={{ backgroundColor: soldEvent.team.color }} />}
                                     <span className="text-3xl font-bold tracking-wider">{soldEvent.team.name}</span>
                                 </div>
                             </div>
@@ -166,7 +169,9 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                                     className="mt-8 inline-flex items-center gap-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-8 py-3 rounded-full shadow-2xl"
                                 >
-                                    <div className="w-4 h-4 rounded-full animate-pulse" style={{ backgroundColor: leadingTeam.color }} />
+                                    {leadingTeam.logoUrl
+                                        ? <img src={leadingTeam.logoUrl} alt={leadingTeam.name} className="w-8 h-8 rounded-full object-cover" />
+                                        : <div className="w-4 h-4 rounded-full animate-pulse" style={{ backgroundColor: leadingTeam.color }} />}
                                     <span className="text-xl font-bold tracking-wider">{leadingTeam.name}</span>
                                 </motion.div>
                             )}
@@ -222,7 +227,9 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                 <div className="absolute left-0 bottom-0 top-0 opacity-10 transition-all duration-1000" style={{ width: `${fillPercentage}%`, backgroundColor: team.color }} />
                                 <div className="relative z-10 flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-2 h-6 rounded-full" style={{ backgroundColor: team.color }} />
+                                        {team.logoUrl
+                                            ? <img src={team.logoUrl} alt={team.shortName} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                                            : <div className="w-2 h-6 rounded-full" style={{ backgroundColor: team.color }} />}
                                         <p className="font-bold text-sm tracking-wide">{team.shortName}</p>
                                     </div>
                                     <p className="font-mono font-bold text-emerald-400">{stats.currentPurse}</p>

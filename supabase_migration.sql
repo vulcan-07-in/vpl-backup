@@ -78,3 +78,19 @@ ALTER PUBLICATION supabase_realtime ADD TABLE vpl_registrations;
 
 -- 6. Drop restrictive tier check constraint to allow custom tier values (TIER 3, TIER 4, etc.)
 ALTER TABLE vpl_registrations DROP CONSTRAINT IF EXISTS vpl_registrations_tier_check;
+
+-- 7. Create Supabase Storage bucket for team logos (public read access)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('team-logos', 'team-logos', true, 5242880, ARRAY['image/png','image/jpeg','image/webp','image/gif','image/svg+xml'])
+ON CONFLICT (id) DO NOTHING;
+
+-- Allow public read on team-logos bucket
+CREATE POLICY IF NOT EXISTS "Public read team logos" ON storage.objects
+    FOR SELECT USING (bucket_id = 'team-logos');
+
+-- Allow admin service role to upload
+CREATE POLICY IF NOT EXISTS "Service role upload team logos" ON storage.objects
+    FOR INSERT WITH CHECK (bucket_id = 'team-logos');
+
+CREATE POLICY IF NOT EXISTS "Service role update team logos" ON storage.objects
+    FOR UPDATE USING (bucket_id = 'team-logos');

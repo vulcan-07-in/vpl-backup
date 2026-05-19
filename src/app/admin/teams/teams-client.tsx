@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Pencil, Check, X, GripVertical, Crown, Users } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, Check, X, GripVertical, Crown, Users, Upload, ImageIcon } from "lucide-react";
 
 interface Team {
     id: string;
@@ -49,11 +49,28 @@ function TeamCard({
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Available captains: approved players who are not already captains of other teams
     const availableCaptains = approvedPlayers.filter(
         p => !p.isCaptain || p.teamName === team.name
     );
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        const form = new FormData();
+        form.append('file', file);
+        form.append('teamId', team.id);
+        try {
+            const res = await fetch('/api/admin/upload-logo', { method: 'POST', body: form });
+            const data = await res.json();
+            if (res.ok) setFields(f => ({ ...f, logoUrl: data.url }));
+            else alert('Upload failed: ' + data.error);
+        } finally { setUploading(false); }
+    };
 
     const handleSave = async () => {
         setSaving(true);
@@ -129,14 +146,27 @@ function TeamCard({
                     </div>
                     <div className="flex items-center gap-2">
                         <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Logo</label>
-                        <input
-                            type="url"
-                            value={fields.logoUrl}
-                            onChange={e => setFields(f => ({ ...f, logoUrl: e.target.value }))}
-                            placeholder="https://... (image URL)"
-                            className="flex-1 bg-black border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300"
-                        />
-                        {fields.logoUrl && <img src={fields.logoUrl} alt="preview" className="w-6 h-6 rounded object-cover" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />}
+                        <div className="flex-1 flex items-center gap-2">
+                            {/* File upload button */}
+                            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded text-[10px] font-bold transition-colors shrink-0"
+                            >
+                                <Upload size={10} /> {uploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                            {/* URL paste fallback */}
+                            <input
+                                type="url"
+                                value={fields.logoUrl}
+                                onChange={e => setFields(f => ({ ...f, logoUrl: e.target.value }))}
+                                placeholder="or paste URL"
+                                className="flex-1 bg-black border border-zinc-700 rounded px-2 py-1 text-[10px] text-zinc-400 min-w-0"
+                            />
+                        </div>
+                        {fields.logoUrl && <img src={fields.logoUrl} alt="preview" className="w-8 h-8 rounded-full object-cover border border-zinc-700" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />}
                     </div>
                 </div>
             )}
