@@ -179,10 +179,17 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                             )}
                         </motion.div>
                     ) : auctionState.status === 'PAUSED' ? (
-                        <motion.div key="paused" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-10 flex flex-col items-center text-center">
-                            <PauseCircle size={56} className="text-amber-500/60 mb-6" />
-                            <h2 className="text-5xl md:text-7xl font-black tracking-tight mb-4">Paused</h2>
-                            <p className="text-sm text-zinc-500 tracking-[0.3em] uppercase font-bold">We'll be back shortly</p>
+                        <motion.div key="paused" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="relative z-10 flex flex-col items-center text-center">
+                            <motion.div 
+                                animate={{ scale: [1, 1.1, 1] }} 
+                                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                            >
+                                <PauseCircle size={80} className="text-amber-500 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.4)]" />
+                            </motion.div>
+                            <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tight mb-6" style={{ textShadow: '0 0 40px rgba(255,255,255,0.1)' }}>Auction Paused</h2>
+                            <div className="bg-black/50 border border-white/10 rounded-2xl px-8 py-4 backdrop-blur-md">
+                                <p className="text-lg md:text-xl text-zinc-300 font-bold tracking-widest uppercase">We will resume shortly</p>
+                            </div>
                         </motion.div>
                     ) : soldEvent ? (
                         <motion.div
@@ -302,19 +309,20 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0 }}
-                                                    className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl border"
+                                                    className="inline-flex items-center gap-4 px-8 py-4 rounded-3xl border relative overflow-hidden"
                                                     style={{ 
-                                                        backgroundColor: `${leadingTeam.color}22`,
-                                                        borderColor: `${leadingTeam.color}55`,
-                                                        boxShadow: `0 0 30px ${leadingTeam.color}33`
+                                                        backgroundColor: `${leadingTeam.color}33`,
+                                                        borderColor: `${leadingTeam.color}77`,
+                                                        boxShadow: `0 0 50px ${leadingTeam.color}40`
                                                     }}
                                                 >
+                                                    <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(90deg, transparent, ${leadingTeam.color}, transparent)` }} />
                                                     {leadingTeam.logoUrl
-                                                        ? <img src={leadingTeam.logoUrl} alt={leadingTeam.name} className="w-8 h-8 rounded-full object-cover ring-2 ring-white/20" />
-                                                        : <div className="w-3 h-8 rounded-sm" style={{ backgroundColor: leadingTeam.color }} />}
-                                                    <div className="text-left flex flex-col justify-center leading-none">
-                                                        <span className="text-[10px] text-zinc-400 font-bold tracking-widest uppercase mb-1">Leading</span>
-                                                        <span className="text-xl font-black uppercase tracking-wide" style={{ color: leadingTeam.color }}>{leadingTeam.name}</span>
+                                                        ? <img src={leadingTeam.logoUrl} alt={leadingTeam.name} className="w-12 h-12 rounded-full object-cover ring-4 ring-white/20 shadow-xl relative z-10" />
+                                                        : <div className="w-4 h-12 rounded-md relative z-10" style={{ backgroundColor: leadingTeam.color }} />}
+                                                    <div className="text-left flex flex-col justify-center leading-none relative z-10">
+                                                        <span className="text-xs text-zinc-300 font-bold tracking-[0.4em] uppercase mb-1.5 drop-shadow-md">Current Leader</span>
+                                                        <span className="text-3xl font-black uppercase tracking-wide" style={{ color: leadingTeam.color, textShadow: `0 0 20px ${leadingTeam.color}88` }}>{leadingTeam.name}</span>
                                                     </div>
                                                 </motion.div>
                                             ) : (
@@ -398,9 +406,9 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                             <div className="flex items-center justify-between mb-4">
                                                 <div className="flex items-center gap-3">
                                                     {team.logoUrl
-                                                        ? <img src={team.logoUrl} alt={team.shortName} className="w-10 h-10 rounded-full object-cover ring-2 ring-white/10" />
+                                                        ? <img src={team.logoUrl} alt={team.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-white/10" />
                                                         : <div className="w-2 h-10 rounded-sm" style={{ backgroundColor: team.color }} />}
-                                                    <span className="text-lg font-black tracking-wider uppercase">{team.shortName}</span>
+                                                    <span className="text-lg font-black tracking-wider uppercase">{team.name}</span>
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="block font-mono font-black text-xl text-emerald-400 leading-none">{stats.currentPurse}</span>
@@ -471,11 +479,11 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {players.filter(p => p.teamName === selectedTeam.name).map(p => (
+                                        {players.filter(p => p.teamName === selectedTeam.name).sort((a, b) => b.price - a.price).map(p => (
                                             <div key={p.accountId} className="flex items-center justify-between p-3 bg-white/3 hover:bg-white/5 border border-white/5 rounded-xl transition-colors">
                                                 <div className="flex items-center gap-3">
                                                     {p.isCaptain && (
-                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: selectedTeam.color + '22', border: `1px solid ${selectedTeam.color}44` }}>
+                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: selectedTeam.color + '22', border: `1px solid ${selectedTeam.color}44` }}>
                                                             <Crown size={12} style={{ color: selectedTeam.color }} />
                                                         </div>
                                                     )}
@@ -484,7 +492,15 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                                         <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mt-0.5">{p.role} · {p.tier}</p>
                                                     </div>
                                                 </div>
-                                                <span className="font-mono font-bold text-amber-500 text-sm">{p.price}</span>
+                                                {p.isCaptain ? (
+                                                    <span className="flex items-center gap-1.5 text-zinc-500 text-[10px] font-bold tracking-widest uppercase">
+                                                        <Crown size={12}/> CAPTAIN
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1.5 font-mono font-bold text-amber-500 text-sm">
+                                                        <Coins size={12} className="text-amber-500/50" /> {p.price}
+                                                    </span>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
@@ -22,6 +24,7 @@ const links: NavLink[] = [
 ];
 
 export default function Navbar() {
+    const pathname = usePathname();
     const [open, setOpen] = useState(false);
     const [isMatchLive, setIsMatchLive] = useState(false);
     const [auctionActive, setAuctionActive] = useState(false);
@@ -64,6 +67,8 @@ export default function Navbar() {
         }
         return _links;
     }, [auctionActive]);
+
+    if (pathname === '/auction' || pathname?.startsWith('/admin')) return null;
 
     return (
         <>
