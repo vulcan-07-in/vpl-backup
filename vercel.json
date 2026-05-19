@@ -1,0 +1,8 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "season-2-preview": true
+    }
+  }
+}
