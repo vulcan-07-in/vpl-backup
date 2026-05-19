@@ -55,13 +55,13 @@ export default function HomeClient({ champion }: { champion: { name: string; col
             <div className="absolute w-[500px] h-[500px] rounded-full bg-amber-500 opacity-5 blur-[80px] pointer-events-none" />
 
             {/* Hero */}
-            <div className="relative z-10 flex flex-col items-center gap-10 text-center w-full max-w-sm">
+            <div className="relative z-10 flex flex-col items-center gap-6 text-center w-full max-w-sm">
                 {/* Logo */}
                 <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                    className="relative w-40 h-40 md:w-52 md:h-52 drop-shadow-2xl"
+                    className="relative w-32 h-32 md:w-44 md:h-44 drop-shadow-2xl"
                 >
                     <Image
                         src="/logo.jpg"
@@ -78,9 +78,9 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.6 }}
-                    className="flex flex-col gap-3"
+                    className="flex flex-col gap-2"
                 >
-                    <h1 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter text-gold-gradient leading-none">
+                    <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-gold-gradient leading-none">
                         Varchasva
                     </h1>
                     <p className="text-sm md:text-base uppercase tracking-[0.4em] text-zinc-500 font-medium">
@@ -149,7 +149,7 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                             </div>
 
                             {timeLeft && (timeLeft.d > 0 || timeLeft.h > 0 || timeLeft.m > 0 || timeLeft.s > 0) && (
-                                <div className="flex gap-3 mt-2">
+                                <div className="flex gap-3 mt-2 mb-2">
                                     <div className="flex flex-col items-center">
                                         <span className="text-lg sm:text-xl font-bold text-amber-400">{timeLeft.d}</span>
                                         <span className="text-[9px] text-amber-500/60 tracking-widest">DAYS</span>
@@ -171,6 +171,10 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                                     </div>
                                 </div>
                             )}
+
+                            <Link href="/auction" className="mt-2 w-full max-w-[200px] text-center bg-amber-500 text-black font-black text-xs sm:text-sm uppercase tracking-widest py-2.5 rounded-full hover:bg-amber-400 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                                View Auction
+                            </Link>
                         </div>
                     )}
 
@@ -201,7 +205,8 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                     </div>
                 </motion.div>
 
-                {/* CTA Buttons */}
+                {/* CTA Buttons - Hidden as per request to focus on schedule */}
+                {/* 
                 <motion.div
                     initial="hidden"
                     animate="show"
@@ -229,6 +234,7 @@ export default function HomeClient({ champion }: { champion: { name: string; col
                         </motion.div>
                     ))}
                 </motion.div>
+                */}
             </div>
         </main>
     );

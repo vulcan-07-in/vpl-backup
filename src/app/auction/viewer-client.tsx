@@ -26,6 +26,15 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null });
     const [soldEvent, setSoldEvent] = useState<{ player: Player, team: Team, amount: number } | null>(null);
+    const [hasAuctionStarted, setHasAuctionStarted] = useState(true);
+
+    useEffect(() => {
+        const targetDate = new Date("2026-05-20T17:00:00+05:30").getTime();
+        const checkTime = () => setHasAuctionStarted(Date.now() >= targetDate);
+        checkTime();
+        const interval = setInterval(checkTime, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     const playersRef = useRef(players);
     useEffect(() => { playersRef.current = players; }, [players]);
@@ -185,6 +194,21 @@ export default function ViewerClient({ teams, players: initialPlayers, initialPu
                                 </motion.div>
                             )}
 
+                        </motion.div>
+                    ) : !hasAuctionStarted ? (
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }} 
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="relative z-10 flex flex-col items-center text-amber-500/80"
+                        >
+                            <motion.div
+                                animate={{ y: [0, -20, 0], rotate: [0, -10, 0] }}
+                                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                            >
+                                <Hammer size={100} className="mb-8 drop-shadow-[0_0_30px_rgba(245,158,11,0.5)]" />
+                            </motion.div>
+                            <p className="text-2xl md:text-4xl font-black tracking-[0.3em] uppercase text-center drop-shadow-xl" style={{ fontFamily: "var(--font-display)" }}>Auction Begins Soon</p>
+                            <p className="text-xs sm:text-sm font-bold tracking-widest text-amber-500/50 uppercase mt-4">20th May • 5:00 PM • Saraswati Hall</p>
                         </motion.div>
                     ) : (
                         <motion.div 
