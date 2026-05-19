@@ -12,6 +12,7 @@ interface Team {
     color: string;
     groupId: string;
     purse: number;
+    logoUrl?: string | null;
     captainId: string | null;
     captainName: string | null;
 }
@@ -44,8 +45,9 @@ function TeamCard({
     dragging: boolean;
 }) {
     const [editing, setEditing] = useState(false);
-    const [fields, setFields] = useState({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse });
+    const [fields, setFields] = useState({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '' });
     const [saving, setSaving] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     // Available captains: approved players who are not already captains of other teams
@@ -55,16 +57,17 @@ function TeamCard({
 
     const handleSave = async () => {
         setSaving(true);
-        await onUpdate(team.id, fields);
+        await onUpdate(team.id, { ...fields, logoUrl: fields.logoUrl || null });
         setSaving(false);
         setEditing(false);
     };
 
     const handleDelete = async () => {
-        if (!confirm(`Delete "${team.name}"? This will unassign all their players.`)) return;
+        if (!deleteConfirm) { setDeleteConfirm(true); return; }
         setDeleting(true);
         await onDelete(team.id);
         setDeleting(false);
+        setDeleteConfirm(false);
     };
 
     return (
@@ -84,6 +87,8 @@ function TeamCard({
                         onChange={e => setFields(f => ({ ...f, color: e.target.value }))}
                         className="w-7 h-7 rounded-full cursor-pointer border-0 bg-transparent shrink-0"
                     />
+                ) : team.logoUrl ? (
+                    <img src={team.logoUrl} alt={team.name} className="w-8 h-8 rounded-full object-cover border border-zinc-700 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
                 ) : (
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
                 )}
@@ -112,14 +117,27 @@ function TeamCard({
             </div>
 
             {editing && (
-                <div className="flex items-center gap-2 mb-3">
-                    <label className="text-[10px] text-zinc-500 tracking-widest uppercase">Purse</label>
-                    <input
-                        type="number"
-                        value={fields.purse}
-                        onChange={e => setFields(f => ({ ...f, purse: parseInt(e.target.value, 10) || 0 }))}
-                        className="bg-black border border-zinc-700 rounded px-2 py-1 text-sm font-mono text-emerald-400 w-28"
-                    />
+                <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Purse</label>
+                        <input
+                            type="number"
+                            value={fields.purse}
+                            onChange={e => setFields(f => ({ ...f, purse: parseInt(e.target.value, 10) || 0 }))}
+                            className="bg-black border border-zinc-700 rounded px-2 py-1 text-sm font-mono text-emerald-400 w-28"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase w-12">Logo</label>
+                        <input
+                            type="url"
+                            value={fields.logoUrl}
+                            onChange={e => setFields(f => ({ ...f, logoUrl: e.target.value }))}
+                            placeholder="https://... (image URL)"
+                            className="flex-1 bg-black border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300"
+                        />
+                        {fields.logoUrl && <img src={fields.logoUrl} alt="preview" className="w-6 h-6 rounded object-cover" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />}
+                    </div>
                 </div>
             )}
 
@@ -151,7 +169,23 @@ function TeamCard({
                             <Check size={12} /> {saving ? "Saving..." : "Save"}
                         </button>
                         <button
-                            onClick={() => { setEditing(false); setFields({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse }); }}
+                            onClick={() => { setEditing(false); setFields({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '' }); }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                        >
+                            <X size={12} />
+                        </button>
+                    </>
+                ) : deleteConfirm ? (
+                    <>
+                        <button
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="flex-1 bg-red-600 hover:bg-red-500 text-white py-1.5 rounded-lg text-xs font-bold transition-colors"
+                        >
+                            {deleting ? "Deleting..." : "Confirm Delete"}
+                        </button>
+                        <button
+                            onClick={() => setDeleteConfirm(false)}
                             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-800 hover:bg-zinc-700 transition-colors"
                         >
                             <X size={12} />

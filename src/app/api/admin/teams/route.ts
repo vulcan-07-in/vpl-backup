@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 import Redis from "ioredis";
-import { teamPursesKey } from "@/lib/redis-keys";
+import { teamPursesKey, teamLogosKey } from "@/lib/redis-keys";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +25,7 @@ export async function GET() {
 
     const redis = new Redis(process.env.REDIS_URL || "");
     const pursesHash = await redis.hgetall(teamPursesKey());
+    const logosHash = await redis.hgetall(teamLogosKey());
 
     // Fetch captains for each team
     const teamList = teams || [];
@@ -40,10 +41,12 @@ export async function GET() {
             .maybeSingle();
 
         const purse = pursesHash[team.id] ? parseInt(pursesHash[team.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET;
+        const logoUrl = logosHash?.[team.id] || null;
 
         enrichedTeams.push({
             ...team,
             purse,
+            logoUrl,
             captainId: captain?.account_id || null,
             captainName: (captain as any)?.varchasva_accounts?.name || null,
         });
@@ -97,6 +100,7 @@ export async function POST(req: Request) {
 
             const initialPurse = purse || AUCTION_CONSTANTS.MAX_BUDGET;
             await redis.hset(teamPursesKey(), teamId, initialPurse);
+            if (body.logoUrl) await redis.hset(teamLogosKey(), teamId, body.logoUrl);
 
             // If captain is specified, assign them
             let captainName = null;
@@ -155,6 +159,13 @@ export async function POST(req: Request) {
 
             if (purse !== undefined) {
                 await redis.hset(teamPursesKey(), teamId, parseInt(purse, 10));
+            }
+            if (body.logoUrl !== undefined) {
+                if (body.logoUrl) {
+                    await redis.hset(teamLogosKey(), teamId, body.logoUrl);
+                } else {
+                    await redis.hdel(teamLogosKey(), teamId);
+                }
             }
 
             // If name changed, update all player registrations
@@ -230,6 +241,7 @@ export async function POST(req: Request) {
             if (error) throw new Error(error.message);
 
             await redis.hdel(teamPursesKey(), teamId);
+            await redis.hdel(teamLogosKey(), teamId);
 
             revalidatePath("/squads");
             revalidatePath("/points");

@@ -21,3 +21,6 @@ export const allLiveMatchPattern = (): string =>
 
 export const teamPursesKey = (): string =>
     "s2:team_purses";
+
+export const teamLogosKey = (): string =>
+    "s2:team_logos";
