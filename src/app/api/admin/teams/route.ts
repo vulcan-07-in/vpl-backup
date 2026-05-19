@@ -20,7 +20,7 @@ export async function GET() {
         detail: error.details,
         hint: error.hint,
         code: error.code,
-        supabaseUrl: process.env.SUPABASE_URL?.replace(/^(https?:\/\/[^.]+).*/, '$1…')
+        supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT_SET'
     }, { status: 500 });
 
     const redis = new Redis(process.env.REDIS_URL || "");
