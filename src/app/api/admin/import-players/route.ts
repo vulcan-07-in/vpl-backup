@@ -93,7 +93,6 @@ export async function POST(req: Request) {
             const { error: accErr } = await supabase
                 .from('varchasva_accounts')
                 .upsert({
-                    id: crypto.randomUUID(),
                     account_id: accountId,
                     name: player.name.trim(),
                     mobile_number: mobileValue
@@ -109,7 +108,6 @@ export async function POST(req: Request) {
             const { error: regErr } = await supabase
                 .from('vpl_registrations')
                 .upsert({
-                    id: crypto.randomUUID(),
                     registration_id: `VPL2-${accountId}`,
                     account_id: accountId,
                     season: 2,
