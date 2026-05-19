@@ -75,3 +75,6 @@ CREATE POLICY "Allow read for anon" ON vpl_auction_history FOR SELECT USING (tru
 ALTER PUBLICATION supabase_realtime ADD TABLE vpl_auction_state;
 ALTER PUBLICATION supabase_realtime ADD TABLE vpl_auction_history;
 ALTER PUBLICATION supabase_realtime ADD TABLE vpl_registrations;
+
+-- 6. Drop restrictive tier check constraint to allow custom tier values (TIER 3, TIER 4, etc.)
+ALTER TABLE vpl_registrations DROP CONSTRAINT IF EXISTS vpl_registrations_tier_check;
