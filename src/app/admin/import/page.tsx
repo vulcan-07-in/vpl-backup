@@ -33,6 +33,7 @@ export default function ImportPlayersPage() {
 
     // Results
     const [results, setResults] = useState<any[]>([]);
+    const [confirmPending, setConfirmPending] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,9 +133,12 @@ export default function ImportPlayersPage() {
 
         if (processedData.length === 0) { setError("No valid players found."); return; }
 
-        if (overwriteMode && !confirm(`⚠️ OVERWRITE MODE: This will DELETE all existing Season 2 player data and re-import ${processedData.length} rows. Proceed?`)) {
+        // Show in-UI confirmation instead of window.confirm()
+        if (overwriteMode && !confirmPending) {
+            setConfirmPending(true);
             return;
         }
+        setConfirmPending(false);
 
         setError("");
         setLoading(true);
@@ -352,11 +356,27 @@ export default function ImportPlayersPage() {
                                 </div>
                             )}
 
+                            {/* In-UI overwrite confirmation banner */}
+                            {confirmPending && (
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 mb-4">
+                                    <p className="text-red-400 font-black uppercase tracking-widest text-sm mb-1">⚠️ Overwrite Confirmation</p>
+                                    <p className="text-zinc-300 text-sm mb-4">This will <span className="text-red-400 font-bold">DELETE ALL existing Season 2 player data</span> and re-import <span className="text-amber-400 font-bold">{rows.length} players</span>. Are you sure?</p>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setConfirmPending(false)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase tracking-widest py-3 rounded-xl transition-colors">
+                                            Cancel
+                                        </button>
+                                        <button onClick={handleImport} className="flex-[2] bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest py-3 rounded-xl transition-colors">
+                                            Yes, Delete & Re-Import
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex gap-4">
                                 <button onClick={() => setStep(1)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 font-bold uppercase tracking-widest py-4 rounded-xl transition-colors text-white">Back</button>
                                 <button
                                     onClick={handleImport}
-                                    disabled={loading || !mapName}
+                                    disabled={loading || !mapName || confirmPending}
                                     className="flex-[2] bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest py-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                                 >
                                     {loading ? "Importing..." : <><Upload className="w-5 h-5" /> Import {rows.length} Players</>}
