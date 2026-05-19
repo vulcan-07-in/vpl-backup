@@ -45,7 +45,7 @@ export default async function AdminAuctionPage() {
         ...t,
         purse: pursesHash[t.id] ? parseInt(pursesHash[t.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET,
         logoUrl: logosHash[t.id] || null,
-        paddleNumber: paddlesHash[t.id] || null,
+        paddleNumber: paddlesHash[t.id] ? parseInt(paddlesHash[t.id], 10) : undefined,
     }));
 
     // Format players
