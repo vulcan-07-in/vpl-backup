@@ -68,12 +68,18 @@ export async function POST(req: Request) {
             // If no contact, use accountId as mobile placeholder
             const mobileValue = contactNumber || accountId;
 
-            // Normalize tier
+            // Normalize tier — accept any custom tier value, just clean up shorthand
             let tier = (player.tier || 'TIER 2').toUpperCase().trim();
-            // Map common variations
-            if (tier === 'MARQUEE' || tier === 'MARQUEE PLAYER') tier = 'MARQUEE';
-            else if (tier === 'T1' || tier === 'TIER1') tier = 'TIER 1';
-            else if (tier === 'T2' || tier === 'TIER2') tier = 'TIER 2';
+            // Normalize common shorthand → canonical names
+            const tierShorthandMap: Record<string, string> = {
+                'MARQUEE PLAYER': 'MARQUEE',
+                'M': 'MARQUEE',
+                'T1': 'TIER 1', 'TIER1': 'TIER 1', 'T-1': 'TIER 1',
+                'T2': 'TIER 2', 'TIER2': 'TIER 2', 'T-2': 'TIER 2',
+                'T3': 'TIER 3', 'TIER3': 'TIER 3', 'T-3': 'TIER 3',
+                'T4': 'TIER 4', 'TIER4': 'TIER 4', 'T-4': 'TIER 4',
+            };
+            tier = tierShorthandMap[tier] ?? tier; // If no match, keep as-is
 
             // Normalize gender
             const gender = (player.gender || 'Male').trim();

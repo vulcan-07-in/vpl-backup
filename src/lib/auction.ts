@@ -12,6 +12,8 @@ export const AUCTION_CONSTANTS = {
         'MARQUEE': 500,
         'TIER 1': 300,
         'TIER 2': 100,
+        'TIER 3': 50,
+        'TIER 4': 50,
     } as Record<string, number>
 };
 
