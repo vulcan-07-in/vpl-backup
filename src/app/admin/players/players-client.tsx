@@ -41,8 +41,11 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
     const [bulkApproving, setBulkApproving] = useState(false);
 
     const [newPlayer, setNewPlayer] = useState({ name: "", mobile: "", role: "All Rounder", tier: "TIER 2", gender: "Male" });
+    const [bulkConfirmPending, setBulkConfirmPending] = useState(false);
 
-    const tiers = Array.from(new Set(players.map(p => p.tier).filter(Boolean)));
+    const tiers = Array.from(new Set(players.map(p => p.tier).filter(Boolean))).sort();
+    // Ensure standard tiers are always present even if no players have them yet
+    const allTiers = Array.from(new Set(['MARQUEE', 'TIER 1', 'TIER 2', ...tiers]));
 
     const filteredPlayers = players.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.mobile?.includes(search);
@@ -83,7 +86,13 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
     const handleBulkApprove = async () => {
         const pending = filteredPlayers.filter(p => !p.isApproved);
         if (pending.length === 0) { alert("No pending players to approve."); return; }
-        if (!confirm(`Approve ${pending.length} players?`)) return;
+
+        // Show in-UI confirmation instead of window.confirm()
+        if (!bulkConfirmPending) {
+            setBulkConfirmPending(true);
+            return;
+        }
+        setBulkConfirmPending(false);
 
         setBulkApproving(true);
         for (const p of pending) {
@@ -153,8 +162,13 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-full font-bold transition-all"
                         >
                             {bulkApproving ? <Loader2 size={18} className="animate-spin" /> : <CheckCheck size={18} />}
-                            Approve All Visible
+                            {bulkConfirmPending ? `Confirm Approve ${filteredPlayers.filter(p => !p.isApproved).length}?` : "Approve All Visible"}
                         </button>
+                        {bulkConfirmPending && (
+                            <button onClick={() => setBulkConfirmPending(false)} className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-3 rounded-full font-bold transition-all text-sm">
+                                Cancel
+                            </button>
+                        )}
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black px-5 py-3 rounded-full font-bold transition-all"
@@ -255,9 +269,7 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                                                 onChange={(e) => updatePlayer(player.accountId, { tier: e.target.value })}
                                                 className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg py-1.5 px-2 text-[10px] font-bold"
                                             >
-                                                <option value="MARQUEE">MARQUEE</option>
-                                                <option value="TIER 1">TIER 1</option>
-                                                <option value="TIER 2">TIER 2</option>
+                                                {allTiers.map(t => <option key={t} value={t}>{t}</option>)}
                                             </select>
                                             <select
                                                 value={player.gender || "Male"}
@@ -317,7 +329,7 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                                     <div>
                                         <label className="block text-xs font-bold text-zinc-500 mb-2 tracking-widest uppercase">Tier</label>
                                         <select className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4" value={newPlayer.tier} onChange={e => setNewPlayer({...newPlayer, tier: e.target.value})}>
-                                            <option value="MARQUEE">MARQUEE</option><option value="TIER 1">TIER 1</option><option value="TIER 2">TIER 2</option>
+                                            {allTiers.map(t => <option key={t} value={t}>{t}</option>)}
                                         </select>
                                     </div>
                                 </div>
