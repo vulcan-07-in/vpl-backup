@@ -325,7 +325,7 @@ export default function TeamsClient() {
     const [draggingId, setDraggingId] = useState<string | null>(null);
 
     // New team form
-    const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "", paddleNumber: "" });
+    const [newTeam, setNewTeam] = useState({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "", paddleNumber: "", logoUrl: "" });
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState("");
 
@@ -378,7 +378,7 @@ export default function TeamsClient() {
             const data = await res.json();
             if (res.ok && data.team) {
                 setTeams(prev => [...prev, data.team]);
-                setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "", paddleNumber: "" });
+                setNewTeam({ name: "", shortName: "", color: "#EAB308", groupId: "A", purse: 10000, captainAccountId: "", paddleNumber: "", logoUrl: "" });
                 fetchPlayers(); // Refresh available captains
             } else {
                 // Show full error JSON for debugging
@@ -552,6 +552,16 @@ export default function TeamsClient() {
                                 value={newTeam.paddleNumber}
                                 onChange={e => setNewTeam(n => ({ ...n, paddleNumber: e.target.value }))}
                                 placeholder="No."
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-amber-500 outline-none transition-colors"
+                            />
+                        </div>
+                        <div className="flex-1 min-w-[160px]">
+                            <label className="text-[10px] text-zinc-600 tracking-widest uppercase block mb-1">Logo URL</label>
+                            <input
+                                type="url"
+                                value={newTeam.logoUrl}
+                                onChange={e => setNewTeam(n => ({ ...n, logoUrl: e.target.value }))}
+                                placeholder="https://..."
                                 className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-amber-500 outline-none transition-colors"
                             />
                         </div>
