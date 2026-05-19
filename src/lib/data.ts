@@ -20,7 +20,6 @@ const mapTeam = (row: any): Team => ({
  * Pass `season: 2` to use Supabase, otherwise Prisma (Season 1).
  */
 export async function fetchTeams(season: number = 1): Promise<Team[]> {
-  noStore();
   if (season === 2) {
     const { data, error } = await supabase
       .from("Team")
@@ -50,7 +49,6 @@ export async function fetchTeams(season: number = 1): Promise<Team[]> {
 
 /** Fetch squads (teams + players) */
 export async function fetchSquads(season: number = 1): Promise<Array<{ teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string }[] }>> {
-  noStore();
   if (season === 2) {
     // Fetch teams with their IDs for correct FK resolution
     type TeamRow = { id: string; name: string; shortName: string; color: string };
@@ -155,7 +153,6 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
 
 /** Fetch fixtures (matches) */
 export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
-  noStore();
   if (season === 2) {
     const { data: matches, error: matchErr } = await supabase
       .from("Match")
@@ -217,7 +214,6 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
 
 /** Fetch all live states from Supabase + Redis */
 export async function fetchAllLiveStates(): Promise<Record<string, LiveMatchState>> {
-  noStore();
   let liveStates: Record<string, any> = {};
   const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
 

@@ -4,7 +4,7 @@ import { Metadata } from "next";
 import Redis from "ioredis";
 import { teamPursesKey } from "@/lib/redis-keys";
 
-export const revalidate = 0;
+export const revalidate = 60;
 export const metadata: Metadata = {
     title: "Live Auction | VPL S2",
     description: "Watch the Varchasva Premier League Season 2 Player Draft live.",

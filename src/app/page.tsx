@@ -1,6 +1,8 @@
 import { fetchFixtures, fetchTeams } from "@/lib/data";
 import HomeClient from "./home-client";
 
+export const revalidate = 60;
+
 export default async function Home() {
   // Fetch S2 data on the server with ISR
   const [teams, fixtures] = await Promise.all([
