@@ -5,6 +5,9 @@ import { validateAdminRequest } from "@/lib/auth";
 import Redis from "ioredis";
 import { teamPursesKey } from "@/lib/redis-keys";
 
+// Module-level Redis singleton — reused across requests to avoid cold-connect latency on every bid
+const redis = new Redis(process.env.REDIS_URL || "");
+
 export async function POST(req: Request) {
     if (!(await validateAdminRequest())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -57,7 +60,7 @@ export async function POST(req: Request) {
                 const { data: team } = await supabase.from('Team').select('name').eq('id', payload.teamId).single();
                 if (!team) throw new Error("Team not found");
 
-                const redis = new Redis(process.env.REDIS_URL || "");
+                // Use module-level singleton — no cold-connect on every click
                 const purseStr = await redis.hget(teamPursesKey(), payload.teamId);
                 const purse = purseStr ? parseInt(purseStr, 10) : AUCTION_CONSTANTS.MAX_BUDGET;
 

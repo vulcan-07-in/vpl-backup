@@ -42,9 +42,10 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const [poolQueue, setPoolQueue] = useState<Player[]>([]);
     const [customBasePrice, setCustomBasePrice] = useState<string>("");
 
-    // Bid inflight lock — prevents rapid double-tap race conditions
-    const bidInflight = useRef(false);
-    const bidLockTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Per-team inflight lock — prevents double-tap race conditions per paddle
+    // Using a Set so different teams can be clicked in quick succession
+    const bidInflightSet = useRef<Set<string>>(new Set());
+    const bidLockTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
     const auctionStateRef = useRef(auctionState);
     useEffect(() => { auctionStateRef.current = auctionState; }, [auctionState]);
 
@@ -77,11 +78,10 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
         const channel = supabase.channel('auctioneer_state')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_auction_state' }, (payload) => {
                 setAuctionState(payload.new);
-                // Release bid lock when server echo arrives
-                if (bidInflight.current) {
-                    bidInflight.current = false;
-                    if (bidLockTimeout.current) clearTimeout(bidLockTimeout.current);
-                }
+                // Release all per-team bid locks when server echo arrives
+                bidInflightSet.current.clear();
+                bidLockTimers.current.forEach(t => clearTimeout(t));
+                bidLockTimers.current.clear();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vpl_registrations' }, () => {
                 supabase.from("vpl_registrations").select("account_id, team_name, price").eq("season", 2).then(({ data }) => {
@@ -160,8 +160,9 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     };
 
     const handleBid = useCallback((teamId: string) => {
-        // Drop click if a bid is already inflight — prevents rapid-fire race conditions
-        if (bidInflight.current) return;
+        // Drop click if THIS team already has a bid inflight — prevents same-paddle double-tap
+        // Different teams can still bid immediately (no global lock)
+        if (bidInflightSet.current.has(teamId)) return;
 
         const state = auctionStateRef.current;
         if (!state.active_player_id) return;
@@ -175,22 +176,45 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
         if (nextBid > team.maxBid) { alert(`❌ ${teams.find(t => t.id === teamId)?.name}: Ceiling reached! Max bid: ${team.maxBid}`); return; }
         if (team.count >= AUCTION_CONSTANTS.MAX_PLAYERS) { alert(`❌ Roster full!`); return; }
 
-        // Lock immediately before optimistic update
-        bidInflight.current = true;
-        // Safety valve: auto-release lock after 2s if realtime echo never arrives
-        if (bidLockTimeout.current) clearTimeout(bidLockTimeout.current);
-        bidLockTimeout.current = setTimeout(() => { bidInflight.current = false; }, 2000);
+        // Lock this team's paddle immediately
+        bidInflightSet.current.add(teamId);
+        // Safety valve: auto-release after 1.5s in case server never responds
+        const existing = bidLockTimers.current.get(teamId);
+        if (existing) clearTimeout(existing);
+        bidLockTimers.current.set(teamId, setTimeout(() => {
+            bidInflightSet.current.delete(teamId);
+            bidLockTimers.current.delete(teamId);
+        }, 1500));
 
-        // Optimistic update for zero latency feel
+        // Optimistic update for zero-latency feel
         setAuctionState((prev: any) => ({ ...prev, current_bid: nextBid, leading_team_id: teamId }));
 
-        performAction('BID', { amount: nextBid, teamId }).then((ok) => {
-            if (!ok) {
+        // Fire request — release lock on completion (don't wait for realtime echo)
+        fetch('/api/admin/auction/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'BID', payload: { amount: nextBid, teamId } })
+        }).then(async (res) => {
+            // Release this team's lock as soon as server acks
+            const timer = bidLockTimers.current.get(teamId);
+            if (timer) clearTimeout(timer);
+            bidInflightSet.current.delete(teamId);
+            bidLockTimers.current.delete(teamId);
+
+            if (!res.ok) {
                 // Roll back optimistic update on server rejection
-                bidInflight.current = false;
-                if (bidLockTimeout.current) clearTimeout(bidLockTimeout.current);
+                const data = await res.json().catch(() => ({}));
+                alert(`❌ ${data.error || 'Bid failed'}`);
                 setAuctionState((prev: any) => ({ ...prev, current_bid: state.current_bid, leading_team_id: state.leading_team_id }));
             }
+        }).catch((e) => {
+            // Network error — release lock and roll back
+            const timer = bidLockTimers.current.get(teamId);
+            if (timer) clearTimeout(timer);
+            bidInflightSet.current.delete(teamId);
+            bidLockTimers.current.delete(teamId);
+            alert(`❌ Network error: ${e.message}`);
+            setAuctionState((prev: any) => ({ ...prev, current_bid: state.current_bid, leading_team_id: state.leading_team_id }));
         });
     }, [teamStats, customIncrement, teams]);
 
