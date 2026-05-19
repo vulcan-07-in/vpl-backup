@@ -33,6 +33,7 @@ export default function ImportPlayersPage() {
 
     // Results
     const [results, setResults] = useState<any[]>([]);
+    const [importErrors, setImportErrors] = useState<any[]>([]);
     const [confirmPending, setConfirmPending] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +156,7 @@ export default function ImportPlayersPage() {
 
             if (res.ok) {
                 setResults(data.imported);
+                setImportErrors(data.errors || []);
                 setStep(3);
             } else {
                 setError(data.error || "Failed to import");
@@ -418,8 +420,20 @@ export default function ImportPlayersPage() {
                                 </table>
                             </div>
 
+                            {/* Show errors if any players failed */}
+                            {importErrors.length > 0 && (
+                                <div className="mt-4 bg-red-950/50 border border-red-500/30 rounded-xl p-4">
+                                    <p className="text-red-400 font-black text-xs tracking-widest uppercase mb-3">⚠️ {importErrors.length} players failed — first errors:</p>
+                                    {importErrors.map((e, i) => (
+                                        <div key={i} className="mb-2 text-xs font-mono text-red-300">
+                                            <span className="text-zinc-400">[{e.step}]</span> <span className="text-white font-bold">{e.player}</span>: {e.msg}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="flex gap-4 mt-6">
-                                <button onClick={() => { setStep(1); setResults([]); setCsvText(""); setFileName(""); }} className="flex-1 bg-zinc-800 hover:bg-zinc-700 font-bold uppercase tracking-widest py-4 rounded-xl transition-colors">
+                                <button onClick={() => { setStep(1); setResults([]); setImportErrors([]); setCsvText(""); setFileName(""); }} className="flex-1 bg-zinc-800 hover:bg-zinc-700 font-bold uppercase tracking-widest py-4 rounded-xl transition-colors">
                                     Import More
                                 </button>
                                 <Link href="/admin/players" className="flex-[2] bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest py-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-center">

@@ -32,7 +32,9 @@ export async function POST(req: Request) {
         }
 
         const results = [];
+        const errors: { player: string; step: string; msg: string }[] = [];
         let currentIdCounter = 1;
+
 
         if (!overwrite) {
             // Fetch last numeric ID to avoid collision
@@ -99,6 +101,7 @@ export async function POST(req: Request) {
 
             if (accErr) {
                 console.error("Account Error:", accErr.message, "for player:", player.name);
+                errors.push({ player: player.name, step: 'account', msg: `${accErr.message} | code:${accErr.code} | detail:${accErr.details}` });
                 continue;
             }
 
@@ -121,6 +124,7 @@ export async function POST(req: Request) {
 
             if (regErr) {
                 console.error("Registration Error:", regErr.message, "for player:", player.name);
+                errors.push({ player: player.name, step: 'registration', msg: `${regErr.message} | code:${regErr.code} | detail:${regErr.details}` });
             } else {
                 results.push({
                     accountId: accountId,
@@ -133,7 +137,13 @@ export async function POST(req: Request) {
             }
         }
 
-        return NextResponse.json({ imported: results, total: results.length, overwrite });
+        return NextResponse.json({
+            imported: results,
+            total: results.length,
+            overwrite,
+            errors: errors.slice(0, 5), // Return first 5 errors for diagnosis
+            errorCount: errors.length
+        });
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
