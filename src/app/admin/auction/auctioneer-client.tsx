@@ -298,14 +298,20 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                     <div className="flex flex-col justify-end gap-3">
                                         <div className="flex gap-3">
                                             <button
-                                                onClick={() => performAction('PASS')}
+                                                onClick={() => {
+                                                    setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' }));
+                                                    performAction('PASS');
+                                                }}
                                                 disabled={loadingAction === 'PASS' || auctionState.leading_team_id !== null}
                                                 className="flex-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white disabled:opacity-50 py-3 rounded-xl font-black tracking-widest transition-all flex items-center justify-center gap-2"
                                             >
                                                 <Ban size={18} /> PASS
                                             </button>
                                             <button
-                                                onClick={() => performAction('SOLD')}
+                                                onClick={() => {
+                                                    setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' }));
+                                                    performAction('SOLD');
+                                                }}
                                                 disabled={loadingAction === 'SOLD' || !auctionState.leading_team_id}
                                                 className="flex-[2] bg-emerald-500 hover:bg-emerald-400 text-black disabled:opacity-50 py-3 rounded-xl font-black tracking-[0.2em] transition-transform active:scale-95 flex items-center justify-center gap-2"
                                             >

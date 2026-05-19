@@ -185,17 +185,23 @@ export async function POST(req: Request) {
 
             case 'PASS': {
                 if (!state.active_player_id) break;
-                await supabase.from('vpl_registrations').update({
+                
+                const { error: regError } = await supabase.from('vpl_registrations').update({
                     team_name: 'PASSED'
                 }).eq('account_id', state.active_player_id).eq('season', 2);
+                
+                if (regError) throw new Error(`Failed to update registration: ${regError.message}`);
 
-                await supabase.from('vpl_auction_state').update({
+                const { error: stateError } = await supabase.from('vpl_auction_state').update({
                     active_player_id: null,
                     current_bid: 0,
                     leading_team_id: null,
                     status: 'IDLE',
                     last_update: new Date().toISOString()
                 }).eq('id', 1);
+                
+                if (stateError) throw new Error(`Failed to update auction state: ${stateError.message}`);
+                
                 break;
             }
 
