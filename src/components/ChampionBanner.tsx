@@ -1,9 +1,7 @@
-import { unstable_noStore as noStore } from "next/cache";
 import { fetchFixtures, fetchTeams } from "@/lib/data";
 import ChampionBannerClient from "./ChampionBannerClient";
 
 export default async function ChampionBanner() {
-    noStore(); // Prevent static generation — DB not available at build time
 
     try {
         const teams = await fetchTeams(2);
