@@ -32,7 +32,7 @@ export async function POST(req: Request) {
                 if (!player || (player.team_name !== 'UNSOLD' && player.team_name !== 'PASSED')) {
                     throw new Error("Player is already sold or not eligible for draft.");
                 }
-                const basePrice = getBasePrice(payload.tier || player.tier);
+                const basePrice = payload.basePrice !== undefined ? payload.basePrice : getBasePrice(payload.tier || player.tier);
                 await supabase.from('vpl_auction_state').upsert({
                     id: 1,
                     active_player_id: payload.accountId,

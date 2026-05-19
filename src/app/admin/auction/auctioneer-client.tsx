@@ -36,6 +36,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const [forceBidAmount, setForceBidAmount] = useState("");
     const [customIncrement, setCustomIncrement] = useState<number | null>(null);
     const [poolQueue, setPoolQueue] = useState<Player[]>([]);
+    const [customBasePrice, setCustomBasePrice] = useState<string>("");
 
     const pools = useMemo(() => {
         const tierSet = new Set(players.map(p => p.tier?.toUpperCase()).filter(Boolean));
@@ -43,6 +44,13 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
         arr.push("PASSED");
         return arr;
     }, [players]);
+
+    // Set default base price when pool changes
+    useEffect(() => {
+        if (selectedPool && selectedPool !== "PASSED") {
+            setCustomBasePrice(getBasePrice(selectedPool).toString());
+        }
+    }, [selectedPool]);
 
     const fetchHistory = () => {
         supabase.from('vpl_auction_history').select('*').order('timestamp', { ascending: false }).limit(10).then(({ data }) => {
@@ -129,7 +137,11 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
         if (poolQueue.length === 0) { alert(`No more players in ${selectedPool}.`); return; }
         const randomIndex = Math.floor(Math.random() * poolQueue.length);
         const player = poolQueue[randomIndex];
-        performAction('DRAW', { accountId: player.accountId, tier: player.tier });
+        performAction('DRAW', { accountId: player.accountId, tier: player.tier, basePrice: parseInt(customBasePrice, 10) || undefined });
+    };
+
+    const selectPlayer = (player: Player) => {
+        performAction('DRAW', { accountId: player.accountId, tier: player.tier, basePrice: parseInt(customBasePrice, 10) || undefined });
     };
 
     const handleBid = (teamId: string) => {
@@ -142,6 +154,10 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
 
         if (nextBid > team.maxBid) { alert(`❌ ${teams.find(t => t.id === teamId)?.name}: Ceiling reached! Max bid: ${team.maxBid}`); return; }
         if (team.count >= AUCTION_CONSTANTS.MAX_PLAYERS) { alert(`❌ Roster full!`); return; }
+        
+        // Optimistic update for zero latency feel
+        setAuctionState((prev: any) => ({ ...prev, current_bid: nextBid, leading_team_id: teamId }));
+        
         performAction('BID', { amount: nextBid, teamId });
     };
 
@@ -175,6 +191,16 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                             >
                                 {pools.map(p => <option key={p} value={p}>{p} ({p === "PASSED" ? players.filter(pl => pl.teamName === 'PASSED' && !pl.isCaptain).length : players.filter(pl => pl.tier?.toUpperCase() === p && pl.teamName === 'UNSOLD' && !pl.isCaptain).length})</option>)}
                             </select>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Base:</span>
+                                <input
+                                    type="number"
+                                    value={customBasePrice}
+                                    onChange={e => setCustomBasePrice(e.target.value)}
+                                    placeholder="Base Price"
+                                    className="w-20 bg-black border border-zinc-800 rounded-lg px-2 py-2 text-sm font-bold text-amber-500 text-center"
+                                />
+                            </div>
                             <button
                                 onClick={shuffleAndDraw}
                                 disabled={auctionState.status !== 'IDLE' || loadingAction === 'DRAW'}
@@ -199,23 +225,42 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                             <span className="text-xs font-bold tracking-widest text-zinc-500 uppercase">Queue · {poolQueue.length} remaining</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-zinc-600">Increment:</span>
+                                <div className="flex gap-1">
+                                    {[50, 100, 200].map(inc => (
+                                        <button
+                                            key={inc}
+                                            onClick={() => setCustomIncrement(inc)}
+                                            className={`px-2 py-1 text-[10px] font-bold rounded ${customIncrement === inc ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                        >
+                                            +{inc}
+                                        </button>
+                                    ))}
+                                    <button onClick={() => setCustomIncrement(null)} className={`px-2 py-1 text-[10px] font-bold rounded ${!customIncrement ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+                                        Auto
+                                    </button>
+                                </div>
                                 <input
                                     type="number"
                                     value={customIncrement || ""}
                                     onChange={e => setCustomIncrement(e.target.value ? parseInt(e.target.value, 10) : null)}
-                                    placeholder="Auto"
-                                    className="w-20 bg-black border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-amber-500"
+                                    placeholder="Custom"
+                                    className="w-16 bg-black border border-zinc-700 rounded px-2 py-1 text-xs font-mono text-amber-500 ml-1"
                                 />
                             </div>
                         </div>
                         <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                            {poolQueue.slice(0, 12).map(p => (
-                                <div key={p.accountId} className="shrink-0 bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs">
+                            {poolQueue.slice(0, 15).map(p => (
+                                <button 
+                                    key={p.accountId} 
+                                    onClick={() => { if (auctionState.status === 'IDLE') selectPlayer(p); }}
+                                    disabled={auctionState.status !== 'IDLE'}
+                                    className="shrink-0 bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs text-left hover:border-amber-500 disabled:opacity-50 disabled:hover:border-zinc-800 transition-colors"
+                                >
                                     <p className="font-bold truncate max-w-[100px]">{p.name}</p>
                                     <p className="text-zinc-500 text-[10px]">{p.role}</p>
-                                </div>
+                                </button>
                             ))}
-                            {poolQueue.length > 12 && <div className="shrink-0 flex items-center px-3 text-zinc-600 text-xs">+{poolQueue.length - 12} more</div>}
+                            {poolQueue.length > 15 && <div className="shrink-0 flex items-center px-3 text-zinc-600 text-xs">+{poolQueue.length - 15} more</div>}
                         </div>
                     </div>
 
