@@ -60,14 +60,33 @@ export default async function AdminAuctionPage() {
         isCaptain: p.is_captain || false,
     }));
 
-    // 4. Fetch Tier Prices Configuration
+    // 4. Fetch Tier Prices Configuration — seeded from actual player tier data
     const tierPricesStr = await redis.get("vpl_tier_prices");
-    let initialTierPrices = AUCTION_CONSTANTS.BASE_PRICES;
+
+    // Derive distinct tiers from actual player pool
+    const distinctTiers = [...new Set((players || []).map((p: any) => (p.tier || '').toUpperCase()).filter(Boolean))].sort();
+
+    let initialTierPrices: Record<string, number>;
     if (tierPricesStr) {
         try {
-            initialTierPrices = JSON.parse(tierPricesStr);
+            const saved = JSON.parse(tierPricesStr) as Record<string, number>;
+            // Merge: keep saved values, add any new tiers not yet in Redis with a sensible default
+            initialTierPrices = { ...saved };
+            for (const tier of distinctTiers) {
+                if (!(tier in initialTierPrices)) {
+                    initialTierPrices[tier] = AUCTION_CONSTANTS.BASE_PRICES[tier] ?? 100;
+                }
+            }
         } catch (e) {
             console.error("Failed to parse tier prices", e);
+            initialTierPrices = Object.fromEntries(distinctTiers.map(t => [t, AUCTION_CONSTANTS.BASE_PRICES[t] ?? 100]));
+        }
+    } else {
+        // No saved prices — build from actual tiers
+        initialTierPrices = Object.fromEntries(distinctTiers.map(t => [t, AUCTION_CONSTANTS.BASE_PRICES[t] ?? 100]));
+        // Persist to Redis so settings panel works immediately
+        if (distinctTiers.length > 0) {
+            await redis.set("vpl_tier_prices", JSON.stringify(initialTierPrices));
         }
     }
 

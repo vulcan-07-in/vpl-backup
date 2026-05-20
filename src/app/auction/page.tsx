@@ -26,13 +26,6 @@ export default async function AuctionViewerPage() {
         redis.get("vpl_tier_prices"),
     ]);
 
-    let initialTierPrices = AUCTION_CONSTANTS.BASE_PRICES;
-    if (tierPricesStr) {
-        try {
-            initialTierPrices = JSON.parse(tierPricesStr);
-        } catch (e) {}
-    }
-
     const teams = (teamsData || []).map(t => ({
         ...t,
         purse: pursesHash[t.id] ? parseInt(pursesHash[t.id], 10) : AUCTION_CONSTANTS.MAX_BUDGET,
@@ -44,6 +37,19 @@ export default async function AuctionViewerPage() {
         .select("account_id, team_name, price, varchasva_accounts(name, mobile_number), tier, role, gender, is_captain")
         .eq("season", 2)
         .eq("is_approved", true);
+
+    let initialTierPrices: Record<string, number> = AUCTION_CONSTANTS.BASE_PRICES;
+    if (tierPricesStr) {
+        try {
+            initialTierPrices = JSON.parse(tierPricesStr);
+        } catch (e) {}
+    } else {
+        // Build from actual player tiers on first load
+        const distinctTiers = [...new Set((players || []).map((p: any) => (p.tier || '').toUpperCase()).filter(Boolean))];
+        if (distinctTiers.length > 0) {
+            initialTierPrices = Object.fromEntries(distinctTiers.map(t => [t, AUCTION_CONSTANTS.BASE_PRICES[t] ?? 100]));
+        }
+    }
 
     const formattedPlayers = (players || []).map((p: any) => ({
         accountId: p.account_id,

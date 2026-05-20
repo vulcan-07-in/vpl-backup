@@ -292,17 +292,18 @@ export async function POST(req: Request) {
             }
 
             case 'WIPE_ALL': {
-                // 1. Reset auction state
+                // 1. Reset auction state to WAITING (shows countdown timer to viewers)
                 await supabase.from('vpl_auction_state').update({
                     active_player_id: null,
                     current_bid: 0,
                     leading_team_id: null,
                     status: 'WAITING',
+                    active_pool: null,
                     last_update: new Date().toISOString()
                 }).eq('id', 1);
 
                 // 2. Clear all auction history
-                await supabase.from('vpl_auction_history').delete().neq('id', 0); // Delete all
+                await supabase.from('vpl_auction_history').delete().neq('id', 0);
 
                 // 3. Reset all players to UNSOLD, EXCEPT captains
                 await supabase.from('vpl_registrations')
@@ -361,16 +362,11 @@ export async function POST(req: Request) {
                     .select('team_name, price')
                     .eq('season', 2);
 
-                const pursesHash = await redis.hgetall(teamPursesKey());
-
                 for (const team of allTeams) {
                     const roster = (allRegs || []).filter((r: any) => r.team_name === team.name);
                     const spent = roster.reduce((sum: number, r: any) => sum + (r.price || 0), 0);
-                    // Derive original budget from Redis (or use MAX_BUDGET if not set)
-                    const originalBudget = pursesHash[team.id] 
-                        ? Math.max(parseInt(pursesHash[team.id], 10), AUCTION_CONSTANTS.MAX_BUDGET) 
-                        : AUCTION_CONSTANTS.MAX_BUDGET;
-                    const correctPurse = AUCTION_CONSTANTS.MAX_BUDGET - spent;
+                    // Correct purse = MAX_BUDGET minus what they've spent
+                    const correctPurse = Math.max(0, AUCTION_CONSTANTS.MAX_BUDGET - spent);
                     await redis.hset(teamPursesKey(), team.id, correctPurse);
                 }
                 break;

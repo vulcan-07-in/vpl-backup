@@ -48,6 +48,7 @@ function TeamCard({
     const [editing, setEditing] = useState(false);
     const [fields, setFields] = useState({ name: team.name, shortName: team.shortName, color: team.color, purse: team.purse, logoUrl: team.logoUrl || '', paddleNumber: team.paddleNumber || '' });
     const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState("");
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -75,9 +76,15 @@ function TeamCard({
 
     const handleSave = async () => {
         setSaving(true);
-        await onUpdate(team.id, { ...fields, logoUrl: fields.logoUrl || null, paddleNumber: fields.paddleNumber || null });
-        setSaving(false);
-        setEditing(false);
+        setSaveError("");
+        try {
+            await onUpdate(team.id, { ...fields, purse: Number(fields.purse), logoUrl: fields.logoUrl || null, paddleNumber: fields.paddleNumber || null });
+            setEditing(false);
+        } catch (e: any) {
+            setSaveError(e.message || "Save failed");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async () => {
@@ -96,6 +103,11 @@ function TeamCard({
                 dragging ? "opacity-40 border-amber-500 scale-95" : "border-zinc-800 hover:border-zinc-600"
             }`}
         >
+            {saveError && (
+                <div className="mb-2 bg-red-950/50 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-red-400 font-bold">
+                    ❌ {saveError}
+                </div>
+            )}
             <div className="flex items-center gap-3 mb-3">
                 <GripVertical size={16} className="text-zinc-600 shrink-0" />
                 {editing ? (
@@ -407,9 +419,10 @@ export default function TeamsClient() {
         });
         const data = await res.json();
         if (res.ok) {
-            setTeams(prev => prev.map(t => t.id === id ? { ...t, ...fields } : t));
+            // Refresh from server to get accurate state
+            await fetchTeams();
         } else {
-            alert("❌ " + (data.error || "Update failed"));
+            throw new Error(data.error || "Update failed");
         }
     };
 
