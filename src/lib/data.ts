@@ -98,6 +98,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
         team_name,
         role,
         is_captain,
+        price,
         varchasva_accounts (
           name,
           account_id
@@ -144,7 +145,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
         targetSquad.players.push({
           name: reg.varchasva_accounts?.name || "Unknown",
           role: reg.role || "Unknown",
-          price: "0", // Default before auction
+          price: reg.price != null ? reg.price.toString() : "0",
           accountId: reg.varchasva_accounts?.account_id || "",
           isCaptain: reg.is_captain || false
         });
