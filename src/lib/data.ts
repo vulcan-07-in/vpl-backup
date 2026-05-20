@@ -97,6 +97,7 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       .select(`
         team_name,
         role,
+        is_captain,
         varchasva_accounts (
           name,
           account_id
@@ -128,10 +129,10 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       shortName: t.shortName,
       color: t.color,
       logoUrl: logoByTeamId[t.id],
-      players: [] as { name: string; role: string; price: string; accountId: string }[],
+      players: [] as { name: string; role: string; price: string; accountId: string; isCaptain?: boolean }[],
     }));
 
-    type SquadEntry = { teamName: string; shortName: string; color: string; logoUrl?: string; players: { name: string; role: string; price: string; accountId: string }[] };
+    type SquadEntry = { teamName: string; shortName: string; color: string; logoUrl?: string; players: { name: string; role: string; price: string; accountId: string; isCaptain?: boolean }[] };
     const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName.toLowerCase().trim(), s])) as Record<string, SquadEntry>;
     const squadByTeamId = Object.fromEntries((teamRows as TeamRow[] || []).map((t) => [t.id, squadByName[t.name.toLowerCase().trim()]]));
 
@@ -144,7 +145,8 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
           name: reg.varchasva_accounts?.name || "Unknown",
           role: reg.role || "Unknown",
           price: "0", // Default before auction
-          accountId: reg.varchasva_accounts?.account_id || ""
+          accountId: reg.varchasva_accounts?.account_id || "",
+          isCaptain: reg.is_captain || false
         });
       }
     });

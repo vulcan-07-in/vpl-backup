@@ -20,10 +20,18 @@ export default async function AuctionViewerPage() {
 
     // Fetch purses and logos from Redis
     const redis = new Redis(process.env.REDIS_URL || "");
-    const [pursesHash, logosHash] = await Promise.all([
+    const [pursesHash, logosHash, tierPricesStr] = await Promise.all([
         redis.hgetall(teamPursesKey()),
         redis.hgetall(teamLogosKey()),
+        redis.get("vpl_tier_prices"),
     ]);
+
+    let initialTierPrices = AUCTION_CONSTANTS.BASE_PRICES;
+    if (tierPricesStr) {
+        try {
+            initialTierPrices = JSON.parse(tierPricesStr);
+        } catch (e) {}
+    }
 
     const teams = (teamsData || []).map(t => ({
         ...t,
@@ -48,5 +56,5 @@ export default async function AuctionViewerPage() {
         isCaptain: p.is_captain || false,
     }));
 
-    return <ViewerClient teams={teams} players={formattedPlayers} />;
+    return <ViewerClient teams={teams} players={formattedPlayers} initialTierPrices={initialTierPrices} />;
 }

@@ -136,12 +136,12 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
             const spent = roster.reduce((sum, p) => sum + p.price, 0);
             const count = roster.length;
             const currentPurse = t.purse - spent;
-            const minBasePrice = Math.min(...Object.values(AUCTION_CONSTANTS.BASE_PRICES));
+            const minBasePrice = Math.min(...Object.values(tierPrices));
             const maxBid = calculateMaxBid(currentPurse, count, minBasePrice);
             stats[t.id] = { spent, count, currentPurse, maxBid };
         });
         return stats;
-    }, [players, teams]);
+    }, [players, teams, tierPrices]);
 
     const performAction = async (action: string, payload: any = {}): Promise<boolean> => {
         setLoadingAction(action);

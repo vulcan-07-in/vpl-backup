@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, ArrowRight } from "lucide-react";
+import { X, ArrowRight, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Player {
     name: string;
     role: string;
     price: string;
+    isCaptain?: boolean;
 }
 
 interface Team {
@@ -195,7 +196,11 @@ export default function SquadsClient({ initialData }: { initialData: Team[] }) {
 
                             {/* Player Roster */}
                             <div className="max-h-[55vh] overflow-y-auto">
-                                {selectedTeam.players.map((player, pIdx) => (
+                                {[...selectedTeam.players].sort((a, b) => {
+                                    if (a.isCaptain && !b.isCaptain) return -1;
+                                    if (!a.isCaptain && b.isCaptain) return 1;
+                                    return (parseInt(b.price) || 0) - (parseInt(a.price) || 0);
+                                }).map((player, pIdx) => (
                                     <div
                                         key={pIdx}
                                         className="flex items-center gap-4 px-6 py-4 border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
@@ -209,12 +214,15 @@ export default function SquadsClient({ initialData }: { initialData: Team[] }) {
                                         </span>
 
                                         {/* Player name */}
-                                        <span
-                                            className="flex-1 text-base text-white font-medium truncate"
-                                            style={{ fontFamily: "var(--font-body)" }}
-                                        >
-                                            {player.name}
-                                        </span>
+                                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                                            {player.isCaptain && <Crown size={12} className="text-amber-500 shrink-0" />}
+                                            <span
+                                                className={`text-base font-medium truncate ${player.isCaptain ? 'text-amber-500' : 'text-white'}`}
+                                                style={{ fontFamily: "var(--font-body)" }}
+                                            >
+                                                {player.name}
+                                            </span>
+                                        </div>
 
                                         {/* Role pill */}
                                         <span

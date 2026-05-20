@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabaseBrowser as supabase } from "@/lib/supabase";
-import { AUCTION_CONSTANTS } from "@/lib/auction";
+import { AUCTION_CONSTANTS, calculateMaxBid } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Coins, Trophy, Crown, X, Clock, PauseCircle, ChevronRight, Gavel, XOctagon } from "lucide-react";
 
@@ -26,7 +26,7 @@ interface Team {
     logoUrl?: string | null;
 }
 
-export default function ViewerClient({ teams, players: initialPlayers }: { teams: Team[], players: Player[] }) {
+export default function ViewerClient({ teams, players: initialPlayers, initialTierPrices }: { teams: Team[], players: Player[], initialTierPrices: Record<string, number> }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null, active_pool: null, show_pool_to_viewers: true });
     const [soldEvent, setSoldEvent] = useState<{ player: Player, team: Team, amount: number } | null>(null);
@@ -98,14 +98,18 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
     const activePlayer = useMemo(() => players.find(p => p.accountId === auctionState.active_player_id), [players, auctionState.active_player_id]);
     const leadingTeam = useMemo(() => teams.find(t => t.id === auctionState.leading_team_id), [teams, auctionState.leading_team_id]);
     const teamStats = useMemo(() => {
-        const s: Record<string, { spent: number, count: number, currentPurse: number }> = {};
+        const s: Record<string, { spent: number, count: number, currentPurse: number, maxBid: number }> = {};
         teams.forEach(t => {
             const roster = players.filter(p => p.teamName === t.name);
             const spent = roster.reduce((sum, p) => sum + p.price, 0);
-            s[t.id] = { spent, count: roster.length, currentPurse: t.purse - spent };
+            const count = roster.length;
+            const currentPurse = t.purse - spent;
+            const minBasePrice = Math.min(...Object.values(initialTierPrices));
+            const maxBid = calculateMaxBid(currentPurse, count, minBasePrice);
+            s[t.id] = { spent, count, currentPurse, maxBid };
         });
         return s;
-    }, [players, teams]);
+    }, [players, teams, initialTierPrices]);
 
     const poolPlayers = useMemo(() => {
         if (!auctionState.show_pool_to_viewers || !auctionState.active_pool) return [];
@@ -357,10 +361,8 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                             {p.name}
                                             {isSold && <span className="text-[9px] text-zinc-600 ml-1 no-underline" style={{ textDecoration: 'none' }}>• {p.teamName}</span>}
                                         </span>
-                                        </div>
                                     );
                                 })}
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -429,7 +431,6 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                             </div>
 
                                             <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700 opacity-0 group-hover:opacity-100 group-hover:-translate-x-1 transition-all" />
-                                        </div>
                                         </div>
                                     );
                                 })}
