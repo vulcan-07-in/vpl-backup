@@ -165,6 +165,8 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
         name: p.name,
         role: p.role,
         price: p.price.toString(),
+        accountId: p.id.toString(),
+        isCaptain: false
       })),
     }));
   } catch (e) {
