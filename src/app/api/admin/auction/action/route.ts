@@ -164,11 +164,33 @@ export async function POST(req: Request) {
                 // Roster check
                 const { data: rosterForce } = await supabase
                     .from('vpl_registrations')
-                    .select('id')
+                    .select('price')
                     .eq('team_name', teamForce.name)
                     .eq('season', 2);
-                if ((rosterForce?.length || 0) >= AUCTION_CONSTANTS.MAX_PLAYERS) {
+                
+                const currentRosterSizeForce = rosterForce?.length || 0;
+                if (currentRosterSizeForce >= AUCTION_CONSTANTS.MAX_PLAYERS) {
                     throw new Error(`${teamForce.name}'s roster is full.`);
+                }
+
+                // Purse check
+                const purseStrForce = await redis.hget(teamPursesKey(), teamId);
+                const purseForce = purseStrForce ? parseInt(purseStrForce, 10) : AUCTION_CONSTANTS.MAX_BUDGET;
+                const spentForce = (rosterForce || []).reduce((sum: number, p: any) => sum + (p.price || 0), 0);
+                const currentPurseForce = purseForce - spentForce;
+
+                const tierPricesStrForce = await redis.get("vpl_tier_prices");
+                let minBasePriceForce = Math.min(...Object.values(AUCTION_CONSTANTS.BASE_PRICES));
+                if (tierPricesStrForce) {
+                    try {
+                        const tp = JSON.parse(tierPricesStrForce);
+                        minBasePriceForce = Math.min(...Object.values(tp) as number[]);
+                    } catch (e) {}
+                }
+                
+                const maxBidForce = calculateMaxBid(currentPurseForce, currentRosterSizeForce, minBasePriceForce);
+                if (amount > maxBidForce) {
+                    throw new Error(`Force Sell denied: ${amount} exceeds ${teamForce.name}'s maximum allowed bid of ${maxBidForce}.`);
                 }
 
                 await Promise.all([

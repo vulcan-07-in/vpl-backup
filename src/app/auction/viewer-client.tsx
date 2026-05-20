@@ -357,8 +357,10 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                             {p.name}
                                             {isSold && <span className="text-[9px] text-zinc-600 ml-1 no-underline" style={{ textDecoration: 'none' }}>• {p.teamName}</span>}
                                         </span>
+                                        </div>
                                     );
                                 })}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -375,21 +377,23 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80]" 
                         />
                         <motion.div 
-                            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed right-0 top-0 bottom-0 w-full md:w-[400px] flex flex-col bg-[#0a0a0a]/95 backdrop-blur-xl border-l border-white/10 z-[90] shadow-2xl"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="fixed inset-0 w-full h-full flex flex-col bg-[#0a0a0a]/98 backdrop-blur-3xl z-[90]"
                         >
-                            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <Coins size={16} className="text-amber-500" />
-                                    <h3 className="text-xs font-black tracking-[0.4em] text-zinc-300 uppercase">Team Purses</h3>
+                            <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-black/40">
+                                <div className="flex items-center gap-4">
+                                    <Coins size={24} className="text-amber-500" />
+                                    <h3 className="text-xl md:text-2xl font-black tracking-[0.4em] text-zinc-300 uppercase">Team Purses & Squads</h3>
                                 </div>
-                                <button onClick={() => setShowPurses(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-zinc-400">
-                                    <X size={18} />
+                                <button onClick={() => setShowPurses(false)} className="p-3 bg-white/5 hover:bg-white/15 rounded-full transition-colors text-white">
+                                    <X size={24} />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                            <div className="flex-1 overflow-y-auto p-6 md:p-12">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-[1800px] mx-auto">
                                 {teams.map(team => {
                                     const stats = teamStats[team.id];
                                     const pct = Math.max(0, Math.min(100, (stats.currentPurse / team.purse) * 100));
@@ -426,8 +430,10 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
 
                                             <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700 opacity-0 group-hover:opacity-100 group-hover:-translate-x-1 transition-all" />
                                         </div>
+                                        </div>
                                     );
                                 })}
+                                </div>
                             </div>
                         </motion.div>
                     </>
@@ -479,7 +485,11 @@ export default function ViewerClient({ teams, players: initialPlayers }: { teams
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {players.filter(p => p.teamName === selectedTeam.name).sort((a, b) => b.price - a.price).map(p => (
+                                        {players.filter(p => p.teamName === selectedTeam.name).sort((a, b) => {
+                                            if (a.isCaptain && !b.isCaptain) return -1;
+                                            if (!a.isCaptain && b.isCaptain) return 1;
+                                            return b.price - a.price;
+                                        }).map(p => (
                                             <div key={p.accountId} className="flex items-center justify-between p-3 bg-white/3 hover:bg-white/5 border border-white/5 rounded-xl transition-colors">
                                                 <div className="flex items-center gap-3">
                                                     {p.isCaptain && (
