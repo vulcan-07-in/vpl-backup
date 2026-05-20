@@ -339,6 +339,52 @@ export async function POST(req: Request) {
                 break;
             }
 
+            case 'WAIT': {
+                // Return viewer to countdown timer screen
+                await supabase.from('vpl_auction_state').update({
+                    active_player_id: null,
+                    current_bid: 0,
+                    leading_team_id: null,
+                    status: 'WAITING',
+                    last_update: new Date().toISOString()
+                }).eq('id', 1);
+                break;
+            }
+
+            case 'SYNC_PURSES': {
+                // Recalculate all team purses from Supabase registrations to fix Redis drift
+                const { data: allTeams } = await supabase.from('Team').select('id, name');
+                if (!allTeams) throw new Error('No teams found');
+
+                const { data: allRegs } = await supabase
+                    .from('vpl_registrations')
+                    .select('team_name, price')
+                    .eq('season', 2);
+
+                const pursesHash = await redis.hgetall(teamPursesKey());
+
+                for (const team of allTeams) {
+                    const roster = (allRegs || []).filter((r: any) => r.team_name === team.name);
+                    const spent = roster.reduce((sum: number, r: any) => sum + (r.price || 0), 0);
+                    // Derive original budget from Redis (or use MAX_BUDGET if not set)
+                    const originalBudget = pursesHash[team.id] 
+                        ? Math.max(parseInt(pursesHash[team.id], 10), AUCTION_CONSTANTS.MAX_BUDGET) 
+                        : AUCTION_CONSTANTS.MAX_BUDGET;
+                    const correctPurse = AUCTION_CONSTANTS.MAX_BUDGET - spent;
+                    await redis.hset(teamPursesKey(), team.id, correctPurse);
+                }
+                break;
+            }
+
+            case 'ADJUST_PURSE': {
+                // Manually set a specific team's purse in Redis
+                const { teamId: adjustTeamId, amount: adjustAmount } = payload;
+                if (!adjustTeamId) throw new Error('teamId required');
+                if (adjustAmount === undefined || adjustAmount < 0) throw new Error('Valid amount required');
+                await redis.hset(teamPursesKey(), adjustTeamId, adjustAmount);
+                break;
+            }
+
             default:
                 throw new Error(`Unknown action: ${action}`);
         }

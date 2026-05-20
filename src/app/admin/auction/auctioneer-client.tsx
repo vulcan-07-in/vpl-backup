@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabaseBrowser as supabase } from "@/lib/supabase";
 import { AUCTION_CONSTANTS, calculateMaxBid, getBasePrice, getBidIncrement } from "@/lib/auction";
 import { motion, AnimatePresence } from "framer-motion";
-import { Hammer, Undo2, Ban, UserCircle2, Loader2, RefreshCw, Shuffle, Eye, EyeOff, Settings, Zap, Play, Pause } from "lucide-react";
+import { Hammer, Undo2, Ban, UserCircle2, Loader2, RefreshCw, Shuffle, Eye, EyeOff, Settings, Zap, Play, Pause, Clock, RefreshCcw, AlertTriangle } from "lucide-react";
 
 interface Player {
     accountId: string;
@@ -47,6 +47,14 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     const [tierPrices, setTierPrices] = useState<Record<string, number>>(initialTierPrices);
     const [showSettings, setShowSettings] = useState(false);
     const [bidStack, setBidStack] = useState<{ amount: number, teamId: string | null }[]>([]);
+
+    // Advanced settings
+    const [adjustTeamId, setAdjustTeamId] = useState("");
+    const [adjustAmount, setAdjustAmount] = useState("");
+    const [syncingPurses, setSyncingPurses] = useState(false);
+
+    // Critical action lock — prevents double-tap on SOLD/PASS/DRAW before server responds
+    const criticalLockRef = useRef(false);
 
     // Per-team inflight lock — prevents double-tap race conditions per paddle
     // Using a Set so different teams can be clicked in quick succession
@@ -115,6 +123,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
 
         return () => { supabase.removeChannel(channel); };
     }, []);
+
 
     // Build pool queue
     useEffect(() => {
@@ -260,6 +269,37 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
         }).catch(e => alert("Failed to undo bid on server"));
     };
 
+    // Keyboard shortcuts — placed after handleBid to avoid "used before declaration"
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+            const state = auctionStateRef.current;
+            if (e.code === 'Space' && state.status === 'BIDDING' && state.leading_team_id) {
+                e.preventDefault();
+                if (criticalLockRef.current) return;
+                criticalLockRef.current = true;
+                setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' }));
+                performAction('SOLD').finally(() => { criticalLockRef.current = false; });
+                return;
+            }
+            if (e.code === 'Escape' && state.status === 'BIDDING' && !state.leading_team_id) {
+                e.preventDefault();
+                if (criticalLockRef.current) return;
+                criticalLockRef.current = true;
+                setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' }));
+                performAction('PASS').finally(() => { criticalLockRef.current = false; });
+                return;
+            }
+            const digit = parseInt(e.key);
+            if (!isNaN(digit) && digit >= 1 && digit <= 9 && state.status === 'BIDDING') {
+                const team = teams.find(t => Number(t.paddleNumber) === digit);
+                if (team) handleBid(team.id);
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [teams, handleBid]);
+
     const handleForceSell = () => {
         if (!forceTeamId || !forceBidAmount) { alert("Select team and enter amount."); return; }
         performAction('FORCE_SELL', { teamId: forceTeamId, amount: parseInt(forceBidAmount, 10) });
@@ -334,6 +374,15 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                             >
                                 {auctionState.show_pool_to_viewers ? <Eye size={16}/> : <EyeOff size={16}/>}
                             </button>
+                            {auctionState.status !== 'WAITING' && (
+                                <button
+                                    onClick={() => performAction('WAIT')}
+                                    className="p-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-500/50 transition-all"
+                                    title="Show countdown timer to viewers"
+                                >
+                                    <Clock size={16}/>
+                                </button>
+                            )}
                             <button
                                 onClick={() => setShowSettings(true)}
                                 className={`p-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-all`}
@@ -434,21 +483,27 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                                         <div className="flex gap-3">
                                             <button
                                                 onClick={() => {
+                                                    if (criticalLockRef.current) return;
+                                                    criticalLockRef.current = true;
                                                     setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' }));
-                                                    performAction('PASS');
+                                                    performAction('PASS').finally(() => { criticalLockRef.current = false; });
                                                 }}
                                                 disabled={loadingAction === 'PASS' || auctionState.leading_team_id !== null}
                                                 className="flex-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white disabled:opacity-50 py-3 rounded-xl font-black tracking-widest transition-all flex items-center justify-center gap-2"
+                                                title="Keyboard: Esc (when no bidder)"
                                             >
                                                 <Ban size={18} /> PASS
                                             </button>
                                             <button
                                                 onClick={() => {
+                                                    if (criticalLockRef.current) return;
+                                                    criticalLockRef.current = true;
                                                     setAuctionState((prev: any) => ({ ...prev, status: 'IDLE' }));
-                                                    performAction('SOLD');
+                                                    performAction('SOLD').finally(() => { criticalLockRef.current = false; });
                                                 }}
                                                 disabled={loadingAction === 'SOLD' || !auctionState.leading_team_id}
                                                 className="flex-[2] bg-emerald-500 hover:bg-emerald-400 text-black disabled:opacity-50 py-3 rounded-xl font-black tracking-[0.2em] transition-transform active:scale-95 flex items-center justify-center gap-2"
+                                                title="Keyboard: Space"
                                             >
                                                 <Hammer size={18} /> SOLD
                                             </button>
@@ -687,10 +742,82 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                                         body: JSON.stringify({ action: 'UPDATE_TIER_PRICES', payload: { tierPrices } })
                                     }).then(() => setShowSettings(false)).catch(e => alert("Failed to save tier prices"));
                                 }}
-                                className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl font-black tracking-widest transition-colors"
+                                className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl font-black tracking-widest transition-colors mb-6"
                             >
-                                SAVE SETTINGS
+                                SAVE TIER PRICES
                             </button>
+
+                            {/* Keyboard Shortcuts */}
+                            <div className="border-t border-zinc-800 pt-5 mb-5">
+                                <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-3">Keyboard Shortcuts</h3>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {[['Space', 'SOLD (when leading bid)'], ['Esc', 'PASS (no bidder)'], ['1–9', 'Bid for Paddle #']].map(([key, desc]) => (
+                                        <div key={key} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2">
+                                            <kbd className="bg-zinc-800 text-amber-400 font-mono text-[10px] px-2 py-0.5 rounded font-bold">{key}</kbd>
+                                            <span className="text-zinc-500">{desc}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Advanced Purse Management */}
+                            <div className="border-t border-zinc-800 pt-5">
+                                <h3 className="text-xs font-black tracking-widest text-zinc-500 uppercase mb-3 flex items-center gap-2">
+                                    <AlertTriangle size={12} className="text-amber-500" /> Purse Management
+                                </h3>
+                                <button
+                                    onClick={async () => {
+                                        setSyncingPurses(true);
+                                        try {
+                                            await fetch('/api/admin/auction/action', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ action: 'SYNC_PURSES', payload: {} })
+                                            });
+                                            alert('✅ Purses synced from Supabase!');
+                                        } catch { alert('Failed to sync purses'); }
+                                        finally { setSyncingPurses(false); }
+                                    }}
+                                    disabled={syncingPurses}
+                                    className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-colors mb-3"
+                                >
+                                    <RefreshCcw size={14} className={syncingPurses ? 'animate-spin' : ''} />
+                                    {syncingPurses ? 'SYNCING...' : 'AUDIT & SYNC PURSES'}
+                                </button>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={adjustTeamId}
+                                        onChange={e => setAdjustTeamId(e.target.value)}
+                                        className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-xs font-bold"
+                                    >
+                                        <option value="">Select Team</option>
+                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name} ({teamStats[t.id]?.currentPurse ?? '?'})</option>)}
+                                    </select>
+                                    <input
+                                        type="number"
+                                        value={adjustAmount}
+                                        onChange={e => setAdjustAmount(e.target.value)}
+                                        placeholder="New purse"
+                                        className="w-24 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono text-emerald-400"
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            if (!adjustTeamId || !adjustAmount) return;
+                                            await fetch('/api/admin/auction/action', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ action: 'ADJUST_PURSE', payload: { teamId: adjustTeamId, amount: parseInt(adjustAmount, 10) } })
+                                            });
+                                            alert('✅ Purse adjusted!');
+                                            setAdjustTeamId('');
+                                            setAdjustAmount('');
+                                        }}
+                                        className="bg-amber-500 hover:bg-amber-400 text-black px-3 rounded-lg font-bold text-xs transition-colors"
+                                    >
+                                        SET
+                                    </button>
+                                </div>
+                            </div>
                         </motion.div>
                     </div>
                 )}

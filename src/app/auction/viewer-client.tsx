@@ -35,6 +35,7 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const [bidFlash, setBidFlash] = useState(false);
     const [showPurses, setShowPurses] = useState(false);
+    const [recentSales, setRecentSales] = useState<{ id: number, player_id: string, team_id: string, bid_amount: number }[]>([]);
     const playersRef = useRef(players);
     useEffect(() => { playersRef.current = players; }, [players]);
 
@@ -90,8 +91,16 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
                 const pl = playersRef.current.find(x => x.accountId === h.player_id);
                 const t = teams.find(x => x.id === h.team_id);
                 if (pl && t) { setSoldEvent({ player: pl, team: t, amount: h.bid_amount }); setTimeout(() => setSoldEvent(null), 8000); }
+                // Add to recent sales feed
+                setRecentSales(prev => [h as { id: number, player_id: string, team_id: string, bid_amount: number }, ...prev].slice(0, 20));
             })
             .subscribe();
+
+        // Fetch initial history
+        supabase.from('vpl_auction_history').select('*').order('timestamp', { ascending: false }).limit(20).then(({ data }) => {
+            if (data) setRecentSales(data);
+        });
+
         return () => { supabase.removeChannel(ch); };
     }, []);
 
@@ -196,56 +205,95 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
                             </div>
                         </motion.div>
                     ) : soldEvent ? (
+                        // Cinematic full-screen SOLD overlay
                         <motion.div
                             key={`sold-${soldEvent.player.accountId}`}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.1 }}
-                            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                            className="relative z-10 flex flex-col items-center text-center px-8 w-full max-w-4xl"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0, scale: 1.05 }}
+                            transition={{ duration: 0.5 }}
+                            className="fixed inset-0 z-[200] flex flex-col items-center justify-center text-center overflow-hidden"
+                            style={{ background: `radial-gradient(ellipse at center, ${soldEvent.team.color}44 0%, #060606 65%)` }}
                         >
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 3, rotate: -10 }} 
-                                animate={{ opacity: 1, scale: 1, rotate: -5 }} 
-                                transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 20 }}
-                                className="absolute z-20 -top-12 md:-top-20"
+                            {/* Radiating rings */}
+                            {[1,2,3].map(i => (
+                                <motion.div
+                                    key={i}
+                                    className="absolute rounded-full border border-white/5"
+                                    initial={{ scale: 0.5, opacity: 0.6 }}
+                                    animate={{ scale: 2.5 + i * 0.8, opacity: 0 }}
+                                    transition={{ duration: 2 + i * 0.4, delay: i * 0.2, repeat: Infinity }}
+                                    style={{ width: '40vw', height: '40vw', borderColor: soldEvent.team.color + '44' }}
+                                />
+                            ))}
+
+                            {/* SOLD stamp */}
+                            <motion.div
+                                initial={{ scale: 3, opacity: 0, rotate: -15 }}
+                                animate={{ scale: 1, opacity: 1, rotate: -6 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 25, delay: 0.1 }}
+                                className="mb-4 md:mb-6 relative z-10"
                             >
-                                <div className="border-4 border-red-500 text-red-500 px-6 py-2 rounded-xl text-5xl md:text-8xl font-black tracking-tighter shadow-[0_0_40px_rgba(239,68,68,0.4)] bg-black/50 backdrop-blur-sm" style={{ transform: 'rotate(-5deg)' }}>
+                                <div
+                                    className="border-[5px] px-6 py-2 md:px-12 md:py-4 rounded-2xl"
+                                    style={{
+                                        borderColor: soldEvent.team.color,
+                                        color: soldEvent.team.color,
+                                        textShadow: `0 0 40px ${soldEvent.team.color}`,
+                                        boxShadow: `0 0 60px ${soldEvent.team.color}66, inset 0 0 40px ${soldEvent.team.color}22`,
+                                        fontSize: 'clamp(3rem, 10vw, 9rem)',
+                                        fontWeight: 900,
+                                        letterSpacing: '0.12em',
+                                        lineHeight: 1,
+                                    }}
+                                >
                                     SOLD
                                 </div>
                             </motion.div>
 
+                            {/* Player name */}
                             <motion.div
-                                initial={{ opacity: 0, y: 30 }}
+                                initial={{ opacity: 0, y: 40 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                                className="text-5xl md:text-8xl lg:text-9xl font-black tracking-tight leading-none uppercase mb-12 relative z-10"
-                                style={{ textShadow: `0 0 80px ${soldEvent.team.color}66` }}
+                                transition={{ delay: 0.25, duration: 0.6, ease: [0.16,1,0.3,1] }}
+                                className="relative z-10 px-4"
+                                style={{
+                                    fontSize: 'clamp(2rem, 8vw, 7rem)',
+                                    fontWeight: 900,
+                                    letterSpacing: '-0.02em',
+                                    lineHeight: 1,
+                                    textShadow: `0 0 80px ${soldEvent.team.color}55`,
+                                }}
                             >
                                 {soldEvent.player.name}
                             </motion.div>
 
+                            {/* Bid + Team */}
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 }}
-                                className="flex flex-col sm:flex-row items-center gap-8 sm:gap-16 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl"
+                                transition={{ delay: 0.5, duration: 0.5 }}
+                                className="relative z-10 mt-6 md:mt-10 flex flex-col items-center gap-4"
                             >
-                                <div className="text-center">
-                                    <p className="text-xs font-bold tracking-[0.4em] text-zinc-500 uppercase mb-3">Winning Bid</p>
-                                    <p className="text-5xl md:text-7xl font-black font-mono text-white">{soldEvent.amount}</p>
-                                </div>
-                                <div className="w-px h-24 bg-white/10 hidden sm:block" />
-                                <div className="text-center">
-                                    <p className="text-xs font-bold tracking-[0.4em] text-zinc-500 uppercase mb-4">Bought By</p>
-                                    <div className="flex items-center gap-4">
-                                        {soldEvent.team.logoUrl
-                                            ? <img src={soldEvent.team.logoUrl} alt={soldEvent.team.name} className="w-16 h-16 rounded-full object-cover ring-4 ring-white/10" />
-                                            : <div className="w-4 h-16 rounded-sm" style={{ backgroundColor: soldEvent.team.color }} />}
-                                        <span className="text-3xl md:text-4xl font-black uppercase" style={{ color: soldEvent.team.color, textShadow: `0 0 20px ${soldEvent.team.color}40` }}>{soldEvent.team.name}</span>
+                                <div className="flex items-center gap-4 md:gap-8">
+                                    {soldEvent.team.logoUrl
+                                        ? <img src={soldEvent.team.logoUrl} alt={soldEvent.team.name} className="w-14 h-14 md:w-24 md:h-24 rounded-full object-cover" style={{ boxShadow: `0 0 0 4px ${soldEvent.team.color}88` }} />
+                                        : <div className="w-6 h-14 md:w-8 md:h-24 rounded-lg" style={{ backgroundColor: soldEvent.team.color, boxShadow: `0 0 30px ${soldEvent.team.color}` }} />}
+                                    <div className="text-left">
+                                        <p className="text-zinc-400 text-xs md:text-sm font-bold tracking-[0.5em] uppercase mb-1">Bought By</p>
+                                        <p className="text-2xl md:text-5xl font-black uppercase" style={{ color: soldEvent.team.color, textShadow: `0 0 30px ${soldEvent.team.color}88` }}>{soldEvent.team.name}</p>
+                                    </div>
+                                    <div className="text-left ml-4 md:ml-8 border-l border-white/10 pl-4 md:pl-8">
+                                        <p className="text-zinc-400 text-xs md:text-sm font-bold tracking-[0.5em] uppercase mb-1">Final Bid</p>
+                                        <p className="text-2xl md:text-5xl font-black font-mono text-emerald-400" style={{ textShadow: '0 0 30px rgba(52,211,153,0.6)' }}>₹{soldEvent.amount}</p>
                                     </div>
                                 </div>
                             </motion.div>
+
+                            {/* Corner branding */}
+                            <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+                                <span className="text-[10px] font-bold tracking-[0.6em] text-white/20 uppercase">Varchasva Premier League</span>
+                            </div>
                         </motion.div>
                     ) : passEvent ? (
                         <motion.div
@@ -367,6 +415,29 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
                         </div>
                     </div>
                 )}
+
+                {/* Recent Sales Ticker — shows in IDLE when no active player */}
+                {!activePlayer && !soldEvent && recentSales.length > 0 && auctionState.status !== 'WAITING' && (
+                    <div className="absolute bottom-0 left-0 right-0 border-t border-white/5 bg-black/80 backdrop-blur overflow-hidden">
+                        <div className="flex overflow-hidden py-2.5 px-0">
+                            <div className="ticker-scroll flex gap-0 whitespace-nowrap">
+                                {[...recentSales, ...recentSales].map((sale, i) => {
+                                    const pl = players.find(p => p.accountId === sale.player_id);
+                                    const t = teams.find(x => x.id === sale.team_id);
+                                    if (!pl || !t) return null;
+                                    return (
+                                        <span key={`${sale.id}-${i}`} className="inline-flex items-center gap-2 px-5 text-xs font-bold border-r border-white/5 text-zinc-500">
+                                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                                            <span className="text-zinc-400">{pl.name}</span>
+                                            <span style={{ color: t.color }}>→ {t.shortName}</span>
+                                            <span className="text-zinc-600 font-mono">{sale.bid_amount}</span>
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* RIGHT SIDEBAR - Now a Slide-Out Drawer */}
@@ -379,10 +450,11 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
                             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80]" 
                         />
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }}
+                            initial={{ opacity: 0, scale: 0.97 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="fixed inset-0 w-full h-full flex flex-col bg-[#0a0a0a]/98 backdrop-blur-3xl z-[90]"
+                            exit={{ opacity: 0, scale: 0.97 }}
+                            className="fixed flex flex-col bg-[#080808] z-[90]"
+                            style={{ top: 0, left: 0, width: '100vw', height: '100vh', minHeight: '100dvh' }}
                         >
                             <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-black/40">
                                 <div className="flex items-center gap-4">
