@@ -54,6 +54,19 @@ function TeamCard({
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    useEffect(() => {
+        if (!editing) {
+            setFields({
+                name: team.name,
+                shortName: team.shortName,
+                color: team.color,
+                purse: team.purse,
+                logoUrl: team.logoUrl || '',
+                paddleNumber: team.paddleNumber || ''
+            });
+        }
+    }, [team, editing]);
+
     // Available captains: approved players who are not already captains of other teams
     const availableCaptains = approvedPlayers.filter(
         p => !p.isCaptain || p.teamName === team.name
@@ -352,7 +365,7 @@ export default function TeamsClient() {
 
     const fetchTeams = async () => {
         try {
-            const res = await fetch("/api/admin/teams");
+            const res = await fetch("/api/admin/teams?t=" + Date.now(), { cache: "no-store" });
             const data = await res.json();
             if (res.ok) setTeams(data);
             else setError(JSON.stringify(data, null, 2));
@@ -365,7 +378,7 @@ export default function TeamsClient() {
 
     const fetchPlayers = async () => {
         try {
-            const res = await fetch("/api/admin/players/approved");
+            const res = await fetch("/api/admin/players/approved?t=" + Date.now(), { cache: "no-store" });
             const data = await res.json();
             if (res.ok) setApprovedPlayers(data);
         } catch (e: any) {
