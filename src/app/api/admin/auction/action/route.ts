@@ -280,7 +280,16 @@ export async function POST(req: Request) {
                 break;
             }
 
-            case 'RESET': {
+            case 'END': {
+    // End the auction permanently
+    await supabase.from('vpl_auction_state').update({
+        status: 'ENDED',
+        last_update: new Date().toISOString()
+    }).eq('id', 1);
+    break;
+}
+
+case 'RESET': {
                 await supabase.from('vpl_auction_state').update({
                     active_player_id: null,
                     current_bid: 0,

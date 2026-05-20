@@ -37,6 +37,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     const [resetConfirm, setResetConfirm] = useState(false);
     const [wipeConfirm, setWipeConfirm] = useState(false);
     const [undoConfirm, setUndoConfirm] = useState(false);
+    const [endConfirm, setEndConfirm] = useState(false);
     const [forceTeamId, setForceTeamId] = useState("");
     const [forceBidAmount, setForceBidAmount] = useState("");
     const [customIncrement, setCustomIncrement] = useState<number | null>(null);
@@ -361,6 +362,15 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                                     <Play size={16}/> START AUCTION
                                 </button>
                             )}
+                            {/* End Auction Button */}
+                            {auctionState.status !== 'ENDED' && (
+                                <button
+                                    onClick={() => performAction('END')}
+                                    className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2"
+                                >
+                                    END AUCTION
+                                </button>
+                            )}
                             {(auctionState.status === 'IDLE' || auctionState.status === 'PAUSED' || auctionState.status === 'BIDDING') && (
                                 <button
                                     onClick={() => performAction(auctionState.status === 'PAUSED' ? 'START' : 'PAUSE')}
@@ -540,7 +550,17 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                     </AnimatePresence>
 
                     {/* Controls bar */}
-                    <div className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                    <div className="flex flex-col gap-2 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        {auctionState.status === 'ENDED' && (
+                            <div className="w-full text-center py-2 bg-red-900/40 border border-red-700/60 text-red-300 font-bold rounded-lg flex items-center justify-center gap-4">
+                                <span>🛑 Auction has ended.</span>
+                                <a href="/squads" className="text-amber-400 hover:underline text-sm">View Squads →</a>
+                                <button onClick={() => setResetConfirm(true)} className="text-xs text-zinc-400 hover:text-white border border-zinc-700 px-2 py-0.5 rounded transition-colors">
+                                    ← Resume Auction
+                                </button>
+                            </div>
+                        )}
+                        <div className="flex justify-between items-center">
                         <div className="flex items-center gap-4">
                             {resetConfirm ? (
                                 <div className="flex items-center gap-2">
@@ -565,6 +585,18 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                                     ☢️ WIPE ALL DATA
                                 </button>
                             )}
+
+                            {endConfirm ? (
+                                <div className="flex items-center gap-2 border-l border-zinc-800 pl-4">
+                                    <span className="text-xs text-red-500 font-bold">End Auction?</span>
+                                    <button onClick={() => { performAction('END'); setEndConfirm(false); }} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold animate-pulse">YES</button>
+                                    <button onClick={() => setEndConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">NO</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setEndConfirm(true)} disabled={auctionState.status === 'ENDED'} className="text-red-500/80 hover:text-red-400 disabled:opacity-50 flex items-center gap-2 text-[10px] font-bold tracking-widest transition-colors uppercase border-l border-zinc-800 pl-4">
+                                    🛑 END AUCTION
+                                </button>
+                            )}
                         </div>
 
                         {undoConfirm ? (
@@ -578,6 +610,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                                 <Undo2 size={14} /> UNDO LAST SALE
                             </button>
                         )}
+                        </div>
                     </div>
 
                         {showForcePanel && (
