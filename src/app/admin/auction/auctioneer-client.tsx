@@ -52,6 +52,9 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     const [adjustTeamId, setAdjustTeamId] = useState("");
     const [adjustAmount, setAdjustAmount] = useState("");
     const [syncingPurses, setSyncingPurses] = useState(false);
+    const [auctionStartInput, setAuctionStartInput] = useState("");
+    const [auctionEndInput, setAuctionEndInput] = useState("");
+    const [savingTime, setSavingTime] = useState(false);
 
     // Critical action lock — prevents double-tap on SOLD/PASS/DRAW before server responds
     const criticalLockRef = useRef(false);
@@ -713,12 +716,66 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                         <motion.div 
                             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             onClick={e => e.stopPropagation()}
-                            className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl"
+                            className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-lg font-black tracking-widest uppercase">Tier Base Prices</h2>
+                                <h2 className="text-lg font-black tracking-widest uppercase">Auction Settings</h2>
                                 <button onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white transition-colors">
                                     <Ban size={20} />
+                                </button>
+                            </div>
+
+                            {/* Auction Timer */}
+                            <div className="border border-zinc-800 rounded-xl p-4 mb-6 bg-black/30">
+                                <h3 className="text-xs font-black tracking-widest text-amber-500 uppercase mb-3 flex items-center gap-2">
+                                    <Clock size={12} /> Auction Start Time
+                                </h3>
+                                <div className="space-y-2 mb-3">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">Start Time</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={auctionStartInput}
+                                            onChange={e => setAuctionStartInput(e.target.value)}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono text-amber-400"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">End Time (hides countdown on homepage)</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={auctionEndInput}
+                                            onChange={e => setAuctionEndInput(e.target.value)}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono text-zinc-400"
+                                        />
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        if (!auctionStartInput) { alert('Set a start time first'); return; }
+                                        setSavingTime(true);
+                                        try {
+                                            // Convert local datetime to ISO string
+                                            const startISO = new Date(auctionStartInput).toISOString();
+                                            const endISO = auctionEndInput ? new Date(auctionEndInput).toISOString() : null;
+                                            const res = await fetch('/api/admin/auction/action', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ action: 'SET_AUCTION_TIME', payload: { startTime: startISO, endTime: endISO } })
+                                            });
+                                            if (res.ok) {
+                                                alert('✅ Auction timer updated! Redeploy or wait for ISR to propagate to homepage.');
+                                            } else {
+                                                const d = await res.json();
+                                                alert('❌ ' + (d.error || 'Failed'));
+                                            }
+                                        } finally { setSavingTime(false); }
+                                    }}
+                                    disabled={savingTime || !auctionStartInput}
+                                    className="w-full flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 disabled:opacity-40 py-2 rounded-lg font-bold text-xs tracking-wider transition-colors"
+                                >
+                                    <Clock size={12} />
+                                    {savingTime ? 'SAVING...' : 'SAVE TIMER'}
                                 </button>
                             </div>
                             <div className="space-y-4 mb-8">

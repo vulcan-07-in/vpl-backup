@@ -16,13 +16,13 @@ const NAV_ITEMS = [
     { href: "/admin", label: "ADMIN HUB" },
 ];
 
-export default function HomeClient({ champion }: { champion: { name: string; color: string } | null }) {
+export default function HomeClient({ champion, auctionStartTime, auctionEndTime }: { champion: { name: string; color: string } | null, auctionStartTime: string, auctionEndTime: string }) {
     const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
     const [showAuction, setShowAuction] = useState(true);
 
     useEffect(() => {
-        const targetDate = new Date("2026-05-20T17:00:00+05:30").getTime();
-        const hideDate = new Date("2026-05-20T21:00:00+05:30").getTime();
+        const targetDate = new Date(auctionStartTime).getTime();
+        const hideDate = new Date(auctionEndTime).getTime();
 
         const updateCountdown = () => {
             const now = new Date().getTime();
@@ -47,7 +47,7 @@ export default function HomeClient({ champion }: { champion: { name: string; col
         updateCountdown();
         const interval = setInterval(updateCountdown, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [auctionStartTime, auctionEndTime]);
 
     return (
         <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 pt-24 md:pt-32">

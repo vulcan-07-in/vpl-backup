@@ -381,6 +381,20 @@ export async function POST(req: Request) {
                 break;
             }
 
+            case 'SET_AUCTION_TIME': {
+                // Store auction start and optional end time in Redis
+                const { startTime, endTime } = payload;
+                if (!startTime) throw new Error('startTime (ISO string) required');
+                // Validate it parses
+                if (isNaN(new Date(startTime).getTime())) throw new Error('Invalid startTime format');
+                await redis.set('vpl_auction_start_time', startTime);
+                if (endTime) {
+                    if (isNaN(new Date(endTime).getTime())) throw new Error('Invalid endTime format');
+                    await redis.set('vpl_auction_end_time', endTime);
+                }
+                break;
+            }
+
             default:
                 throw new Error(`Unknown action: ${action}`);
         }

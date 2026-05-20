@@ -26,7 +26,7 @@ interface Team {
     logoUrl?: string | null;
 }
 
-export default function ViewerClient({ teams, players: initialPlayers, initialTierPrices }: { teams: Team[], players: Player[], initialTierPrices: Record<string, number> }) {
+export default function ViewerClient({ teams, players: initialPlayers, initialTierPrices, auctionStartTime }: { teams: Team[], players: Player[], initialTierPrices: Record<string, number>, auctionStartTime: string }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null, active_pool: null, show_pool_to_viewers: true });
     const [soldEvent, setSoldEvent] = useState<{ player: Player, team: Team, amount: number } | null>(null);
@@ -46,7 +46,7 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
     }, [auctionState.active_player_id]);
 
     useEffect(() => {
-        const targetDate = new Date("2026-05-20T17:00:00+05:30").getTime();
+        const targetDate = new Date(auctionStartTime).getTime();
         const update = () => {
             if (auctionState?.status !== 'WAITING') return;
             const diff = targetDate - Date.now();
@@ -61,7 +61,7 @@ export default function ViewerClient({ teams, players: initialPlayers, initialTi
         update();
         const id = setInterval(update, 1000);
         return () => clearInterval(id);
-    }, [auctionState?.status]);
+    }, [auctionState?.status, auctionStartTime]);
 
     useEffect(() => {
         supabase.from('vpl_auction_state').select('*').eq('id', 1).maybeSingle().then(({ data }) => { if (data) setAuctionState(data); });
