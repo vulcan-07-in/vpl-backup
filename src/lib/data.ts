@@ -76,7 +76,9 @@ export async function fetchTeams(season: number = 1): Promise<Team[]> {
 }
 
 /** Fetch squads (teams + players) */
-export async function fetchSquads(season: number = 1): Promise<Array<{ teamName: string; shortName: string; color: string; players: { name: string; role: string; price: string }[] }>> {
+export async function fetchSquads(season: number = 1): Promise<Array<{ teamName: string; shortName: string; color: string; logoUrl?: string; players: { name: string; role: string; price: string; accountId: string; isCaptain?: boolean }[] }>> {
+  // Ensure fresh data on each request (prevent Next.js cache)
+  noStore();
   if (season === 2) {
     // Fetch teams with their IDs for correct FK resolution
     type TeamRow = { id: string; name: string; shortName: string; color: string };
@@ -106,21 +108,14 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       `)
       .eq("season", 2)
       .not("team_name", "is", null)
+      .not("price", "is", null)
+      .neq("team_name", "")
       .neq("team_name", "UNSOLD")
       .neq("team_name", "PASSED");
 
     if (regErr) {
       console.error("Supabase fetchSquads registrations error:", regErr);
       return [];
-    }
-
-    // Fetch manual admin additions from Player table
-    const { data: manualPlayers, error: manualErr } = await supabase
-      .from("Player")
-      .select("id, name, role, price, teamId");
-
-    if (manualErr) {
-      console.error("Supabase fetchSquads manual players error:", manualErr);
     }
 
     // Fetch logos from Redis for squads
@@ -138,10 +133,9 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
 
     type SquadEntry = { teamName: string; shortName: string; color: string; logoUrl?: string; players: { name: string; role: string; price: string; accountId: string; isCaptain?: boolean }[] };
     const squadByName = Object.fromEntries(squads.map((s: SquadEntry) => [s.teamName.toLowerCase().trim(), s])) as Record<string, SquadEntry>;
-    const squadByTeamId = Object.fromEntries((teamRows as TeamRow[] || []).map((t) => [t.id, squadByName[t.name.toLowerCase().trim()]]));
 
     (registrations as any[] || []).forEach((reg: any) => {
-      const teamKey = (reg.team_name || "UNSOLD").toLowerCase().trim();
+      const teamKey = (reg.team_name || "").toLowerCase().trim();
       const targetSquad = squadByName[teamKey];
       
       if (targetSquad) {
@@ -151,18 +145,6 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
           price: reg.price != null ? reg.price.toString() : "0",
           accountId: reg.varchasva_accounts?.account_id || "",
           isCaptain: reg.is_captain || false
-        });
-      }
-    });
-
-    (manualPlayers as any[] || []).forEach((p: any) => {
-      const targetSquad = squadByTeamId[p.teamId];
-      if (targetSquad) {
-        targetSquad.players.push({
-          name: p.name,
-          role: p.role,
-          price: p.price?.toString() || "0",
-          accountId: p.id // Use player ID as account ID for manual players
         });
       }
     });
