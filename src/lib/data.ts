@@ -106,7 +106,8 @@ export async function fetchSquads(season: number = 1): Promise<Array<{ teamName:
       `)
       .eq("season", 2)
       .not("team_name", "is", null)
-      .not("team_name", "in", '("UNSOLD","PASSED","unsold","passed")');
+      .neq("team_name", "UNSOLD")
+      .neq("team_name", "PASSED");
 
     if (regErr) {
       console.error("Supabase fetchSquads registrations error:", regErr);
