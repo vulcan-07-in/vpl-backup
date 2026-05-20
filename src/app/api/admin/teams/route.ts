@@ -162,13 +162,21 @@ export async function POST(req: Request) {
             }
 
             if (purse !== undefined) {
-                await redis.hset(teamPursesKey(), teamId, parseInt(purse, 10));
+                const purseVal = Number(purse);
+                if (!isNaN(purseVal)) {
+                    await redis.hset(teamPursesKey(), teamId, purseVal);
+                }
             }
             if (paddleNumber !== undefined) {
-                if (paddleNumber !== null && paddleNumber !== "") {
-                    await redis.hset(teamPaddlesKey(), teamId, parseInt(paddleNumber, 10));
+                if (paddleNumber !== null && paddleNumber !== "" && String(paddleNumber).trim() !== "") {
+                    const paddleVal = Number(paddleNumber);
+                    if (!isNaN(paddleVal)) {
+                        await redis.hset(teamPaddlesKey(), teamId, paddleVal);
+                        console.log(`[Teams Update] Paddle saved: teamId=${teamId}, paddle=${paddleVal}`);
+                    }
                 } else {
                     await redis.hdel(teamPaddlesKey(), teamId);
+                    console.log(`[Teams Update] Paddle removed: teamId=${teamId}`);
                 }
             }
             if (body.logoUrl !== undefined) {

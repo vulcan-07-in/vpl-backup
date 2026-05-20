@@ -91,7 +91,7 @@ function TeamCard({
         setSaving(true);
         setSaveError("");
         try {
-            await onUpdate(team.id, { ...fields, purse: Number(fields.purse), logoUrl: fields.logoUrl || null, paddleNumber: fields.paddleNumber || null });
+            await onUpdate(team.id, { ...fields, purse: Number(fields.purse), logoUrl: fields.logoUrl || null, paddleNumber: fields.paddleNumber !== '' && fields.paddleNumber != null ? String(fields.paddleNumber) : null });
             setEditing(false);
         } catch (e: any) {
             setSaveError(e.message || "Save failed");
