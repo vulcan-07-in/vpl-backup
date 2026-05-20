@@ -232,13 +232,22 @@ export default function SquadsClient({ initialData }: { initialData: Team[] }) {
                                             {ROLE_LABEL[player.role] ?? player.role.toUpperCase().slice(0, 4)}
                                         </span>
 
-                                        {/* Price */}
-                                        <span
-                                            className="text-sm font-bold text-amber-400 shrink-0 text-right"
-                                            style={{ fontFamily: "var(--font-mono)" }}
-                                        >
-                                            {player.price}
-                                        </span>
+                                         {/* Price / Captain label */}
+                                         {player.isCaptain ? (
+                                             <span
+                                                 className="flex items-center gap-1 text-[10px] font-bold tracking-widest text-zinc-500 uppercase shrink-0 text-right"
+                                                 style={{ fontFamily: "var(--font-body)" }}
+                                             >
+                                                 <Crown size={12} className="text-amber-500" /> CAPTAIN
+                                             </span>
+                                         ) : (
+                                             <span
+                                                 className="text-sm font-bold text-amber-400 shrink-0 text-right"
+                                                 style={{ fontFamily: "var(--font-mono)" }}
+                                             >
+                                                 {player.price}
+                                             </span>
+                                         )}
                                     </div>
                                 ))}
                             </div>
