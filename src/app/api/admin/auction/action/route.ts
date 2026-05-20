@@ -79,7 +79,15 @@ export async function POST(req: Request) {
                 const spent = (roster || []).reduce((sum: number, p: any) => sum + (p.price || 0), 0);
                 const currentPurse = purse - spent;
 
-                const minBasePrice = Math.min(...Object.values(AUCTION_CONSTANTS.BASE_PRICES));
+                const tierPricesStr = await redis.get("vpl_tier_prices");
+                let minBasePrice = Math.min(...Object.values(AUCTION_CONSTANTS.BASE_PRICES));
+                if (tierPricesStr) {
+                    try {
+                        const tp = JSON.parse(tierPricesStr);
+                        minBasePrice = Math.min(...Object.values(tp) as number[]);
+                    } catch (e) {}
+                }
+                
                 const maxBid = calculateMaxBid(currentPurse, currentRosterSize, minBasePrice);
 
                 if (payload.amount > maxBid) {
@@ -225,6 +233,27 @@ export async function POST(req: Request) {
                     await supabase.from('vpl_auction_history').delete().eq('id', lastSale.id);
                 } else {
                     throw new Error("No sale to undo.");
+                }
+                break;
+            }
+
+            case 'UNDO_BID': {
+                if (state.status !== 'BIDDING') {
+                    throw new Error("Cannot undo bid. No active bidding.");
+                }
+                // Revert state to previous bid
+                await supabase.from('vpl_auction_state').update({
+                    current_bid: payload.amount,
+                    leading_team_id: payload.teamId || null,
+                    last_update: new Date().toISOString()
+                }).eq('id', 1);
+                break;
+            }
+
+            case 'UPDATE_TIER_PRICES': {
+                // payload contains the new prices Record<string, number>
+                if (payload.tierPrices) {
+                    await redis.set("vpl_tier_prices", JSON.stringify(payload.tierPrices));
                 }
                 break;
             }

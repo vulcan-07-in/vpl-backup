@@ -27,7 +27,7 @@ interface Team {
     logoUrl?: string | null;
 }
 
-export default function AuctioneerClient({ players: initialPlayers, teams }: { players: Player[], teams: Team[] }) {
+export default function AuctioneerClient({ players: initialPlayers, teams, initialTierPrices }: { players: Player[], teams: Team[], initialTierPrices: Record<string, number> }) {
     const [players, setPlayers] = useState<Player[]>(initialPlayers);
     const [auctionState, setAuctionState] = useState<any>({ status: 'IDLE', active_player_id: null, current_bid: 0, leading_team_id: null, active_pool: 'MARQUEE', show_pool_to_viewers: true, bid_increment: null });
     const [selectedPool, setSelectedPool] = useState<string>("MARQUEE");
@@ -43,6 +43,10 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     const [poolQueue, setPoolQueue] = useState<Player[]>([]);
     const [customBasePrice, setCustomBasePrice] = useState<string>("");
     const [shakeTeam, setShakeTeam] = useState<string | null>(null);
+
+    const [tierPrices, setTierPrices] = useState<Record<string, number>>(initialTierPrices);
+    const [showSettings, setShowSettings] = useState(false);
+    const [bidStack, setBidStack] = useState<{ amount: number, teamId: string | null }[]>([]);
 
     // Per-team inflight lock — prevents double-tap race conditions per paddle
     // Using a Set so different teams can be clicked in quick succession
@@ -169,7 +173,9 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
     };
 
     const selectPlayer = (player: Player) => {
-        performAction('DRAW', { accountId: player.accountId, tier: player.tier, basePrice: parseInt(customBasePrice, 10) || undefined });
+        const basePrice = tierPrices[player.tier] || getBasePrice(player.tier);
+        performAction('DRAW', { accountId: player.accountId, tier: player.tier, basePrice: parseInt(customBasePrice, 10) || basePrice });
+        setBidStack([{ amount: parseInt(customBasePrice, 10) || basePrice, teamId: null }]); // Reset stack on draw
     };
 
     const handleBid = useCallback((teamId: string) => {
@@ -204,6 +210,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
         }, 1500));
 
         // Optimistic update for zero-latency feel
+        setBidStack(prev => [...prev, { amount: nextBid, teamId }]);
         setAuctionState((prev: any) => ({ ...prev, current_bid: nextBid, leading_team_id: teamId }));
 
         // Fire request — release lock on completion (don't wait for realtime echo)
@@ -230,10 +237,28 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
             if (timer) clearTimeout(timer);
             bidInflightSet.current.delete(teamId);
             bidLockTimers.current.delete(teamId);
-            alert(`❌ Network error: ${e.message}`);
+            setBidStack(prev => prev.slice(0, -1)); // Pop stack
             setAuctionState((prev: any) => ({ ...prev, current_bid: state.current_bid, leading_team_id: state.leading_team_id }));
         });
-    }, [teamStats, customIncrement, teams]);
+    }, [teamStats, customIncrement, teams, bidStack]);
+
+    const handleUndoBid = () => {
+        if (bidStack.length <= 1) return; // Cannot undo past base price
+        const previousBid = bidStack[bidStack.length - 2];
+        const currentStack = [...bidStack];
+        currentStack.pop();
+        setBidStack(currentStack);
+
+        const oldAmount = previousBid.amount;
+        const oldTeamId = previousBid.teamId;
+
+        setAuctionState((prev: any) => ({ ...prev, current_bid: oldAmount, leading_team_id: oldTeamId }));
+        fetch('/api/admin/auction/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'UNDO_BID', payload: { amount: oldAmount, teamId: oldTeamId } })
+        }).catch(e => alert("Failed to undo bid on server"));
+    };
 
     const handleForceSell = () => {
         if (!forceTeamId || !forceBidAmount) { alert("Select team and enter amount."); return; }
@@ -308,6 +333,13 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                 title={auctionState.show_pool_to_viewers ? "Pool visible to viewers" : "Pool hidden from viewers"}
                             >
                                 {auctionState.show_pool_to_viewers ? <Eye size={16}/> : <EyeOff size={16}/>}
+                            </button>
+                            <button
+                                onClick={() => setShowSettings(true)}
+                                className={`p-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-all`}
+                                title="Auction Settings (Tier Prices)"
+                            >
+                                <Settings size={16}/>
                             </button>
                         </div>
                     </div>
@@ -392,6 +424,13 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                                         </div>
                                     </div>
                                     <div className="flex flex-col justify-end gap-3">
+                                        <button
+                                            onClick={handleUndoBid}
+                                            disabled={bidStack.length <= 1}
+                                            className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-zinc-800 text-zinc-300 py-3 rounded-xl font-black tracking-widest transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Undo2 size={18} /> UNDO BID
+                                        </button>
                                         <div className="flex gap-3">
                                             <button
                                                 onClick={() => {
@@ -612,6 +651,50 @@ export default function AuctioneerClient({ players: initialPlayers, teams }: { p
                     </div>
                 </div>
             </div>
+            {/* Settings Modal */}
+            <AnimatePresence>
+                {showSettings && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            onClick={e => e.stopPropagation()}
+                            className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-black tracking-widest uppercase">Tier Base Prices</h2>
+                                <button onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white transition-colors">
+                                    <Ban size={20} />
+                                </button>
+                            </div>
+                            <div className="space-y-4 mb-8">
+                                {Object.keys(tierPrices).map(tier => (
+                                    <div key={tier} className="flex items-center justify-between">
+                                        <span className="font-bold text-sm tracking-wider uppercase text-zinc-300">{tier}</span>
+                                        <input
+                                            type="number"
+                                            value={tierPrices[tier]}
+                                            onChange={e => setTierPrices(prev => ({ ...prev, [tier]: parseInt(e.target.value, 10) || 0 }))}
+                                            className="w-24 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono text-emerald-400 text-right"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    fetch('/api/admin/auction/action', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'UPDATE_TIER_PRICES', payload: { tierPrices } })
+                                    }).then(() => setShowSettings(false)).catch(e => alert("Failed to save tier prices"));
+                                }}
+                                className="w-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-xl font-black tracking-widest transition-colors"
+                            >
+                                SAVE SETTINGS
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

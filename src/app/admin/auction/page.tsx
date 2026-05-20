@@ -60,5 +60,16 @@ export default async function AdminAuctionPage() {
         isCaptain: p.is_captain || false,
     }));
 
-    return <AuctioneerClient players={formattedPlayers} teams={teams} />;
+    // 4. Fetch Tier Prices Configuration
+    const tierPricesStr = await redis.get("vpl_tier_prices");
+    let initialTierPrices = AUCTION_CONSTANTS.BASE_PRICES;
+    if (tierPricesStr) {
+        try {
+            initialTierPrices = JSON.parse(tierPricesStr);
+        } catch (e) {
+            console.error("Failed to parse tier prices", e);
+        }
+    }
+
+    return <AuctioneerClient players={formattedPlayers} teams={teams} initialTierPrices={initialTierPrices} />;
 }
