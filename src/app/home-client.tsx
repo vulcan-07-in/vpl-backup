@@ -84,7 +84,7 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                         Varchasva
                     </h1>
                     <p className="text-sm md:text-base uppercase tracking-[0.4em] text-zinc-500 font-medium">
-                        Premier League
+                        Premier League S2
                     </p>
                 </motion.div>
 
@@ -178,9 +178,73 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                         </div>
                     )}
 
+                    {/* Sponsors Section — above match schedule */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.9, duration: 0.6 }}
+                        className="w-full"
+                    >
+                        <div className="flex flex-col items-center gap-5 px-6 py-6 rounded-3xl w-full border border-amber-500/10 bg-amber-500/[0.02] backdrop-blur-sm relative overflow-hidden">
+                            {/* Subtle top glow line */}
+                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+
+                            <p className="text-[9px] tracking-[0.5em] text-amber-500/50 font-bold uppercase">
+                                Proud Sponsors · Season 2
+                            </p>
+
+                            <div className="flex items-center justify-center gap-10">
+                                {/* Patil Biryani */}
+                                <div className="flex flex-col items-center gap-3 group">
+                                    <div className="relative w-24 h-24 sm:w-28 sm:h-28">
+                                        <div className="absolute inset-0 rounded-full bg-amber-500/15 blur-xl group-hover:bg-amber-500/30 transition-all duration-500" />
+                                        <div className="absolute inset-0 rounded-full border-2 border-amber-500/25 group-hover:border-amber-500/60 transition-all duration-300" />
+                                        <Image
+                                            src="/sponsor-patil.png"
+                                            alt="Patil Biryani"
+                                            fill
+                                            className="object-cover rounded-full group-hover:scale-105 transition-transform duration-300"
+                                            sizes="112px"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] sm:text-[11px] text-zinc-400 tracking-widest font-semibold text-center leading-tight">
+                                        PATIL<br />BIRYANI
+                                    </p>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="flex flex-col items-center gap-1.5">
+                                    <div className="w-px h-8 bg-gradient-to-b from-transparent via-amber-500/20 to-transparent" />
+                                    <span className="text-[10px] tracking-widest text-amber-500/30 font-bold">&</span>
+                                    <div className="w-px h-8 bg-gradient-to-b from-transparent via-amber-500/20 to-transparent" />
+                                </div>
+
+                                {/* Chitralaya Cineverse */}
+                                <div className="flex flex-col items-center gap-3 group">
+                                    <div className="relative w-24 h-24 sm:w-28 sm:h-28">
+                                        <div className="absolute inset-0 rounded-full bg-white/5 blur-xl group-hover:bg-white/10 transition-all duration-500" />
+                                        <div className="absolute inset-0 rounded-full border-2 border-zinc-600/30 group-hover:border-zinc-400/60 transition-all duration-300" />
+                                        <div className="absolute inset-0 rounded-full bg-white/5" />
+                                        <Image
+                                            src="/sponsor-chitralaya.png"
+                                            alt="Chitralaya Cineverse"
+                                            fill
+                                            className="object-cover rounded-full group-hover:scale-105 transition-transform duration-300"
+                                            sizes="112px"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] sm:text-[11px] text-zinc-400 tracking-widest font-semibold text-center leading-tight">
+                                        CHITRALAYA<br />CINEVERSE
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    {/* Match Schedule */}
                     <div className="flex flex-col items-center gap-4 px-6 py-5 rounded-3xl w-full border border-white/5 bg-white/[0.02] backdrop-blur-sm">
                         <h3 className="text-zinc-500 font-bold tracking-widest text-[10px] sm:text-xs uppercase">Match Schedule</h3>
-                        
+
                         <div className="w-full flex flex-col gap-3 text-xs sm:text-sm">
                             <div className="flex justify-between items-center border-b border-white/5 pb-2">
                                 <span className="font-bold text-zinc-300 tracking-wide">29th May</span>
@@ -202,6 +266,14 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                                 <span className="text-amber-500/70 font-medium">6:00 PM - 9:00 PM</span>
                             </div>
                         </div>
+
+                        {/* View Squads CTA */}
+                        <Link
+                            href="/squads"
+                            className="mt-1 w-full text-center border border-white/10 text-zinc-400 hover:text-white hover:border-white/25 font-bold text-xs uppercase tracking-widest py-2.5 rounded-full transition-all duration-200 hover:bg-white/[0.03]"
+                        >
+                            View Squads →
+                        </Link>
                     </div>
                 </motion.div>
 

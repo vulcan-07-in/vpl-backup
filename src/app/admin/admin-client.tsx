@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins } from "lucide-react";
+import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins, BarChart3 } from "lucide-react";
 
 type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "logs";
 
@@ -229,6 +229,16 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 <p className="text-zinc-500 text-sm leading-relaxed mb-8">Create teams, edit details, assign colors, and drag & drop between groups.</p>
                                 <div className="flex items-center text-xs font-bold text-amber-500 tracking-widest gap-2">
                                     MANAGE TEAMS <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
+                                </div>
+                            </Link>
+
+                            <Link href="/admin/analytics" className="group bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 rounded-3xl p-8 transition-all relative overflow-hidden block">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[100px] group-hover:bg-amber-500/20 transition-colors" />
+                                <BarChart3 className="text-amber-500 mb-6 w-12 h-12" />
+                                <h2 className="text-2xl font-black tracking-widest mb-2">VIEWER ANALYTICS</h2>
+                                <p className="text-zinc-500 text-sm leading-relaxed mb-8">Real-time concurrent viewer counts, all-time page hits, device breakdown, and fan squad engagement leaderboard.</p>
+                                <div className="flex items-center text-xs font-bold text-amber-500 tracking-widest gap-2">
+                                    OPEN DASHBOARD <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
                                 </div>
                             </Link>
 

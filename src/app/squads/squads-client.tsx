@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, ArrowRight, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { trackSquadView } from "@/components/AnalyticsTracker";
 
 interface Player {
     name: string;
@@ -88,7 +89,7 @@ export default function SquadsClient({ initialData }: { initialData: Team[] }) {
                             <motion.button
                                 variants={itemVariants}
                                 key={idx}
-                                onClick={() => setSelectedTeam(team)}
+                                onClick={() => { setSelectedTeam(team); trackSquadView(team.teamName); }}
                                 className="group w-full flex items-center gap-0 text-left focus:outline-none"
                             >
                                 {/* Team color accent bar */}

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Bebas_Neue, Rajdhani } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import ChampionBanner from "@/components/ChampionBanner";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -50,6 +51,7 @@ export default function RootLayout({
           {children}
           <ChampionBanner />
         </div>
+        <AnalyticsTracker />
         <Analytics />
       </body>
     </html>
