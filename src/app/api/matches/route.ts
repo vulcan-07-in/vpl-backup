@@ -75,6 +75,16 @@ export async function POST(request: Request) {
                 .delete()
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);
+            
+            // Redis cleanup
+            try {
+                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+                const matchId = String(payload.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                await redis.del(`s2:live_match_${matchId}`);
+            } catch (e) {
+                console.error("Redis delete match error", e);
+            }
+
             revalidatePath("/matches");
             revalidatePath("/points");
             revalidatePath("/");

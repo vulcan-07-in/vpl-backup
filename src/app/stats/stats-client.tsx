@@ -1,69 +1,33 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Trophy, Zap, Target, BarChart3, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { type LiveMatchState, type Team } from "@/lib/tournament";
 import { calculateAllPlayerStats, getAchievements, type PlayerStats as MVPStats } from "@/lib/mvp";
-import PlayerProfileModal from "@/components/PlayerProfileModal";
 
-export interface PlayerStats extends MVPStats {
+export interface PlayerStats {
+    name: string;
+    team: string;
+    runs: number;
+    balls: number;
+    fours: number;
+    sixes: number;
+    wickets: number;
+    runsConceded: number;
+    ballsBowled: number;
     strikeRate: number;
     economy: number;
+    catches?: number;
+    stumpings?: number;
+    runOuts?: number;
 }
 
-export default function StatsClient({ teams, squads, initialStats, initialMvpState }: { teams: Team[], squads: any[], initialStats: PlayerStats[], initialMvpState: { player: string | null, published: boolean } }) {
+export default function StatsClient({ teams, initialStats, initialMvpState }: { teams: Team[], initialStats: PlayerStats[], initialMvpState: { player: string | null, published: boolean } }) {
     const [mvpState] = useState(initialMvpState);
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-    const [selectedPlayerForCard, setSelectedPlayerForCard] = useState<any | null>(null);
 
     const aggregatedStats = initialStats;
-
-    // Helper to resolve player detail meta from the squad rosters list
-    const findPlayerMeta = (playerName: string) => {
-        for (const squad of squads) {
-            const found = squad.players.find((p: any) => p.name.trim().toLowerCase() === playerName.trim().toLowerCase());
-            if (found) {
-                const teamInfo = teams.find(t => t.teamName.trim().toLowerCase() === squad.teamName.trim().toLowerCase());
-                return {
-                    player: {
-                        name: found.name,
-                        role: found.role,
-                        price: found.price,
-                        isCaptain: found.isCaptain,
-                        accountId: found.accountId
-                    },
-                    team: teamInfo || {
-                        teamName: squad.teamName,
-                        shortName: squad.shortName,
-                        color: squad.color,
-                        logoUrl: squad.logoUrl
-                    }
-                };
-            }
-        }
-        
-        // Fallback team matching
-        const playerStat = aggregatedStats.find(s => s.name.trim().toLowerCase() === playerName.trim().toLowerCase());
-        const playerTeamName = playerStat?.team || "";
-        const teamInfo = teams.find(t => t.teamName.trim().toLowerCase() === playerTeamName.trim().toLowerCase());
-
-        return {
-            player: {
-                name: playerName,
-                role: "Player",
-                price: "—",
-                isCaptain: false,
-                accountId: "VAR"
-            },
-            team: teamInfo || {
-                teamName: playerTeamName,
-                shortName: playerTeamName.slice(0, 3).toUpperCase(),
-                color: "#EAB308",
-                logoUrl: undefined
-            }
-        };
-    };
 
     const leaderboards = useMemo(() => {
         return {
@@ -149,25 +113,12 @@ export default function StatsClient({ teams, squads, initialStats, initialMvpSta
                                     </div>
                                 </div>
 
-                                 {/* Right: Stats & Info */}
-                                 <div className="flex-1 text-center lg:text-left w-full">
-                                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
-                                         <div>
-                                             <p className="text-amber-500 font-black tracking-[0.4em] text-[10px] md:text-xs uppercase mb-2">Player of the Season</p>
-                                             <h2 className="text-5xl md:text-7xl text-white font-bold leading-none uppercase" style={{ fontFamily: "var(--font-display)" }}>
-                                                 {mvpPlayer.name}
-                                             </h2>
-                                         </div>
-                                         <button
-                                             onClick={() => {
-                                                 const resolved = findPlayerMeta(mvpPlayer.name);
-                                                 setSelectedPlayerForCard(resolved);
-                                             }}
-                                             className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] md:text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shrink-0 self-center md:self-start border border-amber-500/20"
-                                         >
-                                             VIEW PROFILE CARD
-                                         </button>
-                                     </div>
+                                {/* Right: Stats & Info */}
+                                <div className="flex-1 text-center lg:text-left">
+                                    <p className="text-amber-500 font-black tracking-[0.4em] text-[10px] md:text-xs uppercase mb-3">Player of the Season</p>
+                                    <h2 className="text-5xl md:text-8xl text-white font-bold leading-none mb-4" style={{ fontFamily: "var(--font-display)" }}>
+                                        {mvpPlayer.name}
+                                    </h2>
                                     <div className="flex flex-wrap justify-center lg:justify-start gap-4 mb-8">
                                         <span className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] md:text-xs font-bold text-zinc-400 tracking-widest uppercase">
                                             {mvpPlayer.team}
@@ -219,40 +170,31 @@ export default function StatsClient({ teams, squads, initialStats, initialMvpSta
                                     <div className="py-20 text-center text-zinc-600 text-xs uppercase tracking-widest font-bold">No eligible data yet</div>
                                 ) : (
                                     <div className="divide-y divide-white/[0.03]">
-                                        {/* U2 FIX: Default 5, expanded shows top 10 */}                                         {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => {
-                                             const resolved = findPlayerMeta(player.name);
-                                             const accentColor = resolved.team?.color || "#FFFFFF";
-                                             return (
-                                                 <button
-                                                     key={player.name}
-                                                     onClick={() => {
-                                                         setSelectedPlayerForCard(resolved);
-                                                     }}
-                                                     className={`w-full text-left focus:outline-none p-4 flex items-center justify-between group hover:bg-white/[0.04] hover:scale-[1.01] active:scale-[0.99] transition-all border-b border-white/[0.01] ${idx < 3 ? 'bg-amber-500/[0.01]' : ''}`}
-                                                 >
-                                                     <div className="flex items-center gap-4">
-                                                         <span className={`w-6 text-center font-mono text-xs ${idx === 0 ? 'text-amber-500 font-bold' : idx === 1 ? 'text-zinc-400' : idx === 2 ? 'text-amber-800' : 'text-zinc-700'}`}>
-                                                             {idx + 1}
-                                                         </span>
-                                                         <div>
-                                                             <p className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">{player.name}</p>
-                                                             <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase">{player.team}</p>
-                                                         </div>
-                                                     </div>
-                                                     <div className="text-right">
-                                                         <p className="text-lg font-black text-white tabular-nums">
-                                                             {cat.id === "runs" ? player.runs : 
-                                                              cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
-                                                              cat.id === "wickets" ? player.wickets :
-                                                              cat.id === "economy" ? player.economy.toFixed(2) :
-                                                              cat.id === "catches" ? player.catches :
-                                                              player.stumpings}
-                                                         </p>
-                                                         <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">{cat.unit}</p>
-                                                     </div>
-                                                 </button>
-                                             );
-                                         })}
+                                        {/* U2 FIX: Default 5, expanded shows top 10 */}
+                                        {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => (
+                                            <div key={player.name} className={`p-4 flex items-center justify-between group hover:bg-white/[0.02] transition-colors ${idx < 3 ? 'bg-amber-500/[0.02]' : ''}`}>
+                                                <div className="flex items-center gap-4">
+                                                    <span className={`w-6 text-center font-mono text-xs ${idx === 0 ? 'text-amber-500 font-bold' : idx === 1 ? 'text-zinc-400' : idx === 2 ? 'text-amber-800' : 'text-zinc-700'}`}>
+                                                        {idx + 1}
+                                                    </span>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">{player.name}</p>
+                                                        <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase">{player.team}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-black text-white tabular-nums">
+                                                        {cat.id === "runs" ? player.runs : 
+                                                         cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
+                                                         cat.id === "wickets" ? player.wickets :
+                                                         cat.id === "economy" ? player.economy.toFixed(2) :
+                                                         cat.id === "catches" ? player.catches :
+                                                         player.stumpings}
+                                                    </p>
+                                                    <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">{cat.unit}</p>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
@@ -273,19 +215,6 @@ export default function StatsClient({ teams, squads, initialStats, initialMvpSta
                     ))}
                 </div>
             </div>
-            
-            <AnimatePresence>
-                {selectedPlayerForCard && (
-                    <PlayerProfileModal
-                        player={selectedPlayerForCard.player}
-                        stats={aggregatedStats.find(s => s.name.trim().toLowerCase() === selectedPlayerForCard.player.name.trim().toLowerCase())}
-                        teamColor={selectedPlayerForCard.team?.color || "#FFFFFF"}
-                        teamLogo={selectedPlayerForCard.team?.logoUrl}
-                        teamShortName={selectedPlayerForCard.team?.shortName || ""}
-                        onClose={() => setSelectedPlayerForCard(null)}
-                    />
-                )}
-            </AnimatePresence>
         </main>
     );
 }

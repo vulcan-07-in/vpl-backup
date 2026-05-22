@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins, BarChart3 } from "lucide-react";
 
-type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "logs";
+type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "squads" | "logs";
 
 export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [authenticated, setAuthenticated] = useState(false);
@@ -38,20 +38,25 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [logs, setLogs] = useState<any[]>([]);
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
 
+    const [squads, setSquads] = useState<any[]>([]);
+
     useEffect(() => {
         if (authenticated) {
             fetch("/api/admin/stats").then(res => res.json()).then(setStats);
             fetchMatches();
             fetch("/api/active-match").then(res => res.json()).then(data => setActiveMatchId(data.activeMatchId));
             fetch("/api/mvp").then(res => res.json()).then(setMvpState);
+            fetchSquads();
         }
     }, [authenticated]);
 
     const fetchMatches = () => fetch("/api/admin/matches").then(res => res.json()).then(setMatches);
     const fetchLogs = () => fetch("/api/logs").then(res => res.json()).then(setLogs);
+    const fetchSquads = () => fetch("/api/squads").then(res => res.json()).then(setSquads);
 
     useEffect(() => {
         if (tab === "logs") fetchLogs();
+        if (tab === "squads") fetchSquads();
     }, [tab]);
 
     async function handleLogin(e: React.FormEvent) {
@@ -151,7 +156,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                         <p className="text-zinc-500 mt-2 tracking-wide text-sm">Varchasva Premier League Season 2</p>
                     </div>
                     <div className="flex gap-4 flex-wrap">
-                        {['hub', 'matches', 'broadcast', 'mvp', 'teams', 'logs'].map(t => (
+                        {['hub', 'matches', 'broadcast', 'mvp', 'teams', 'squads', 'logs'].map(t => (
                             <button
                                 key={t}
                                 onClick={() => setTab(t as Tab)}
@@ -299,6 +304,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             {m.status !== 'COMPLETED' && m.status !== 'ABANDONED' && (
                                                 <button onClick={() => handleAction("/api/matches", { action: "abandon_match", matchNo: m.matchNo }, fetchMatches)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded text-xs font-bold">ABANDON</button>
                                             )}
+                                            <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
                                         </div>
                                     </div>
                                 ))}
@@ -463,6 +469,65 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                     </div>
                                 );
                             })}
+                        </div>
+                    </div>
+                )}
+
+                {tab === "squads" && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-black tracking-widest flex items-center gap-2"><Users className="text-amber-500"/> Squad Editor</h2>
+                            <button onClick={fetchSquads} className="text-xs font-bold text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-lg hover:bg-amber-500/10">REFRESH</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {squads.map(team => (
+                                <div key={team.id} className="bg-black border border-zinc-800 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-4 pb-2 border-b border-zinc-800">
+                                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: team.color }} />
+                                        <h3 className="font-bold">{team.name}</h3>
+                                        <span className="text-xs text-zinc-500 ml-auto">{team.players.length} Players</span>
+                                    </div>
+                                    <div className="space-y-2 mb-4">
+                                        {team.players.map((p: any) => (
+                                            <div key={p.id} className="flex justify-between items-center bg-zinc-900 px-3 py-2 rounded text-sm group">
+                                                <div>
+                                                    <span className="font-bold">{p.name}</span>
+                                                    <span className="text-[10px] text-zinc-500 ml-2 block">{p.role} · ₹{p.price}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        const action = p.id.includes('-') && p.id.length > 20 ? "delete_player" : "remove_registered_player";
+                                                        handleAction("/api/squads", { action, playerId: p.id, accountId: p.id }, fetchSquads);
+                                                    }}
+                                                    className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    title="Remove Player"
+                                                ><Trash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <form className="flex gap-2" onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const t = e.target as any;
+                                        handleAction("/api/squads", { 
+                                            action: "add_player", 
+                                            teamId: team.id, 
+                                            name: t.pname.value, 
+                                            role: t.prole.value, 
+                                            price: t.pprice.value 
+                                        }, () => {
+                                            fetchSquads();
+                                            t.reset();
+                                        }, true);
+                                    }}>
+                                        <input name="pname" type="text" placeholder="Name" className="flex-[2] bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs" required />
+                                        <select name="prole" className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-1 py-1 text-xs">
+                                            <option>All Rounder</option><option>Batsman</option><option>Bowler</option>
+                                        </select>
+                                        <input name="pprice" type="number" placeholder="₹" className="w-16 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs" defaultValue={0} required />
+                                        <button type="submit" className="bg-amber-500 text-black px-2 py-1 rounded text-xs font-bold">+</button>
+                                    </form>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

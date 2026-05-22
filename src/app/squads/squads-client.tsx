@@ -4,15 +4,12 @@ import { useState } from "react";
 import { X, ArrowRight, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { trackSquadView } from "@/components/AnalyticsTracker";
-import PlayerProfileModal from "@/components/PlayerProfileModal";
-import { type PlayerStats } from "@/lib/mvp";
 
 interface Player {
     name: string;
     role: string;
     price: string;
     isCaptain?: boolean;
-    accountId: string;
 }
 
 interface Team {
@@ -46,9 +43,8 @@ const itemVariants = {
     show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
-export default function SquadsClient({ initialData, playerStats }: { initialData: Team[], playerStats: PlayerStats[] }) {
+export default function SquadsClient({ initialData }: { initialData: Team[] }) {
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-    const [selectedPlayerForCard, setSelectedPlayerForCard] = useState<Player | null>(null);
 
     return (
         <>
@@ -206,16 +202,14 @@ export default function SquadsClient({ initialData, playerStats }: { initialData
                                     if (!a.isCaptain && b.isCaptain) return 1;
                                     return (parseInt(b.price) || 0) - (parseInt(a.price) || 0);
                                 }).map((player, pIdx) => (
-                                    <button
+                                    <div
                                         key={pIdx}
-                                        onClick={() => {
-                                            setSelectedPlayerForCard(player);
-                                        }}
-                                        className="w-full flex items-center gap-4 px-6 py-4 border-b border-white/[0.04] hover:bg-white/[0.04] hover:scale-[1.01] active:scale-[0.99] transition-all text-left focus:outline-none group/player"
+                                        className="flex items-center gap-4 px-6 py-4 border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                                     >
                                         {/* Row number */}
                                         <span
-                                            className="text-xs text-zinc-800 w-5 text-right shrink-0 tabular-nums font-mono"
+                                            className="text-xs text-zinc-800 w-5 text-right shrink-0 tabular-nums"
+                                            style={{ fontFamily: "var(--font-mono)" }}
                                         >
                                             {String(pIdx + 1).padStart(2, "0")}
                                         </span>
@@ -224,7 +218,7 @@ export default function SquadsClient({ initialData, playerStats }: { initialData
                                         <div className="flex-1 min-w-0 flex items-center gap-2">
                                             {player.isCaptain && <Crown size={12} className="text-amber-500 shrink-0" />}
                                             <span
-                                                className={`text-base font-semibold truncate transition-colors ${player.isCaptain ? 'text-amber-500 group-hover/player:text-amber-400' : 'text-white group-hover/player:text-amber-400'}`}
+                                                className={`text-base font-medium truncate ${player.isCaptain ? 'text-amber-500' : 'text-white'}`}
                                                 style={{ fontFamily: "var(--font-body)" }}
                                             >
                                                 {player.name}
@@ -233,7 +227,7 @@ export default function SquadsClient({ initialData, playerStats }: { initialData
 
                                         {/* Role pill */}
                                         <span
-                                            className="text-[10px] font-bold tracking-widest text-zinc-500 group-hover/player:text-zinc-300 transition-colors shrink-0 hidden sm:block"
+                                            className="text-[10px] font-bold tracking-widest text-zinc-600 shrink-0 hidden sm:block"
                                             style={{ fontFamily: "var(--font-body)" }}
                                         >
                                             {ROLE_LABEL[player.role] ?? player.role.toUpperCase().slice(0, 4)}
@@ -242,19 +236,20 @@ export default function SquadsClient({ initialData, playerStats }: { initialData
                                          {/* Price / Captain label */}
                                          {player.isCaptain ? (
                                              <span
-                                                 className="flex items-center gap-1 text-[10px] font-bold tracking-widest text-zinc-500 group-hover/player:text-amber-500 transition-colors uppercase shrink-0 text-right"
+                                                 className="flex items-center gap-1 text-[10px] font-bold tracking-widest text-zinc-500 uppercase shrink-0 text-right"
                                                  style={{ fontFamily: "var(--font-body)" }}
                                              >
                                                  <Crown size={12} className="text-amber-500" /> CAPTAIN
                                              </span>
                                          ) : (
                                              <span
-                                                 className="text-sm font-bold text-amber-400 group-hover/player:scale-105 transition-transform shrink-0 text-right font-mono"
+                                                 className="text-sm font-bold text-amber-400 shrink-0 text-right"
+                                                 style={{ fontFamily: "var(--font-mono)" }}
                                              >
                                                  {player.price}
                                              </span>
                                          )}
-                                    </button>
+                                    </div>
                                 ))}
                             </div>
 
@@ -276,19 +271,6 @@ export default function SquadsClient({ initialData, playerStats }: { initialData
                             </div>
                         </motion.div>
                     </motion.div>
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {selectedPlayerForCard && (
-                    <PlayerProfileModal
-                        player={selectedPlayerForCard}
-                        stats={playerStats.find(s => s.name.trim().toLowerCase() === selectedPlayerForCard.name.trim().toLowerCase())}
-                        teamColor={selectedTeam?.color || "#FFFFFF"}
-                        teamLogo={selectedTeam?.logoUrl}
-                        teamShortName={selectedTeam?.shortName || ""}
-                        onClose={() => setSelectedPlayerForCard(null)}
-                    />
                 )}
             </AnimatePresence>
         </>

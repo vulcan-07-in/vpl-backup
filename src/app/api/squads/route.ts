@@ -2,8 +2,32 @@ import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
+import Redis from "ioredis";
+import { teamPursesKey } from "@/lib/redis-keys";
+import { AUCTION_CONSTANTS } from "@/lib/auction";
 
-// GET — return teams + players from Supabase (S2)
+async function syncPurses() {
+    const redis = new Redis(process.env.REDIS_URL || "");
+    const { data: allTeams } = await supabase.from('Team').select('id, name, purse');
+    if (!allTeams) return;
+
+    const { data: allRegs } = await supabase.from('vpl_registrations').select('team_name, price').eq('season', 2);
+    const { data: allCustomPlayers } = await supabase.from('Player').select('teamId, price');
+
+    for (const team of allTeams) {
+        const roster = (allRegs || []).filter((r: any) => r.team_name === team.name);
+        const spent1 = roster.reduce((sum: number, r: any) => sum + (r.price || 0), 0);
+        
+        const customRoster = (allCustomPlayers || []).filter((r: any) => r.teamId === team.id);
+        const spent2 = customRoster.reduce((sum: number, r: any) => sum + (r.price || 0), 0);
+
+        const spent = spent1 + spent2;
+        const basePurse = team.purse && team.purse > 0 ? team.purse : AUCTION_CONSTANTS.MAX_BUDGET;
+        const correctPurse = Math.max(0, basePurse - spent);
+        await redis.hset(teamPursesKey(), team.id, correctPurse);
+    }
+}
+
 export async function GET() {
     try {
         const { data: teams, error: teamErr } = await supabase
@@ -147,6 +171,7 @@ export async function POST(request: Request) {
                 updatedAt: now,
             });
             if (error) throw new Error(error.message);
+            await syncPurses();
             revalidatePath("/squads");
             revalidatePath("/admin");
             return NextResponse.json({ ok: true });
@@ -155,6 +180,31 @@ export async function POST(request: Request) {
         if (payload.action === "delete_player") {
             const { error } = await supabase.from("Player").delete().eq("id", payload.playerId);
             if (error) throw new Error(error.message);
+            await syncPurses();
+            revalidatePath("/squads");
+            revalidatePath("/admin");
+            return NextResponse.json({ ok: true });
+        }
+
+        if (payload.action === "assign_registered_player") {
+            const { error } = await supabase.from("vpl_registrations")
+                .update({ team_name: payload.teamName, price: parseInt(payload.price) || 0 })
+                .eq("account_id", payload.accountId)
+                .eq("season", 2);
+            if (error) throw new Error(error.message);
+            await syncPurses();
+            revalidatePath("/squads");
+            revalidatePath("/admin");
+            return NextResponse.json({ ok: true });
+        }
+
+        if (payload.action === "remove_registered_player") {
+            const { error } = await supabase.from("vpl_registrations")
+                .update({ team_name: "UNSOLD", price: 0, is_captain: false })
+                .eq("account_id", payload.accountId)
+                .eq("season", 2);
+            if (error) throw new Error(error.message);
+            await syncPurses();
             revalidatePath("/squads");
             revalidatePath("/admin");
             return NextResponse.json({ ok: true });
