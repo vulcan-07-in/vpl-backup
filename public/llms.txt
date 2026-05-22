@@ -1,0 +1,38 @@
+# Varchasva Premier League (VPL) Season 2
+
+Official digital hub and real-time database for the Varchasva Premier League (VPL) Season 2, a premier college cricket tournament.
+
+---
+
+## 📅 Tournament Overview
+- **Dates**: May 29th, 2026 – June 1st, 2026
+- **Location**: Saraswati Hall / Main Tournament Grounds, India
+- **Sport**: Cricket (T20 Format)
+- **Season**: Season 2 (S2)
+
+---
+
+## 🏆 Key Pages & Navigation Map
+- **Homepage (`/`)**: Hub for current events, main sponsor integrations, and the match schedule.
+- **Live Match Dashboard (`/live`)**: Real-time ball-by-ball score tracking, active bowler/batsman statistics, and innings commentary fed directly by live scorers.
+- **Live Auction Hub (`/auction`)**: Elite dark-luxury broadcast board showcasing the live player auction, interactive bid-locking, dynamic team purse balances, and completed bidding logs.
+- **Match Schedule (`/matches`)**: Complete schedule of all upcoming and completed fixtures.
+- **Standings & Playoffs (`/points`)**: Three-group Points Table (Groups A, B, C) featuring auto-computed playoff seedings and a responsive tournament bracket.
+- **Player & Leaderboard Stats (`/stats`)**: Live tournament leaderboards for batting average, strike rate, wickets, economics, and MVP points.
+- **Team Squads (`/squads`)**: Roster directories of all active franchises in the tournament.
+
+---
+
+## 🤝 Partners & Sponsors
+- **Proud Sponsors**:
+  - **Patil Biryani**: Co-lead sponsor, featured on the homepage.
+  - **Chitralaya Cineverse**: Co-lead sponsor, featured on the homepage.
+- **Rewards Partner**:
+  - **The Cafe Meraki**: Premium rewards partner, styled with a dedicated red glow badge on the homepage.
+
+---
+
+## ⚙️ Technical Stack
+- **Framework**: Next.js (App Router, Tailwind CSS, TypeScript)
+- **Data Layers**: Supabase PostgreSQL (Persistent Player, Match, and Team tables) & namespaced ioredis (Real-time live score updates and auction state caching)
+- **Host**: Vercel

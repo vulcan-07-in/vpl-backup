@@ -16,6 +16,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
+        // Server-side Bot Detection
+        const userAgent = req.headers.get("user-agent") || "";
+        const uaLower = userAgent.toLowerCase();
+        const isServerBot = [
+            "bot", "crawler", "spider", "lighthouse", "chrome-lighthouse", 
+            "prerender", "headless", "selenium", "puppeteer", "playwright",
+            "axios", "curl", "wget", "uptime", "pingdom", "lately", 
+            "semrush", "ahrefs", "screaming", "googlebot", "bingbot", 
+            "yandex", "baidu", "facebookexternalhit", "twitterbot", 
+            "linkedinbot", "discordbot", "telegrambot", "slackbot"
+        ].some(keyword => uaLower.includes(keyword));
+
+        if (isServerBot) {
+            // Silently return ok but skip writing to Redis to prevent fake metrics
+            return NextResponse.json({ ok: true, ignored: "bot" });
+        }
+
         const pipeline = redis.pipeline();
 
         // 1. Maintain a short-lived key per visitor+page so we can count concurrents

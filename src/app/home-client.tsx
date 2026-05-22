@@ -241,6 +241,47 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                         </div>
                     </motion.div>
 
+                    {/* Rewards Partner Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1.0, duration: 0.6 }}
+                        className="w-full"
+                    >
+                        <div className="flex flex-col items-center gap-4 px-6 py-5 rounded-3xl w-full border border-red-500/10 bg-red-500/[0.01] backdrop-blur-sm relative overflow-hidden">
+                            {/* Subtle top glow line in red */}
+                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/20 to-transparent" />
+
+                            <p className="text-[9px] tracking-[0.5em] text-red-500/60 font-bold uppercase">
+                                Rewards Partner
+                            </p>
+
+                            <div className="flex flex-col items-center gap-2 group">
+                                <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+                                    {/* Red ambient glow */}
+                                    <div className="absolute inset-0 rounded-full bg-red-500/10 blur-xl group-hover:bg-red-500/20 transition-all duration-500" />
+                                    <div className="absolute inset-0 rounded-full border-2 border-red-500/20 group-hover:border-red-500/50 transition-all duration-300" />
+                                    
+                                    {/* Circular logo badge with white background to perfectly fit the logo */}
+                                    <div className="absolute inset-[3px] rounded-full bg-white overflow-hidden p-1 shadow-inner">
+                                        <div className="relative w-full h-full">
+                                            <Image
+                                                src="/partner-meraki.jpg"
+                                                alt="The Cafe Meraki"
+                                                fill
+                                                className="object-contain p-1.5 group-hover:scale-105 transition-transform duration-300"
+                                                sizes="80px"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] sm:text-[11px] text-zinc-400 tracking-widest font-semibold text-center leading-tight mt-1">
+                                    THE CAFE MERAKI
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+
                     {/* Match Schedule */}
                     <div className="flex flex-col items-center gap-4 px-6 py-5 rounded-3xl w-full border border-white/5 bg-white/[0.02] backdrop-blur-sm">
                         <h3 className="text-zinc-500 font-bold tracking-widest text-[10px] sm:text-xs uppercase">Match Schedule</h3>

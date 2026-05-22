@@ -31,8 +31,33 @@ const rajdhani = Rajdhani({
 });
 
 export const metadata: Metadata = {
-  title: "Varchasva Premier League",
-  description: "Official hub for the Varchasva college cricket tournament.",
+  title: "Varchasva Premier League Season 2 (VPL S2)",
+  description: "Official tournament hub for the Varchasva Premier League (VPL) Season 2. View live scores, standings, matches, squad sheets, and the live auction dashboard.",
+  keywords: ["VPL", "Varchasva Premier League", "Varchasva", "Cricket", "College Cricket", "Live Scores", "Auction", "S2"],
+  openGraph: {
+    title: "Varchasva Premier League Season 2 (VPL S2)",
+    description: "Official tournament hub for the Varchasva Premier League (VPL) Season 2. View live scores, standings, matches, squad sheets, and the live auction dashboard.",
+    url: "https://varchasva-premier-league.vercel.app",
+    siteName: "Varchasva Premier League",
+    locale: "en_IN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Varchasva Premier League Season 2 (VPL S2)",
+    description: "Official tournament hub for the Varchasva Premier League (VPL) Season 2. View live scores, standings, matches, squad sheets, and the live auction dashboard.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
