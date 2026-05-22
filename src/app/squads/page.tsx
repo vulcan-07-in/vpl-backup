@@ -1,4 +1,5 @@
-import { fetchSquads } from "@/lib/data";
+import { fetchSquads, fetchAllLiveStates } from "@/lib/data";
+import { calculateAllPlayerStats } from "@/lib/mvp";
 import SquadsClient from "./squads-client";
 import { Metadata } from "next";
 
@@ -11,5 +12,8 @@ export const metadata: Metadata = {
 
 export default async function SquadsPage() {
     const data = await fetchSquads(2);
-    return <SquadsClient initialData={data} />;
+    const liveStates = await fetchAllLiveStates();
+    const stats = calculateAllPlayerStats(liveStates);
+    return <SquadsClient initialData={data} playerStats={stats} />;
 }
+
