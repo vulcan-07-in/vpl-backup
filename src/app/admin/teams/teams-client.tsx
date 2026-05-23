@@ -154,22 +154,12 @@ function TeamCard({
                 ) : (
                     <div className="flex-1 min-w-0">
                         <p className="font-bold truncate">{team.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{team.shortName} · {team.purse} {team.paddleNumber && `(Paddle #${team.paddleNumber})`}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{team.shortName}{team.paddleNumber && ` · (Paddle #${team.paddleNumber})`}</p>
                     </div>
                 )}
             </div>
-
             {editing && (
                 <div className="space-y-3 mb-3 bg-black/40 p-3 rounded-xl border border-zinc-800">
-                    <div>
-                        <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">Purse</label>
-                        <input
-                            type="number"
-                            value={fields.purse}
-                            onChange={e => setFields(f => ({ ...f, purse: parseInt(e.target.value, 10) || 0 }))}
-                            className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono text-emerald-400"
-                        />
-                    </div>
                     <div>
                         <label className="text-[10px] text-zinc-500 tracking-widest uppercase block mb-1">Paddle Number</label>
                         <input

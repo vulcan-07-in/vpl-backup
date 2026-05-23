@@ -36,6 +36,7 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
     const [showForcePanel, setShowForcePanel] = useState(false);
     const [resetConfirm, setResetConfirm] = useState(false);
     const [wipeConfirm, setWipeConfirm] = useState(false);
+    const [wipeText, setWipeText] = useState("");
     const [undoConfirm, setUndoConfirm] = useState(false);
     const [endConfirm, setEndConfirm] = useState(false);
     const [forceTeamId, setForceTeamId] = useState("");
@@ -575,10 +576,25 @@ export default function AuctioneerClient({ players: initialPlayers, teams, initi
                             )}
 
                             {wipeConfirm ? (
-                                <div className="flex items-center gap-2 border-l border-zinc-800 pl-4">
-                                    <span className="text-xs text-red-500 font-bold">Wipe ALL data?</span>
-                                    <button onClick={() => { performAction('WIPE_ALL'); setWipeConfirm(false); }} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold animate-pulse">DO IT</button>
-                                    <button onClick={() => setWipeConfirm(false)} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">CANCEL</button>
+                                <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 py-1">
+                                    <span className="text-xs text-red-500 font-bold">Type "CONFIRM WIPE" to wipe ALL data</span>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={wipeText} 
+                                            onChange={(e) => setWipeText(e.target.value)} 
+                                            placeholder="CONFIRM WIPE" 
+                                            className="bg-black border border-red-900 rounded px-2 py-1 text-xs text-red-500 w-32"
+                                        />
+                                        <button 
+                                            onClick={() => { performAction('WIPE_ALL'); setWipeConfirm(false); setWipeText(""); }} 
+                                            disabled={wipeText !== "CONFIRM WIPE"}
+                                            className="bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold transition-all"
+                                        >
+                                            DO IT
+                                        </button>
+                                        <button onClick={() => { setWipeConfirm(false); setWipeText(""); }} className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded text-xs font-bold">CANCEL</button>
+                                    </div>
                                 </div>
                             ) : (
                                 <button onClick={() => setWipeConfirm(true)} className="text-red-500/60 hover:text-red-400 flex items-center gap-2 text-[10px] font-bold tracking-widest transition-colors uppercase border-l border-zinc-800 pl-4">

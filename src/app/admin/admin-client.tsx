@@ -513,7 +513,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             teamId: team.id, 
                                             name: t.pname.value, 
                                             role: t.prole.value, 
-                                            price: t.pprice.value 
+                                            price: 0 
                                         }, () => {
                                             fetchSquads();
                                             t.reset();
@@ -523,7 +523,6 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                         <select name="prole" className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-1 py-1 text-xs">
                                             <option>All Rounder</option><option>Batsman</option><option>Bowler</option>
                                         </select>
-                                        <input name="pprice" type="number" placeholder="₹" className="w-16 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs" defaultValue={0} required />
                                         <button type="submit" className="bg-amber-500 text-black px-2 py-1 rounded text-xs font-bold">+</button>
                                     </form>
                                 </div>
