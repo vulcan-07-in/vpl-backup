@@ -161,16 +161,39 @@ export async function POST(request: Request) {
 
         if (payload.action === "add_player") {
             const now = new Date().toISOString();
-            const { error } = await supabase.from("Player").insert({
-                id: crypto.randomUUID(),
+            
+            // Get team name for registrations table
+            const { data: team } = await supabase.from("Team").select("name").eq("id", payload.teamId).single();
+            if (!team) throw new Error("Team not found");
+
+            // Generate a unique ID for custom players
+            const accountId = `CUST-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
+            // Create account
+            const { error: accErr } = await supabase.from("varchasva_accounts").insert({
+                account_id: accountId,
                 name: payload.name,
+            });
+            if (accErr) throw new Error(accErr.message);
+
+            // Create registration
+            const { error: regErr } = await supabase.from("vpl_registrations").insert({
+                registration_id: `REG-${accountId}`,
+                account_id: accountId,
+                season: 2,
+                team_name: team.name,
                 role: payload.role,
                 price: parseInt(payload.price) || 0,
-                teamId: payload.teamId,
-                createdAt: now,
-                updatedAt: now,
+                is_approved: true,
+                is_captain: false,
+                tier: "CUSTOM"
             });
-            if (error) throw new Error(error.message);
+            if (regErr) {
+                // Rollback account
+                await supabase.from("varchasva_accounts").delete().eq("account_id", accountId);
+                throw new Error(regErr.message);
+            }
+
             await syncPurses();
             revalidatePath("/squads");
             revalidatePath("/admin");
@@ -178,8 +201,12 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "delete_player") {
-            const { error } = await supabase.from("Player").delete().eq("id", payload.playerId);
-            if (error) throw new Error(error.message);
+            // Try to delete from unified tables first
+            await supabase.from("vpl_registrations").delete().eq("account_id", payload.playerId).eq("season", 2);
+            await supabase.from("varchasva_accounts").delete().eq("account_id", payload.playerId);
+            // Fallback for legacy Player table just in case
+            await supabase.from("Player").delete().eq("id", payload.playerId);
+            
             await syncPurses();
             revalidatePath("/squads");
             revalidatePath("/admin");

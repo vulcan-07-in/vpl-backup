@@ -496,7 +496,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                 </div>
                                                 <button 
                                                     onClick={() => {
-                                                        const action = p.id.includes('-') && p.id.length > 20 ? "delete_player" : "remove_registered_player";
+                                                        const action = p.id.startsWith('CUST-') || (p.id.includes('-') && p.id.length > 20) ? "delete_player" : "remove_registered_player";
                                                         handleAction("/api/squads", { action, playerId: p.id, accountId: p.id }, fetchSquads);
                                                     }}
                                                     className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
