@@ -63,9 +63,36 @@ model Match {
 }
 
 
-// NOTE: varchasva_accounts and vpl_registrations are managed via raw SQL (not Prisma).
-// The app uses @supabase/supabase-js client directly against these tables.
-// Do NOT add Prisma models for them — Prisma would DROP and recreate them on db push.
+// varchasva_accounts and vpl_registrations are managed via raw SQL (not Prisma).
+// The app reads/writes them using @supabase/supabase-js directly.
+// The @@ignore directive tells Prisma: "this table exists, don't touch it."
+
+model varchasva_accounts {
+  account_id    String   @id
+  name          String
+  mobile_number String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now())
+
+  @@ignore
+}
+
+model vpl_registrations {
+  registration_id String   @id
+  account_id      String
+  season          Int      @default(2)
+  team_name       String   @default("UNSOLD")
+  role            String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now())
+  tier            String?
+  is_captain      Boolean  @default(false)
+  is_approved     Boolean  @default(true)
+  price           Int      @default(0)
+  gender          String   @default("Male")
+
+  @@ignore
+}
 
 model vpl_auction_state {
   id                   Int      @id @default(1)
