@@ -136,6 +136,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [openStriker, setOpenStriker] = useState("");
     const [openNonStriker, setOpenNonStriker] = useState("");
     const [openBowler, setOpenBowler] = useState("");
+    const [manualStriker, setManualStriker] = useState(false);
+    const [manualNonStriker, setManualNonStriker] = useState(false);
+    const [manualBowler, setManualBowler] = useState(false);
 
     // Initialize Toss from fixture if available
     useEffect(() => {
@@ -452,6 +455,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             tossDecision: tossDecision || "BAT",
             currentInnings,
             matchOvers: 8,
+            isFunMatch: match.isFunMatch ?? false,
             innings1: {
                 teamName: bat1,
                 runs: 0, wickets: 0, overs: 0,
@@ -579,6 +583,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         }
 
         const newState = getInitialState(selectedMatch, batFirst, bowlFirst);
+        if (selectedMatch.isFunMatch) {
+            newState.isFunMatch = true;
+        }
         setLiveState(newState);
         setActiveScreen("LIVE_SCORING");
 
@@ -607,7 +614,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             innings1: { teamName: selectedMatch.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
             innings2: { teamName: selectedMatch.team2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
             timeline: [],
-            lastSyncedAt: Date.now()
+            lastSyncedAt: Date.now(),
+            isFunMatch: selectedMatch.isFunMatch ?? false
         };
 
         setLiveState(newState);
@@ -1283,36 +1291,114 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             <div className="space-y-4 border-t border-zinc-800 pt-6 animate-in fade-in slide-in-from-top-4 duration-500">
                                 <label className="text-xs tracking-widest text-zinc-500 block font-bold uppercase">INITIAL PLAYERS</label>
 
-                                <div className="grid gap-3">
-                                    <select value={openStriker} onChange={(e) => setOpenStriker(e.target.value)} className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-amber-500 transition-colors">
-                                        <option value="" disabled>Select Striker...</option>
-                                        {(getSquadForTeam(
-                                            liveState?.currentInnings === 2 ? liveState.innings2.teamName :
-                                            (tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))
-                                        )).map(p => (
-                                            <option key={p} value={p}>{p}</option>
-                                        ))}
-                                    </select>
+                                <div className="grid gap-4">
+                                    {/* Striker Selector / Input */}
+                                    <div className="flex flex-col gap-1.5">
+                                        {selectedMatch.isFunMatch && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => {
+                                                        setManualStriker(!manualStriker);
+                                                        setOpenStriker("");
+                                                    }}
+                                                    className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualStriker ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                                                >
+                                                    {manualStriker ? "Use Squad Selection" : "⌨️ Manual Entry"}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {manualStriker ? (
+                                            <input
+                                                type="text"
+                                                value={openStriker}
+                                                placeholder="Type custom striker name..."
+                                                onChange={(e) => setOpenStriker(e.target.value)}
+                                                className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-amber-500 transition-colors placeholder:text-zinc-600 font-bold"
+                                            />
+                                        ) : (
+                                            <select value={openStriker} onChange={(e) => setOpenStriker(e.target.value)} className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-amber-500 transition-colors">
+                                                <option value="" disabled>Select Striker...</option>
+                                                {(getSquadForTeam(
+                                                    liveState?.currentInnings === 2 ? liveState.innings2.teamName :
+                                                    (tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))
+                                                )).map(p => (
+                                                    <option key={p} value={p}>{p}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
 
-                                    <select value={openNonStriker} onChange={(e) => setOpenNonStriker(e.target.value)} className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-amber-500 transition-colors">
-                                        <option value="" disabled>Select Non-Striker...</option>
-                                        {(getSquadForTeam(
-                                            liveState?.currentInnings === 2 ? liveState.innings2.teamName :
-                                            (tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))
-                                        )).map(p => (
-                                            <option key={p} value={p}>{p}</option>
-                                        ))}
-                                    </select>
+                                    {/* Non-Striker Selector / Input */}
+                                    <div className="flex flex-col gap-1.5">
+                                        {selectedMatch.isFunMatch && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => {
+                                                        setManualNonStriker(!manualNonStriker);
+                                                        setOpenNonStriker("");
+                                                    }}
+                                                    className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualNonStriker ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                                                >
+                                                    {manualNonStriker ? "Use Squad Selection" : "⌨️ Manual Entry"}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {manualNonStriker ? (
+                                            <input
+                                                type="text"
+                                                value={openNonStriker}
+                                                placeholder="Type custom non-striker name..."
+                                                onChange={(e) => setOpenNonStriker(e.target.value)}
+                                                className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-amber-500 transition-colors placeholder:text-zinc-600 font-bold"
+                                            />
+                                        ) : (
+                                            <select value={openNonStriker} onChange={(e) => setOpenNonStriker(e.target.value)} className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-amber-500 transition-colors">
+                                                <option value="" disabled>Select Non-Striker...</option>
+                                                {(getSquadForTeam(
+                                                    liveState?.currentInnings === 2 ? liveState.innings2.teamName :
+                                                    (tossDecision === "BAT" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))
+                                                )).map(p => (
+                                                    <option key={p} value={p}>{p}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
 
-                                    <select value={openBowler} onChange={(e) => setOpenBowler(e.target.value)} className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-blue-500 transition-colors">
-                                        <option value="" disabled>Select Opening Bowler...</option>
-                                        {(getSquadForTeam(
-                                            liveState?.currentInnings === 2 ? liveState.innings1.teamName :
-                                            (tossDecision === "BOWL" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))
-                                        )).map(p => (
-                                            <option key={p} value={p}>{p}</option>
-                                        ))}
-                                    </select>
+                                    {/* Opening Bowler Selector / Input */}
+                                    <div className="flex flex-col gap-1.5">
+                                        {selectedMatch.isFunMatch && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => {
+                                                        setManualBowler(!manualBowler);
+                                                        setOpenBowler("");
+                                                    }}
+                                                    className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualBowler ? "bg-blue-500 text-black shadow-md shadow-blue-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                                                >
+                                                    {manualBowler ? "Use Squad Selection" : "⌨️ Manual Entry"}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {manualBowler ? (
+                                            <input
+                                                type="text"
+                                                value={openBowler}
+                                                placeholder="Type custom opening bowler name..."
+                                                onChange={(e) => setOpenBowler(e.target.value)}
+                                                className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-blue-500 transition-colors placeholder:text-zinc-600 font-bold"
+                                            />
+                                        ) : (
+                                            <select value={openBowler} onChange={(e) => setOpenBowler(e.target.value)} className="w-full bg-zinc-800 text-white p-4 rounded-xl border border-zinc-700 outline-none focus:border-blue-500 transition-colors">
+                                                <option value="" disabled>Select Opening Bowler...</option>
+                                                {(getSquadForTeam(
+                                                    liveState?.currentInnings === 2 ? liveState.innings1.teamName :
+                                                    (tossDecision === "BOWL" ? tossWinner : (tossWinner === selectedMatch.team1 ? selectedMatch.team2 : selectedMatch.team1))
+                                                )).map(p => (
+                                                    <option key={p} value={p}>{p}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1581,30 +1667,40 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                     const name = e.target.value;
                                                     if (!name) return; // Ignore "CHANGE" placeholder
 
+                                                    let finalName = name;
+                                                    if (name === "MANUAL_ENTRY") {
+                                                        const prompted = window.prompt(`Enter manual player name for ${p.label}:`);
+                                                        if (!prompted || !prompted.trim()) return;
+                                                        finalName = prompted.trim();
+                                                    }
+
                                                     const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
                                                     const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
 
                                                     if (!p.isBowler) {
                                                         const otherSlot = p.pRef === "strikerRef" ? "nonStrikerRef" : "strikerRef";
-                                                        if (name === inn[otherSlot]) {
+                                                        if (finalName === inn[otherSlot]) {
                                                             alert("Player is already at the other end!");
                                                             return;
                                                         }
                                                     }
                                                     
                                                     if (p.isBowler) {
-                                                        if (!inn.bowlers[name]) inn.bowlers[name] = { name, runs: 0, wickets: 0, overs: 0, maidens: 0 };
-                                                        inn.currentBowlerRef = name;
+                                                        if (!inn.bowlers[finalName]) inn.bowlers[finalName] = { name: finalName, runs: 0, wickets: 0, overs: 0, maidens: 0 };
+                                                        inn.currentBowlerRef = finalName;
                                                     } else {
-                                                        if (!inn.batsmen[name]) inn.batsmen[name] = { name, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
-                                                        if (p.pRef === "strikerRef") inn.strikerRef = name;
-                                                        else inn.nonStrikerRef = name;
+                                                        if (!inn.batsmen[finalName]) inn.batsmen[finalName] = { name: finalName, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false };
+                                                        if (p.pRef === "strikerRef") inn.strikerRef = finalName;
+                                                        else inn.nonStrikerRef = finalName;
                                                     }
                                                     pushUpdate(state);
                                                 }}
                                                 className="bg-zinc-800 text-[10px] font-bold text-white border-zinc-700 rounded px-1 py-0.5 outline-none focus:border-amber-500 transition-colors"
                                             >
                                                 <option value="">CHANGE</option>
+                                                {liveState?.isFunMatch && (
+                                                    <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
+                                                )}
                                                 {getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName)
                                                     .filter(name => {
                                                         if (name === p.ref) return true;
@@ -1643,11 +1739,20 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 <h4 className="text-white font-bold tracking-widest mb-1 text-sm uppercase">OVER COMPLETE</h4>
                                                 <select
                                                     onChange={(e) => {
+                                                        const bName = e.target.value;
+                                                        if (!bName) return;
+
+                                                        let finalName = bName;
+                                                        if (bName === "MANUAL_ENTRY") {
+                                                            const prompted = window.prompt("Enter manual next bowler name:");
+                                                            if (!prompted || !prompted.trim()) return;
+                                                            finalName = prompted.trim();
+                                                        }
+
                                                         const state = JSON.parse(JSON.stringify(liveState)) as LiveMatchState;
                                                         const inn = state.currentInnings === 1 ? state.innings1 : state.innings2;
-                                                        const bName = e.target.value;
-                                                        if (!inn.bowlers[bName]) inn.bowlers[bName] = { name: bName, runs: 0, wickets: 0, overs: 0, maidens: 0 };
-                                                        inn.currentBowlerRef = bName;
+                                                        if (!inn.bowlers[finalName]) inn.bowlers[finalName] = { name: finalName, runs: 0, wickets: 0, overs: 0, maidens: 0 };
+                                                        inn.currentBowlerRef = finalName;
                                                         setOverJustCompleted(false);
                                                         setIsScoringLocked(false);
                                                         pushUpdate(state);
@@ -1655,6 +1760,9 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                     className="w-full bg-zinc-800 text-white p-4 rounded-xl border-2 border-amber-500/50 outline-none text-center font-bold text-sm min-h-[56px]"
                                                 >
                                                     <option value="">NEXT BOWLER</option>
+                                                    {liveState?.isFunMatch && (
+                                                        <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
+                                                    )}
                                                     {getSquadForTeam(fieldingInningsData.teamName).map(p => (
                                                         <option key={p} value={p}>{p}</option>
                                                     ))}
@@ -2085,10 +2193,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block uppercase">3. {wicketType === 'RUNOUT' ? 'FIELDER WHO RUN OUT' : 'FIELDER WHO CAUGHT/STUMPED'}</label>
                                     <select
                                         value={wicketFielder}
-                                        onChange={(e) => setWicketFielder(e.target.value)}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === "MANUAL_ENTRY") {
+                                                const prompted = window.prompt("Enter manual fielder name:");
+                                                if (prompted && prompted.trim()) {
+                                                    setWicketFielder(prompted.trim());
+                                                }
+                                            } else {
+                                                setWicketFielder(val);
+                                            }
+                                        }}
                                         className="w-full bg-black border border-zinc-800 text-white rounded-xl p-4 font-bold outline-none focus:border-red-500 transition-colors"
                                     >
                                         <option value="">SELECT FIELDER (OPTIONAL)</option>
+                                        {liveState.isFunMatch && (
+                                            <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
+                                        )}
                                         {getSquadForTeam(liveState.currentInnings === 1 ? liveState.innings2.teamName : liveState.innings1.teamName).map(p => (
                                             <option key={p} value={p}>{p}</option>
                                         ))}
@@ -2114,10 +2235,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">WHO IS THE NEW BATSMAN?</label>
                                 <select
                                     value={wicketNewBatsman || ""}
-                                    onChange={(e) => setWicketNewBatsman(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "MANUAL_ENTRY") {
+                                            const prompted = window.prompt("Enter manual new batsman name:");
+                                            if (prompted && prompted.trim()) {
+                                                setWicketNewBatsman(prompted.trim());
+                                            }
+                                        } else {
+                                            setWicketNewBatsman(val);
+                                        }
+                                    }}
                                     className="w-full bg-black border-2 border-zinc-800 text-white rounded-xl p-5 text-lg font-bold tracking-wide focus:border-amber-500 outline-none transition-all"
                                 >
                                     <option value="" disabled>Select Player...</option>
+                                    {liveState.isFunMatch && (
+                                        <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
+                                    )}
                                     {getSquadForTeam(inn.teamName)
                                         .filter(p => !inn.batsmen[p] || (!inn.batsmen[p].isOut && p !== inn.strikerRef && p !== inn.nonStrikerRef))
                                         .map(p => (

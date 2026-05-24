@@ -262,7 +262,25 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                 {tab === "matches" && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                            <h2 className="text-xl font-black tracking-widest mb-6 flex items-center gap-2"><CalendarDays className="text-amber-500"/> Schedule Match</h2>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-black tracking-widest flex items-center gap-2"><CalendarDays className="text-amber-500"/> Schedule Match</h2>
+                                <div className="flex gap-2">
+                                    <button onClick={() => {
+                                        if(confirm("Are you sure you want to auto-generate all group and playoff fixtures?")) {
+                                            handleAction("/api/matches", { action: "auto_generate" }, fetchMatches);
+                                        }
+                                    }} className="bg-zinc-800 hover:bg-zinc-700 text-xs font-bold px-3 py-1.5 rounded text-white tracking-widest uppercase transition-colors">
+                                        Auto-Gen
+                                    </button>
+                                    <button onClick={() => {
+                                        if(prompt("Type 'DELETE ALL' to clear all fixtures.") === "DELETE ALL") {
+                                            handleAction("/api/matches", { action: "delete_all" }, fetchMatches);
+                                        }
+                                    }} className="bg-red-500/20 text-red-500 hover:bg-red-500/40 text-xs font-bold px-3 py-1.5 rounded tracking-widest uppercase transition-colors">
+                                        Wipe
+                                    </button>
+                                </div>
+                            </div>
                             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleAction("/api/matches", { action: "create_match", ...newMatch }, fetchMatches); }}>
                                 <div className="grid grid-cols-2 gap-4">
                                     <input type="text" placeholder="Match No (e.g. 1)" value={newMatch.matchNo} onChange={e => setNewMatch({...newMatch, matchNo: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required />

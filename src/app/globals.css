@@ -66,3 +66,32 @@ body {
   pointer-events: none;
   transform: translateZ(0);
 }
+
+/* ==========================================
+   PREMIUM CUSTOM SCROLLBAR
+   ========================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(234, 179, 8, 0.25); /* Elegant translucent gold thumb */
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 179, 8, 0.55); /* Luminous gold on hover */
+}
+
+/* Firefox compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 179, 8, 0.25) rgba(0, 0, 0, 0.4);
+}

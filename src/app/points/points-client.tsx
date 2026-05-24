@@ -13,10 +13,112 @@ import { motion } from "framer-motion";
 
 // ── Qualification logic ─────────────────────────────────────────────────────
 
-function qualifiedTeams(standings: Standing[]): Set<string> {
-    // Top 2 from each group advance
+function qualifiedTeams(groupLetter: "A" | "B" | "C", groupTeams: Standing[], fixtures: Fixture[], liveStates: Record<string, any>): Set<string> {
     const qualified = new Set<string>();
-    standings.slice(0, 2).forEach(s => qualified.add(s.team));
+    if (groupTeams.length === 0) return qualified;
+
+    // Filter fixtures for this group
+    const groupFixtures = fixtures.filter(f => f.group === groupLetter && !f.isFunMatch);
+    if (groupFixtures.length === 0) return qualified;
+
+    const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+
+    // Parse status and winner for all fixtures in this group
+    const parsedFixtures = groupFixtures.map(f => {
+        const normNo = cleanId(f.matchNo);
+        const lm = liveStates[normNo] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
+        const status = lm?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
+        const winner = f.winner || lm?.winner;
+        return {
+            team1: f.team1,
+            team2: f.team2,
+            winner,
+            status,
+        };
+    });
+
+    const completed = parsedFixtures.filter(f => f.winner || f.status === "COMPLETED" || f.status === "ABANDONED");
+    const remaining = parsedFixtures.filter(f => !f.winner && f.status !== "COMPLETED" && f.status !== "ABANDONED");
+
+    // If no matches have been played at all, no one is qualified
+    if (completed.length === 0) {
+        return qualified;
+    }
+
+    const teamNames = groupTeams.map(t => t.team);
+
+    // Helper to calculate simulated points for a given set of outcomes
+    const outcomes: Array<Record<string, number>> = [];
+
+    const simulate = (index: number, currentPoints: Record<string, number>) => {
+        if (index === remaining.length) {
+            outcomes.push({ ...currentPoints });
+            return;
+        }
+
+        const match = remaining[index];
+        
+        // Scenario 1: Team 1 wins
+        const pts1 = { ...currentPoints };
+        pts1[match.team1] = (pts1[match.team1] || 0) + 2;
+        pts1[match.team2] = (pts1[match.team2] || 0) + 0;
+        simulate(index + 1, pts1);
+
+        // Scenario 2: Team 2 wins
+        const pts2 = { ...currentPoints };
+        pts2[match.team1] = (pts2[match.team1] || 0) + 0;
+        pts2[match.team2] = (pts2[match.team2] || 0) + 2;
+        simulate(index + 1, pts2);
+    };
+
+    // Calculate base points from completed matches
+    const basePoints: Record<string, number> = {};
+    teamNames.forEach(name => { basePoints[name] = 0; });
+
+    completed.forEach(f => {
+        if (f.winner === f.team1) {
+            basePoints[f.team1] = (basePoints[f.team1] || 0) + 2;
+        } else if (f.winner === f.team2) {
+            basePoints[f.team2] = (basePoints[f.team2] || 0) + 2;
+        } else if (f.winner === "TIE" || f.winner === "ABANDONED" || f.status === "ABANDONED") {
+            basePoints[f.team1] = (basePoints[f.team1] || 0) + 1;
+            basePoints[f.team2] = (basePoints[f.team2] || 0) + 1;
+        }
+    });
+
+    // Start simulation
+    simulate(0, basePoints);
+
+    // For each team, check if they are in the top 2 in ALL simulated outcomes
+    teamNames.forEach(team => {
+        let qualifiedInAll = true;
+
+        for (const outcome of outcomes) {
+            // Sort teams based on points in this outcome
+            const sorted = [...teamNames].sort((a, b) => {
+                const ptsA = outcome[a] || 0;
+                const ptsB = outcome[b] || 0;
+                if (ptsA !== ptsB) return ptsB - ptsA; // Higher points first
+                
+                // Tiebreaker: current NRR
+                const nrrA = groupTeams.find(t => t.team === a)?.nrr || 0;
+                const nrrB = groupTeams.find(t => t.team === b)?.nrr || 0;
+                return nrrB - nrrA;
+            });
+
+            // Is the team in the top 2?
+            const rank = sorted.indexOf(team);
+            if (rank > 1) {
+                qualifiedInAll = false;
+                break;
+            }
+        }
+
+        if (qualifiedInAll) {
+            qualified.add(team);
+        }
+    });
+
     return qualified;
 }
 
@@ -298,9 +400,9 @@ export default function PointsClient({
 }) {
     const { groupA, groupB, groupC } = calculateStandings(fixtures, teams, liveStates);
 
-    const qualifiedA = qualifiedTeams(groupA);
-    const qualifiedB = qualifiedTeams(groupB);
-    const qualifiedC = qualifiedTeams(groupC);
+    const qualifiedA = qualifiedTeams("A", groupA, fixtures, liveStates);
+    const qualifiedB = qualifiedTeams("B", groupB, fixtures, liveStates);
+    const qualifiedC = qualifiedTeams("C", groupC, fixtures, liveStates);
 
     const hasGroupC = groupC.length > 0;
 
@@ -318,7 +420,7 @@ export default function PointsClient({
 
     return (
         <main className="min-h-screen pt-24 pb-16 px-4 md:pt-28">
-            <div className="max-w-3xl mx-auto">
+            <div className={`${hasGroupC ? "max-w-7xl" : "max-w-3xl"} mx-auto`}>
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}

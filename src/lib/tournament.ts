@@ -6,6 +6,7 @@ export interface Team {
     logoUrl?: string;
     paddleNumber?: number;
     purse?: number;
+    groupId?: "A" | "B" | "C";
 }
 
 // S1 had only Group A / B and two semis.
@@ -217,6 +218,13 @@ export function calculateStandings(
             };
         }
     };
+
+    // 1. Pre-populate teams so they appear even if they haven't played any fixtures
+    teams.forEach(t => {
+        if (t.groupId && ["A", "B", "C"].includes(t.groupId)) {
+            ensureTeam(t.teamName, t.groupId);
+        }
+    });
 
     // Helper to calculate overs for NRR (converts 2.4 to 2 + 4/6)
     const decimalOversToBalls = (overs: number) => {

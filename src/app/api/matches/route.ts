@@ -91,6 +91,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ ok: true });
         }
 
+        if (payload.action === "delete_all") {
+            const { error } = await supabase.from("Match").delete().neq("id", "0");
+            if (error) throw new Error(error.message);
+            
+            // Note: We might want to clear all redis s2:live_match keys but typically wipe all is only used at start.
+            
+            revalidatePath("/matches");
+            revalidatePath("/points");
+            revalidatePath("/");
+            return NextResponse.json({ ok: true });
+        }
+
         if (payload.action === "clear_winner") {
             const { error } = await supabase
                 .from("Match")

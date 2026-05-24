@@ -21,6 +21,14 @@ export async function GET(request: Request) {
     }
 
     try {
+        // Fetch isFunMatch flag dynamically from Supabase Match table
+        const { data: matchRow } = await supabase
+            .from('Match')
+            .select('isFunMatch')
+            .eq('matchNo', matchId)
+            .single();
+        const isFunMatch = matchRow?.isFunMatch ?? false;
+
         // 1. Try the live Redis key
         let data = await redis.get(liveKey(matchId));
         let matchState = data ? JSON.parse(data) as LiveMatchState : null;
@@ -49,6 +57,9 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Match not found or not live' }, { status: 404 });
         }
 
+        // Force bind isFunMatch to the returned live state
+        matchState.isFunMatch = isFunMatch;
+
         return NextResponse.json(matchState, {
             headers: {
                 // Edge cache: serve stale for up to 3s (matches client poll interval)
@@ -72,6 +83,16 @@ export async function POST(request: Request) {
 
         if (!body.matchId) {
             return NextResponse.json({ error: 'Match ID is required in payload' }, { status: 400 });
+        }
+
+        // Fetch isFunMatch flag dynamically from Supabase Match table
+        const { data: matchRow } = await supabase
+            .from('Match')
+            .select('isFunMatch')
+            .eq('matchNo', body.matchId)
+            .single();
+        if (matchRow?.isFunMatch) {
+            body.isFunMatch = true;
         }
 
         const redisKey = liveKey(body.matchId);

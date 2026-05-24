@@ -15,6 +15,7 @@ const mapTeam = (row: any, logoUrl?: string, paddleNumber?: number): Team => ({
   teamName: row.name,
   shortName: row.shortName,
   color: row.color,
+  groupId: row.groupId as any,
   logoUrl: logoUrl || undefined,
   paddleNumber: paddleNumber,
 });
@@ -44,7 +45,7 @@ export async function fetchTeams(season: number = 1): Promise<Team[]> {
   if (season === 2) {
     const { data, error } = await supabase
       .from("Team")
-      .select("id, name, shortName, color")
+      .select("id, name, shortName, color, groupId")
       .order("name", { ascending: true });
     if (error) {
       console.error("Supabase fetchTeams error:", error);
@@ -180,7 +181,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
   if (season === 2) {
     const { data: matches, error: matchErr } = await supabase
       .from("Match")
-      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId, status, tossWinnerId, tossDecision")
+      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId, status, tossWinnerId, tossDecision, isFunMatch")
       .order("matchNo", { ascending: true });
     if (matchErr) {
       console.error("Supabase fetchFixtures match error:", matchErr);
@@ -192,7 +193,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       return [];
     }
     type TeamIdRow = { id: string; name: string };
-    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null; status: string; tossWinnerId: string | null; tossDecision: string | null };
+    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null; status: string; tossWinnerId: string | null; tossDecision: string | null; isFunMatch?: boolean };
     const idToName = new Map<string, string>((teams as TeamIdRow[] || []).map((t: TeamIdRow) => [t.id, t.name]));
     return (matches as MatchRow[] || []).map((m: MatchRow) => ({
       matchNo: m.matchNo,
@@ -203,6 +204,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       winner: m.status === "ABANDONED" ? "ABANDONED" : (m.winnerId ? idToName.get(m.winnerId) ?? "" : ""),
       tossWinner: m.tossWinnerId ? idToName.get(m.tossWinnerId) ?? "" : "",
       tossDecision: m.tossDecision ?? "",
+      isFunMatch: m.isFunMatch ?? false,
       sortOrder: parseInt(m.matchNo.replace(/[^0-9]/g, "")) || 0,
     }));
   }
