@@ -10,6 +10,8 @@ build/
 # Environment files
 .env
 .env*.local
+.env.production
+.env.staging
 
 # Vercel
 .vercel
@@ -23,6 +25,11 @@ scratch.txt
 refactor.js
 vpl_backup_*.json
 old_*.tsx.tmp
+
+# Scratch scripts and database dumps (contain credentials and sensitive data)
+scratch/*.mjs
+scratch/*.js
+scratch/prod_backup_*.json
 
 # Debug logs
 npm-debug.log*

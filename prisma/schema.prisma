@@ -63,33 +63,9 @@ model Match {
 }
 
 
-model VarchasvaAccount {
-  id           String             @id @default(uuid())
-  accountId    String             @unique
-  name         String
-  mobileNumber String?            @unique
-  vplRegs      VplRegistration[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-}
-
-model VplRegistration {
-  id             String             @id @default(uuid())
-  registrationId String             @unique
-  accountId      String
-  account        VarchasvaAccount   @relation(fields: [accountId], references: [accountId])
-  season         Int
-  teamName       String
-  role           String?
-  tier           String?
-  is_approved    Boolean            @default(false)
-  is_captain     Boolean            @default(false)
-  price          Int                @default(0)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-
-  @@unique([accountId, season])
-}
+// NOTE: varchasva_accounts and vpl_registrations are managed via raw SQL (not Prisma).
+// The app uses @supabase/supabase-js client directly against these tables.
+// Do NOT add Prisma models for them — Prisma would DROP and recreate them on db push.
 
 model vpl_auction_state {
   id                   Int      @id @default(1)
