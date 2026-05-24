@@ -72,9 +72,28 @@ DROP POLICY IF EXISTS "Allow read for anon" ON vpl_auction_history;
 CREATE POLICY "Allow read for anon" ON vpl_auction_history FOR SELECT USING (true);
 
 -- 5. Enable realtime for auction tables (required for viewer/auctioneer live updates)
-ALTER PUBLICATION supabase_realtime ADD TABLE vpl_auction_state;
-ALTER PUBLICATION supabase_realtime ADD TABLE vpl_auction_history;
-ALTER PUBLICATION supabase_realtime ADD TABLE vpl_registrations;
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'vpl_auction_state'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE vpl_auction_state;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'vpl_auction_history'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE vpl_auction_history;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'vpl_registrations'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE vpl_registrations;
+    END IF;
+END $$;
 
 -- 6. Drop restrictive tier check constraint to allow custom tier values (TIER 3, TIER 4, etc.)
 ALTER TABLE vpl_registrations DROP CONSTRAINT IF EXISTS vpl_registrations_tier_check;

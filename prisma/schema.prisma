@@ -56,6 +56,7 @@ model Match {
   tossDecision  String?   // "BAT" or "BOWL"
   
   liveState     Json?     // Persistent snapshot of the live match state (innings, balls, etc.)
+  isFunMatch    Boolean   @default(false)
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -91,12 +92,15 @@ model VplRegistration {
 }
 
 model vpl_auction_state {
-  id               Int      @id @default(1)
-  status           String
-  active_player_id String?
-  current_bid      Int      @default(0)
-  leading_team_id  String?
-  last_update      DateTime @default(now())
+  id                   Int      @id @default(1)
+  status               String
+  active_player_id     String?
+  current_bid          Int      @default(0)
+  leading_team_id      String?
+  last_update          DateTime @default(now())
+  show_pool_to_viewers Boolean  @default(true)
+  active_pool          String?
+  bid_increment        Int?
 }
 
 model vpl_auction_history {
