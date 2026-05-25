@@ -492,14 +492,28 @@ export function resolveS2Playoffs(
         return battingRR - bowlingRR;
     };
 
-    // Dynamically rank the Eliminator winners based on their total NRR
+    const standings = calculateStandings(fixtures, teams, liveStates);
+    const getTeamGroupPoints = (teamName: string) => {
+        for (const grp of [standings.groupA, standings.groupB, standings.groupC]) {
+            const t = grp.find(x => x.team === teamName);
+            if (t) return t.points;
+        }
+        return 0;
+    };
+
+    // Dynamically rank the Eliminator winners based on Points, then total NRR
     const e1w = getWinner("Eliminator 1");
     const e2w = getWinner("Eliminator 2");
     const e3w = getWinner("Eliminator 3");
     
     let rankedWinners: string[] = [];
     if (e1w && e2w && e3w) {
-        rankedWinners = [e1w, e2w, e3w].sort((a, b) => calculateTotalNRR(b) - calculateTotalNRR(a));
+        rankedWinners = [e1w, e2w, e3w].sort((a, b) => {
+            const ptsA = getTeamGroupPoints(a);
+            const ptsB = getTeamGroupPoints(b);
+            if (ptsA !== ptsB) return ptsB - ptsA;
+            return calculateTotalNRR(b) - calculateTotalNRR(a);
+        });
     }
 
     return fixtures.map(f => {
