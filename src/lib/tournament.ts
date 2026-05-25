@@ -436,7 +436,19 @@ export function resolveS2Playoffs(
     liveStates: Record<string, LiveMatchState> = {}
 ): Fixture[] {
     const seeds = computePlayoffSeedings(fixtures, teams, liveStates);
-    const getTeam = (seed: number) => seeds.find(s => s.seed === seed)?.team ?? `Seed ${seed}`;
+    
+    const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
+    const isGroupStageComplete = groupMatches.length > 0 && groupMatches.every(f => {
+        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
+        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
+        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
+    });
+
+    const getTeam = (seed: number) => {
+        if (!isGroupStageComplete) return `Seed ${seed}`;
+        return seeds.find(s => s.seed === seed)?.team ?? `Seed ${seed}`;
+    };
 
     const getWinner = (stage: Stage) =>
         fixtures.find(f => f.stage === stage)?.winner ?? "";
