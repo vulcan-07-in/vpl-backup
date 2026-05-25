@@ -237,7 +237,7 @@ const ELIMINATOR_MATCHUPS = [
     { label: "Eliminator 3", ranks: [3, 4] },
 ];
 
-function PlayoffRankingSection({ ranks }: { ranks: PlayoffRank[] }) {
+function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: PlayoffRank[], isGroupStageComplete: boolean }) {
     if (ranks.filter(s => s.team).length === 0) return null;
 
     return (
@@ -264,9 +264,11 @@ function PlayoffRankingSection({ ranks }: { ranks: PlayoffRank[] }) {
                             {s.rank}
                         </span>
                         <div>
-                            <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>{s.team}</p>
+                            <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>
+                                {isGroupStageComplete ? s.team : "TBD"}
+                            </p>
                             <p className="text-[10px] text-zinc-600 tracking-widest">
-                                GRP {s.group} · NRR {s.nrr > 0 ? "+" : ""}{s.nrr.toFixed(3)}
+                                {isGroupStageComplete ? `GRP ${s.group} · NRR ${s.nrr > 0 ? "+" : ""}${s.nrr.toFixed(3)}` : "AWAITING CONFIRMATION"}
                             </p>
                         </div>
                     </div>
@@ -291,7 +293,7 @@ function PlayoffRankingSection({ ranks }: { ranks: PlayoffRank[] }) {
                                 {[t1, t2].map((t, i) => t ? (
                                     <div key={i} className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "#EAB308" }} />
-                                        <span className="text-sm text-white font-semibold">{t.team}</span>
+                                        <span className="text-sm text-white font-semibold">{isGroupStageComplete ? t.team : `Rank ${t.rank}`}</span>
                                         <span className="text-[10px] text-zinc-600 ml-auto">#{t.rank}</span>
                                     </div>
                                 ) : (
@@ -412,6 +414,14 @@ export default function PointsClient({
         ? computePlayoffRankings(fixtures, teams, liveStates)
         : [];
 
+    const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
+    const isGroupStageComplete = groupMatches.length > 0 && groupMatches.every(f => {
+        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        const liveMatch = liveStates?.[cleanId] || liveStates?.[String(f.matchNo).trim()] || liveStates?.[f.matchNo];
+        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
+        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
+    });
+
     // Resolve S2 bracket labels
     const resolvedFixtures = hasGroupC
         ? resolveS2Playoffs(fixtures, teams, liveStates)
@@ -474,7 +484,7 @@ export default function PointsClient({
 
                         {/* Playoff Seedings Section (S2 only) */}
                         {hasGroupC && ranks.length > 0 && (
-                            <PlayoffRankingSection ranks={ranks} />
+                            <PlayoffRankingSection ranks={ranks} isGroupStageComplete={isGroupStageComplete} />
                         )}
 
                         {hasGroupC && (
