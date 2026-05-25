@@ -1321,19 +1321,17 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 <div className="grid gap-4">
                                     {/* Striker Selector / Input */}
                                     <div className="flex flex-col gap-1.5">
-                                        {selectedMatch.isFunMatch && (
-                                            <div className="flex justify-end">
-                                                <button
-                                                    onClick={() => {
-                                                        setManualStriker(!manualStriker);
-                                                        setOpenStriker("");
-                                                    }}
-                                                    className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualStriker ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
-                                                >
-                                                    {manualStriker ? "Use Squad Selection" : "⌨️ Manual Entry"}
-                                                </button>
-                                            </div>
-                                        )}
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={() => {
+                                                    setManualStriker(!manualStriker);
+                                                    setOpenStriker("");
+                                                }}
+                                                className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualStriker ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                                            >
+                                                {manualStriker ? "Use Squad Selection" : "⌨️ Manual Entry"}
+                                            </button>
+                                        </div>
                                         {manualStriker ? (
                                             <input
                                                 type="text"
@@ -1357,19 +1355,17 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                                     {/* Non-Striker Selector / Input */}
                                     <div className="flex flex-col gap-1.5">
-                                        {selectedMatch.isFunMatch && (
-                                            <div className="flex justify-end">
-                                                <button
-                                                    onClick={() => {
-                                                        setManualNonStriker(!manualNonStriker);
-                                                        setOpenNonStriker("");
-                                                    }}
-                                                    className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualNonStriker ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
-                                                >
-                                                    {manualNonStriker ? "Use Squad Selection" : "⌨️ Manual Entry"}
-                                                </button>
-                                            </div>
-                                        )}
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={() => {
+                                                    setManualNonStriker(!manualNonStriker);
+                                                    setOpenNonStriker("");
+                                                }}
+                                                className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualNonStriker ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                                            >
+                                                {manualNonStriker ? "Use Squad Selection" : "⌨️ Manual Entry"}
+                                            </button>
+                                        </div>
                                         {manualNonStriker ? (
                                             <input
                                                 type="text"
@@ -1393,19 +1389,17 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                                     {/* Opening Bowler Selector / Input */}
                                     <div className="flex flex-col gap-1.5">
-                                        {selectedMatch.isFunMatch && (
-                                            <div className="flex justify-end">
-                                                <button
-                                                    onClick={() => {
-                                                        setManualBowler(!manualBowler);
-                                                        setOpenBowler("");
-                                                    }}
-                                                    className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualBowler ? "bg-blue-500 text-black shadow-md shadow-blue-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
-                                                >
-                                                    {manualBowler ? "Use Squad Selection" : "⌨️ Manual Entry"}
-                                                </button>
-                                            </div>
-                                        )}
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={() => {
+                                                    setManualBowler(!manualBowler);
+                                                    setOpenBowler("");
+                                                }}
+                                                className={`px-3 py-1 rounded-lg text-[9px] font-bold tracking-widest uppercase transition-all ${manualBowler ? "bg-amber-500 text-black shadow-md shadow-amber-500/10" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+                                            >
+                                                {manualBowler ? "Use Squad Selection" : "⌨️ Manual Entry"}
+                                            </button>
+                                        </div>
                                         {manualBowler ? (
                                             <input
                                                 type="text"
@@ -1592,10 +1586,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     </div>
                 </div>
 
-                {/* Main iPad Grid - Height Constrained */}
-                <div className="p-4 max-w-7xl mx-auto grid grid-cols-12 gap-4 flex-1 min-h-0 w-full overflow-hidden">
+                {/* Main Grid - Scrollable on Mobile, Constrained on Desktop */}
+                <div className="p-4 max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-4 flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden">
                     {/* LEFT COL: Live Scoreboard (The "Big Board") */}
-                    <div className="col-span-6 flex flex-col gap-4 overflow-hidden h-full min-h-0">
+                    <div className="lg:col-span-6 flex flex-col gap-4 overflow-visible lg:overflow-hidden h-auto lg:h-full min-h-0">
                         {/* Main Score Card */}
                         <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-6 ${isSecondInnings && target !== null ? 'pb-14' : ''} relative overflow-hidden flex flex-col justify-center items-center text-center shadow-lg min-h-[180px] shrink-0`}>
                             <div className="absolute top-0 w-full h-full opacity-[0.15] blur-3xl pointer-events-none" style={{ backgroundColor: battingTeamColor }} />
@@ -1670,7 +1664,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     </div>
 
                     {/* RIGHT COL: Control Center (The "Buttons") */}
-                    <div className="col-span-6 flex flex-col gap-4 overflow-hidden h-full min-h-0">
+                    <div className="lg:col-span-6 flex flex-col gap-4 overflow-visible lg:overflow-hidden h-auto lg:h-full min-h-0">
                         {/* Player Statistics & Quick Change */}
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 shrink-0">
                             <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 border-b border-zinc-800 pb-2 uppercase">Active Players</h3>
@@ -1725,9 +1719,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 className="bg-zinc-800 text-[10px] font-bold text-white border-zinc-700 rounded px-1 py-0.5 outline-none focus:border-amber-500 transition-colors"
                                             >
                                                 <option value="">CHANGE</option>
-                                                {liveState?.isFunMatch && (
-                                                    <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
-                                                )}
+                                                <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
                                                 {getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName)
                                                     .filter(name => {
                                                         if (name === p.ref) return true;
@@ -1787,9 +1779,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                     className="w-full bg-zinc-800 text-white p-4 rounded-xl border-2 border-amber-500/50 outline-none text-center font-bold text-sm min-h-[56px]"
                                                 >
                                                     <option value="">NEXT BOWLER</option>
-                                                    {liveState?.isFunMatch && (
-                                                        <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
-                                                    )}
+                                                    <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
                                                     {getSquadForTeam(fieldingInningsData.teamName).map(p => (
                                                         <option key={p} value={p}>{p}</option>
                                                     ))}
@@ -2276,9 +2266,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                     className="w-full bg-black border-2 border-zinc-800 text-white rounded-xl p-5 text-lg font-bold tracking-wide focus:border-amber-500 outline-none transition-all"
                                 >
                                     <option value="" disabled>Select Player...</option>
-                                    {liveState.isFunMatch && (
-                                        <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
-                                    )}
+                                    <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
                                     {getSquadForTeam(inn.teamName)
                                         .filter(p => !inn.batsmen[p] || (!inn.batsmen[p].isOut && p !== inn.strikerRef && p !== inn.nonStrikerRef))
                                         .map(p => (

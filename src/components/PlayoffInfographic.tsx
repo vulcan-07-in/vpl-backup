@@ -19,6 +19,11 @@ export default function PlayoffInfographic() {
                 <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
 
+            <div className="md:hidden flex items-center justify-center gap-2 mb-4 text-[10px] text-amber-500/70 tracking-widest uppercase animate-pulse">
+                <span>Swipe to view full bracket</span>
+                <span>→</span>
+            </div>
+
             {/* Desktop Bracket Diagram Container */}
             <div className="min-w-[850px] bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 relative shadow-2xl flex items-center justify-between">
                 

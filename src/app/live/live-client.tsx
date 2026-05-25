@@ -722,25 +722,44 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
-                                {[...liveMatch.timeline].reverse().slice(0, 12).map((ball, idx) => (
-                                    <motion.div 
-                                        key={ball.id} 
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="flex flex-col items-center gap-2 min-w-[56px]"
-                                    >
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border-2 shadow-2xl transition-all duration-300 transform hover:scale-110 ${
-                                            ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/40 rotate-3' : 
-                                            ball.runs >= 4 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/20 -rotate-3' : 
-                                            'bg-white/5 border-white/10 text-zinc-100'
-                                        }`}>
-                                            {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
+                            <div className="flex flex-col gap-6 w-full mt-4">
+                                {Object.entries(
+                                    liveMatch.timeline.reduce((acc: any, ball) => {
+                                        const getOverNum = (o: number) => Math.floor(o) + 1;
+                                        const overNum = getOverNum(ball.over);
+                                        if (!acc[overNum]) acc[overNum] = [];
+                                        acc[overNum].push(ball);
+                                        return acc;
+                                    }, {})
+                                ).sort((a, b) => Number(b[0]) - Number(a[0])).slice(0, 3).map(([overNum, balls]: [string, any]) => (
+                                    <div key={overNum} className="flex flex-col gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-white font-black italic text-lg md:text-xl tracking-widest uppercase">OVER {overNum}</span>
+                                            <div className="flex-1 h-px bg-white/10" />
+                                            <span className="text-amber-500 font-bold tracking-widest text-[10px] md:text-xs uppercase bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">{balls.reduce((s: number, b: any) => s + b.runs + b.extras, 0)} RUNS</span>
                                         </div>
-                                        <span className="text-[9px] font-black text-zinc-500 font-mono tracking-tighter">
-                                            {ball.extraType === 'WD' || ball.extraType === 'NB' ? '' : `${Math.floor(ball.over)}.${Math.round((ball.over % 1) * 10) + 1}`}
-                                        </span>
-                                    </motion.div>
+                                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide px-1">
+                                            {balls.sort((a: any, b: any) => a.timestamp - b.timestamp).map((ball: any) => (
+                                                <motion.div 
+                                                    key={ball.id} 
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className="flex flex-col items-center gap-2 min-w-[50px] md:min-w-[60px]"
+                                                >
+                                                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center font-black text-lg md:text-xl border-2 shadow-2xl transition-all duration-300 transform hover:scale-110 ${
+                                                        ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/40 rotate-3' : 
+                                                        ball.runs >= 4 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/20 -rotate-3' : 
+                                                        'bg-white/5 border-white/10 text-zinc-100'
+                                                    }`}>
+                                                        {ball.isWicket ? 'W' : ball.extras > 0 ? (ball.runs || ball.extraType) : ball.runs}
+                                                    </div>
+                                                    <span className="text-[9px] font-black text-zinc-500 font-mono tracking-tighter">
+                                                        {ball.extraType === 'WD' || ball.extraType === 'NB' ? '' : `${Math.floor(ball.over)}.${Math.round((ball.over % 1) * 10) + 1}`}
+                                                    </span>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </>
