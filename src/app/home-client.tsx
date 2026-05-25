@@ -7,13 +7,13 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
-    { href: "/live", label: "LIVE MATCH" },
-    { href: "/matches", label: "VIEW MATCHES" },
+    // { href: "/live", label: "LIVE MATCH" },
+    // { href: "/matches", label: "VIEW MATCHES" },
     { href: "/points", label: "STANDINGS" },
-    { href: "/stats", label: "VIEW STATS" },
-    { href: "/squads", label: "VIEW SQUADS" },
-    { href: "/auction", label: "LIVE AUCTION" },
-    { href: "/admin", label: "ADMIN HUB" },
+    // { href: "/stats", label: "VIEW STATS" },
+    // { href: "/squads", label: "VIEW SQUADS" },
+    // { href: "/auction", label: "LIVE AUCTION" },
+    // { href: "/admin", label: "ADMIN HUB" },
 ];
 
 export default function HomeClient({ champion, auctionStartTime, auctionEndTime }: { champion: { name: string; color: string } | null, auctionStartTime: string, auctionEndTime: string }) {

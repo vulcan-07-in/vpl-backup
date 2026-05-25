@@ -254,7 +254,7 @@ function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: Playoff
             </div>
 
             {/* Seed list */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-8">
                 {ranks.map(s => (
                     <div key={s.rank} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                         <span
