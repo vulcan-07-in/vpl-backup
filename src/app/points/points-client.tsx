@@ -2,14 +2,15 @@
 
 import {
     calculateStandings,
-    computePlayoffSeedings,
+    computePlayoffRankings,
     resolveS2Playoffs,
     type Fixture,
     type Team,
     type Standing,
-    type PlayoffSeed,
+    type PlayoffRank,
 } from "@/lib/tournament";
 import { motion } from "framer-motion";
+import PlayoffInfographic from "@/components/PlayoffInfographic";
 
 // ── Qualification logic ─────────────────────────────────────────────────────
 
@@ -231,13 +232,13 @@ function GroupTable({
 // ── Playoff Seedings Card ────────────────────────────────────────────────────
 
 const ELIMINATOR_MATCHUPS = [
-    { label: "Eliminator 1", seeds: [1, 6] },
-    { label: "Eliminator 2", seeds: [2, 5] },
-    { label: "Eliminator 3", seeds: [3, 4] },
+    { label: "Eliminator 1", ranks: [1, 6] },
+    { label: "Eliminator 2", ranks: [2, 5] },
+    { label: "Eliminator 3", ranks: [3, 4] },
 ];
 
-function PlayoffSeedingSection({ seeds }: { seeds: PlayoffSeed[] }) {
-    if (seeds.filter(s => s.team).length === 0) return null;
+function PlayoffRankingSection({ ranks }: { ranks: PlayoffRank[] }) {
+    if (ranks.filter(s => s.team).length === 0) return null;
 
     return (
         <motion.div
@@ -247,20 +248,20 @@ function PlayoffSeedingSection({ seeds }: { seeds: PlayoffSeed[] }) {
         >
             <div className="flex items-center gap-4 mb-6">
                 <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                    Playoff Seedings
+                    Playoff Rankings
                 </span>
                 <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
 
             {/* Seed list */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
-                {seeds.map(s => (
-                    <div key={s.seed} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                {ranks.map(s => (
+                    <div key={s.rank} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                         <span
                             className="text-2xl font-bold tabular-nums text-amber-500/40 leading-none"
                             style={{ fontFamily: "var(--font-mono)" }}
                         >
-                            {s.seed}
+                            {s.rank}
                         </span>
                         <div>
                             <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>{s.team}</p>
@@ -280,9 +281,9 @@ function PlayoffSeedingSection({ seeds }: { seeds: PlayoffSeed[] }) {
                 <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {ELIMINATOR_MATCHUPS.map(({ label, seeds: [s1, s2] }) => {
-                    const t1 = seeds.find(s => s.seed === s1);
-                    const t2 = seeds.find(s => s.seed === s2);
+                {ELIMINATOR_MATCHUPS.map(({ label, ranks: [s1, s2] }) => {
+                    const t1 = ranks.find(s => s.rank === s1);
+                    const t2 = ranks.find(s => s.rank === s2);
                     return (
                         <div key={label} className="px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                             <p className="text-[9px] tracking-[0.35em] text-zinc-600 mb-3 uppercase">{label}</p>
@@ -291,7 +292,7 @@ function PlayoffSeedingSection({ seeds }: { seeds: PlayoffSeed[] }) {
                                     <div key={i} className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "#EAB308" }} />
                                         <span className="text-sm text-white font-semibold">{t.team}</span>
-                                        <span className="text-[10px] text-zinc-600 ml-auto">#{t.seed}</span>
+                                        <span className="text-[10px] text-zinc-600 ml-auto">#{t.rank}</span>
                                     </div>
                                 ) : (
                                     <div key={i} className="text-xs text-zinc-700">TBD</div>
@@ -406,9 +407,9 @@ export default function PointsClient({
 
     const hasGroupC = groupC.length > 0;
 
-    // Compute playoff seeds (only if group stage has data)
-    const seeds = hasGroupC
-        ? computePlayoffSeedings(fixtures, teams, liveStates)
+    // Compute playoff ranks (only if group stage has data)
+    const ranks = hasGroupC
+        ? computePlayoffRankings(fixtures, teams, liveStates)
         : [];
 
     // Resolve S2 bracket labels
@@ -472,8 +473,12 @@ export default function PointsClient({
                         </motion.p>
 
                         {/* Playoff Seedings Section (S2 only) */}
-                        {hasGroupC && seeds.length > 0 && (
-                            <PlayoffSeedingSection seeds={seeds} />
+                        {hasGroupC && ranks.length > 0 && (
+                            <PlayoffRankingSection ranks={ranks} />
+                        )}
+
+                        {hasGroupC && (
+                            <PlayoffInfographic />
                         )}
 
                         {/* Playoff Bracket */}

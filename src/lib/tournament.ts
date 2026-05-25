@@ -162,9 +162,9 @@ export function generateFixtures(groupA: string[], groupB: string[], groupC?: st
     if (groupC && groupC.length > 0) {
         // Season 2: 3-group IPL-style playoffs
         roundRobin(groupC).forEach(([t1, t2]) => addMatch("Group C", "C", t1, t2));
-        addMatch("Eliminator 1", "-", "Seed 1", "Seed 6");
-        addMatch("Eliminator 2", "-", "Seed 2", "Seed 5");
-        addMatch("Eliminator 3", "-", "Seed 3", "Seed 4");
+        addMatch("Eliminator 1", "-", "Rank ", "Rank ");
+        addMatch("Eliminator 2", "-", "Rank ", "Rank ");
+        addMatch("Eliminator 3", "-", "Rank ", "Rank ");
         addMatch("Qualifier 1", "-", "E1 Winner", "E2 Winner");
         addMatch("Qualifier 2", "-", "Q1 Loser",  "E3 Winner");
         addMatch("Final", "-", "Q1 Winner", "Q2 Winner");
@@ -339,8 +339,8 @@ export function realOvers(v: number): number {
 
 // ── S2 Playoff Seeding & Bracket ─────────────────────────────────────────────
 
-export interface PlayoffSeed {
-    seed: number;       // 1–6
+export interface PlayoffRank {
+    rank: number;       // 1–6
     team: string;
     group: "A" | "B" | "C";
     nrr: number;
@@ -351,14 +351,14 @@ export interface PlayoffSeed {
  * Computes the 6 playoff seeds for Season 2.
  * Top 2 from each of the 3 groups are collected and ranked by NRR across all groups.
  */
-export function computePlayoffSeedings(
+export function computePlayoffRankings(
     fixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
-): PlayoffSeed[] {
+): PlayoffRank[] {
     const { groupA, groupB, groupC } = calculateStandings(fixtures, teams, liveStates);
 
-    const qualifiers: Omit<PlayoffSeed, "seed">[] = [
+    const qualifiers: Omit<PlayoffRank, "rank">[] = [
         ...(groupA.slice(0, 2).map(s => ({ team: s.team, group: "A" as const, nrr: s.nrr, points: s.points }))),
         ...(groupB.slice(0, 2).map(s => ({ team: s.team, group: "B" as const, nrr: s.nrr, points: s.points }))),
         ...(groupC.slice(0, 2).map(s => ({ team: s.team, group: "C" as const, nrr: s.nrr, points: s.points }))),
@@ -367,7 +367,7 @@ export function computePlayoffSeedings(
     // Rank by points first, then NRR
     qualifiers.sort((a, b) => b.points - a.points || b.nrr - a.nrr);
 
-    return qualifiers.map((q, i) => ({ ...q, seed: i + 1 }));
+    return qualifiers.map((q, i) => ({ ...q, rank: i + 1 }));
 }
 
 /**
@@ -435,7 +435,7 @@ export function resolveS2Playoffs(
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
 ): Fixture[] {
-    const seeds = computePlayoffSeedings(fixtures, teams, liveStates);
+    const seeds = computePlayoffRankings(fixtures, teams, liveStates);
     
     const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
     const isGroupStageComplete = groupMatches.length > 0 && groupMatches.every(f => {
@@ -445,9 +445,9 @@ export function resolveS2Playoffs(
         return status === "COMPLETED" || status === "ABANDONED" || f.winner;
     });
 
-    const getTeam = (seed: number) => {
-        if (!isGroupStageComplete) return `Seed ${seed}`;
-        return seeds.find(s => s.seed === seed)?.team ?? `Seed ${seed}`;
+    const getTeam = (rank: number) => {
+        if (!isGroupStageComplete) return `Rank ${rank}`;
+        return seeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`;
     };
 
     const getWinner = (stage: Stage) =>
