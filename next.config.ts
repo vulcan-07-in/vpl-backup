@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     console.log('Webpack symlinks after for', isServer ? 'server' : 'client', ':', config.resolve?.symlinks);
     return config;
   },
+  turbopack: {},
 };
 
 export default nextConfig;
