@@ -318,8 +318,7 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                     </div>
                 </motion.div>
 
-                {/* CTA Buttons - Hidden as per request to focus on schedule */}
-                {/* 
+                {/* CTA Buttons */}
                 <motion.div
                     initial="hidden"
                     animate="show"
@@ -327,7 +326,7 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                         hidden: { opacity: 0 },
                         show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: champion ? 0.8 : 0.6 } }
                     }}
-                    className="flex flex-col w-full gap-3"
+                    className="flex flex-col w-full gap-3 mt-4"
                 >
                     {NAV_ITEMS.map(({ href, label }) => (
                         <motion.div
@@ -347,7 +346,6 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                         </motion.div>
                     ))}
                 </motion.div>
-                */}
             </div>
         </main>
     );
