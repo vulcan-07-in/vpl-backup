@@ -139,6 +139,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     const [manualStriker, setManualStriker] = useState(false);
     const [manualNonStriker, setManualNonStriker] = useState(false);
     const [manualBowler, setManualBowler] = useState(false);
+    const [setupOvers, setSetupOvers] = useState<number>(8);
+    const [setupPlayers, setSetupPlayers] = useState<number>(8);
 
     // Initialize Toss from fixture if available
     useEffect(() => {
@@ -185,7 +187,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         return fullOvers * 6 + balls;
     };
 
-    const MAX_WICKETS = 8;
+    const getMaxWickets = (state: LiveMatchState | null) => state?.customPlayers || 8;
 
     // PURE STATE ENGINE: Applies a single ball event to the state
     const applyBallEvent = (state: LiveMatchState, ball: BallEvent) => {
@@ -354,11 +356,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         // 3. Status Check
         if (isSecondInnings && target !== null) {
             state.status = "LIVE"; // Ensure we are in LIVE mode if processing 2nd innings balls
-            if (inn.runs >= target || inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
+            if (inn.runs >= target || inn.wickets >= getMaxWickets(state) || inn.overs >= state.matchOvers) {
                 state.status = "COMPLETED";
                 if (inn.runs >= target) {
                     state.winner = inn.teamName;
-                    state.result = `${inn.teamName} won by ${MAX_WICKETS - inn.wickets} wickets`;
+                    state.result = `${inn.teamName} won by ${getMaxWickets(state) - inn.wickets} wickets`;
                 } else if (inn.runs === target - 1) {
                     state.winner = "TIE";
                     state.result = "Match Tied";
@@ -368,7 +370,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 }
             }
         } else {
-            if (inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
+            if (inn.wickets >= getMaxWickets(state) || inn.overs >= state.matchOvers) {
                 state.status = "INNINGS_BREAK";
             } else {
                 state.status = "LIVE";
@@ -410,7 +412,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         // C3 FIX: Final status adjustment (single source of truth)
         if (state.currentInnings === 1) {
             const inn = state.innings1;
-            if (inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
+            if (inn.wickets >= getMaxWickets(state) || inn.overs >= state.matchOvers) {
                 state.status = "INNINGS_BREAK";
             } else {
                 state.status = "LIVE";
@@ -418,11 +420,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         } else {
             const inn = state.innings2;
             const target = state.innings1.runs + 1;
-            if (inn.runs >= target || inn.wickets >= MAX_WICKETS || inn.overs >= state.matchOvers) {
+            if (inn.runs >= target || inn.wickets >= getMaxWickets(state) || inn.overs >= state.matchOvers) {
                 state.status = "COMPLETED";
                 if (inn.runs >= target) {
                     state.winner = inn.teamName;
-                    state.result = `${inn.teamName} won by ${MAX_WICKETS - inn.wickets} wickets`;
+                    state.result = `${inn.teamName} won by ${getMaxWickets(state) - inn.wickets} wickets`;
                 } else if (inn.runs === target - 1) {
                     state.winner = "TIE";
                     state.result = "Match Tied";
@@ -454,7 +456,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             tossWinner,
             tossDecision: tossDecision || "BAT",
             currentInnings,
-            matchOvers: 8,
+            matchOvers: setupOvers,
+            customPlayers: setupPlayers,
             isFunMatch: match.isFunMatch ?? false,
             innings1: {
                 teamName: bat1,
@@ -945,7 +948,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
         const inn = newState.currentInnings === 1 ? newState.innings1 : newState.innings2;
         // Skip next batsman step if it's the 7th wicket (Last Man Standing)
-        if (newState.status === "LIVE" && newState.currentInnings === liveState.currentInnings && inn.wickets < MAX_WICKETS - 1) {
+        if (newState.status === "LIVE" && newState.currentInnings === liveState.currentInnings && inn.wickets < getMaxWickets(newState) - 1) {
             setWicketStep(2);
         } else {
             setActiveScreen("LIVE_SCORING");
@@ -1284,6 +1287,30 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             <div className="text-center py-4 bg-amber-500/5 rounded-2xl border border-amber-500/10 mb-4">
                                 <h3 className="text-amber-500 font-bold tracking-widest text-sm uppercase mb-1">2nd Innings Started</h3>
                                 <p className="text-zinc-500 text-[10px] uppercase font-medium">Please select the opening pair & bowler</p>
+                            </div>
+                        )}
+
+                        {(!liveState || liveState.currentInnings === 1) && (
+                            <div className="space-y-4 border-t border-zinc-800 pt-6 animate-in fade-in slide-in-from-top-2 duration-400">
+                                <label className="text-xs tracking-widest text-zinc-500 block font-bold uppercase">MATCH PARAMETERS</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50">
+                                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-2">OVERS PER INNINGS</label>
+                                        <div className="flex items-center justify-between bg-black rounded-lg border border-zinc-700 overflow-hidden">
+                                            <button onClick={() => setSetupOvers(Math.max(1, setupOvers - 1))} className="p-3 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">-</button>
+                                            <span className="font-bold text-white tabular-nums">{setupOvers}</span>
+                                            <button onClick={() => setSetupOvers(setupOvers + 1)} className="p-3 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">+</button>
+                                        </div>
+                                    </div>
+                                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50">
+                                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-2">PLAYERS PER TEAM</label>
+                                        <div className="flex items-center justify-between bg-black rounded-lg border border-zinc-700 overflow-hidden">
+                                            <button onClick={() => setSetupPlayers(Math.max(2, setupPlayers - 1))} className="p-3 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">-</button>
+                                            <span className="font-bold text-white tabular-nums">{setupPlayers}</span>
+                                            <button onClick={() => setSetupPlayers(Math.max(2, setupPlayers + 1))} className="p-3 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">+</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 

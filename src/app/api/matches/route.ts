@@ -48,11 +48,22 @@ export async function POST(request: Request) {
 
         if (payload.action === "create_match") {
             const now = new Date().toISOString();
+            
+            let group = payload.group || null;
+            if (!group && !payload.isFunMatch) {
+                const { data: team1Row } = await supabase.from("Team").select("groupId").eq("id", payload.team1Id).single();
+                if (team1Row?.groupId) {
+                    group = team1Row.groupId;
+                } else {
+                    group = "A"; // Fallback
+                }
+            }
+
             const { error } = await supabase.from("Match").insert({
                 id: randomUUID(),
                 matchNo: payload.matchNo,
                 stage: payload.stage,
-                group: payload.group || null,
+                group: group,
                 team1Id: payload.team1Id,
                 team2Id: payload.team2Id,
                 scheduledTime: payload.scheduledTime

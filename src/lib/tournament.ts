@@ -120,6 +120,7 @@ export interface LiveMatchState {
     // Manual Overrides
     targetScore?: number;
     matchOvers: number; // Defaults to 8 for VPL
+    customPlayers?: number; // Custom squad size (defaults to 8)
     winner?: string;
     result?: string;
     lastSyncedAt?: number; // Epoch timestamp of last client push
