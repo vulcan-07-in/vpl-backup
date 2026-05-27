@@ -159,7 +159,7 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
                 .shape-rect { border-radius: 2px; }
             `}} />
             <div className="fixed inset-0 pointer-events-none z-[210] overflow-hidden">
-                {[...Array(100)].map((_, i) => {
+                {[...Array(40)].map((_, i) => {
                     const size = Math.floor(Math.random() * 12) + 6;
                     const left = Math.random() * 100;
                     const delay = Math.random() * 5;
@@ -167,7 +167,7 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
                     const shapes = ['shape-circle', 'shape-rect', 'shape-rect'];
                     const shape = shapes[i % shapes.length];
                     const isLongRect = shape === 'shape-rect' && Math.random() > 0.5;
-                    const colors = [winnerColor, winnerColor, '#ffffff', '#fbbf24'];
+                    const colors = [winnerColor, winnerColor, winnerColor, '#ffffff'];
                     const color = colors[i % colors.length];
 
                     return (

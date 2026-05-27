@@ -324,9 +324,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             }
         } else if (ball.extraType === "NB") {
             // NO BALL: Runs off bat go to striker, extras go to team.
-            // NB is NOT a legal delivery.
+            // NB is NOT a legal delivery (doesn't count toward over).
+            // Per ICC rules: NB IS counted as a ball faced by the batsman.
             strikerObj.runs += ball.runs;
-            // Note: strikerObj.balls is NOT incremented
+            strikerObj.balls += 1; // ICC: NB counts as ball faced
             if (ball.runs === 4) strikerObj.fours++;
             if (ball.runs === 6) strikerObj.sixes++;
 
@@ -876,6 +877,13 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify(newState)
+            });
+
+            // Also clear the winner from the database
+            await fetch("/api/matches", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "clear_winner", matchNo: selectedMatch.matchNo })
             });
         } catch (e) {
             console.error(e);
@@ -1625,6 +1633,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                         <button onClick={() => { setShowHistory(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">History Manager</button>
                                         <button onClick={() => { setActiveScreen("TOSS_SETUP"); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Toss Setup</button>
                                         <button onClick={() => { setShowAuditLogs(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors uppercase">Audit Logs</button>
+                                        <button onClick={() => { setShowReport(true); setShowMoreMenu(false); }} className="text-left px-4 py-2 text-[11px] font-bold tracking-widest text-amber-400 hover:bg-amber-500/10 transition-colors uppercase">Official Report</button>
                                         
                                         <button 
                                             onClick={async () => {
@@ -2076,10 +2085,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 {/* Match Report Modal */}
                 <AnimatePresence>
                     {showReport && liveState && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[250] flex items-start justify-center overflow-y-auto p-4">
                             <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={() => setShowReport(false)} />
-                            <div className="relative w-full max-w-2xl max-h-[90vh]">
-                                <div className="flex flex-col items-center gap-6 overflow-y-auto max-h-full py-10 w-full custom-scrollbar">
+                            <div className="relative w-full max-w-2xl my-8">
+                                <div className="flex flex-col items-center gap-6 w-full">
                                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-2xl px-4">
                                         <MatchReport state={liveState} teams={teams} />
                                         
@@ -2101,7 +2110,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 </div>
                                 <button
                                     onClick={() => setShowReport(false)}
-                                    className="absolute top-4 right-4 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all focus:outline-none"
+                                    className="fixed top-4 right-4 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all focus:outline-none z-[260]"
                                 >
                                     <X className="w-6 h-6" />
                                 </button>

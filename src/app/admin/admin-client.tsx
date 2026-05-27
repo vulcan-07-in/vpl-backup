@@ -373,7 +373,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                     <div key={m.id} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group">
                                         <div>
                                             <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
-                                            <p className="font-bold">{initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
+                                            <p className="font-bold">{m.team1Name || initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {m.team2Name || initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
                                             <p className="text-xs text-zinc-500 mt-1">
                                                 {m.scheduledTime ? new Date(m.scheduledTime).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : "Time TBD"} 
                                                 <span className="mx-2">•</span> 

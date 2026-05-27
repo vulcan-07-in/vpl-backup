@@ -169,11 +169,17 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const tossStr = actualTossWinner && actualTossDecision ? `${actualTossWinner} elected to ${actualTossDecision.toLowerCase()}` : null;
 
         // Visual container styles
-        let containerClasses = "relative overflow-hidden rounded-3xl border bg-zinc-950/40 border-white/[0.04] hover:border-amber-500/20 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.015] hover:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group block p-5 sm:p-7";
+        let containerClasses = "relative overflow-hidden rounded-3xl border backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.015] hover:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group block p-5 sm:p-7";
+        let containerStyle: React.CSSProperties = {
+            background: `linear-gradient(135deg, ${c1}08 0%, transparent 40%, ${c2}08 100%)`,
+            borderColor: isCompleted ? `${(win1 ? c1 : c2)}30` : `rgba(255,255,255,0.06)`,
+        };
         if (isFeaturedKnockout) {
             containerClasses = "relative overflow-hidden rounded-3xl border border-amber-500/30 hover:border-amber-400 bg-zinc-950/60 backdrop-blur-2xl shadow-[0_0_50px_rgba(245,158,11,0.08)] transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_20px_60px_rgba(245,158,11,0.15)] group block p-6 sm:p-8";
+            containerStyle = { background: `linear-gradient(135deg, ${c1}10 0%, rgba(0,0,0,0.6) 50%, ${c2}10 100%)` };
         } else if (isLive || isInningsBreak) {
             containerClasses = "relative overflow-hidden rounded-3xl border border-red-500/20 hover:border-red-500/50 bg-zinc-950/50 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.015] hover:shadow-[0_20px_50px_rgba(239,68,68,0.12)] group block p-5 sm:p-7";
+            containerStyle = { background: `linear-gradient(135deg, ${c1}10 0%, rgba(0,0,0,0.5) 50%, ${c2}10 100%)` };
         }
 
         const InnerContent = (
@@ -191,7 +197,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             #{fixture.matchNo}
                         </span>
                         <span className={`font-black uppercase tracking-[0.2em] ${isFeaturedKnockout ? 'text-amber-500' : 'text-zinc-600'}`}>
-                            {isKnockout ? fixture.stage : `GROUP ${fixture.group}`}
+                            {isKnockout ? fixture.stage : (fixture.group ? `GROUP ${fixture.group}` : 'PLAYOFF')}
                         </span>
                     </div>
 
@@ -301,7 +307,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
 
         return (
             <motion.div variants={itemVariants} key={fixture.matchNo}>
-                <Link href={targetHref} className={containerClasses}>
+                <Link href={targetHref} className={containerClasses} style={containerStyle}>
                     {InnerContent}
                 </Link>
             </motion.div>

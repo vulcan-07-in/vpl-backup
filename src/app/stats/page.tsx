@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import StatsClient from "./stats-client";
 import { fetchTeams, fetchAllLiveStates } from "@/lib/data";
 import { calculateAllPlayerStats } from "@/lib/mvp";
+import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,13 +18,13 @@ export default async function StatsPage() {
         economy: s.ballsBowled > 0 ? (s.runsConceded / (s.ballsBowled / 6)) : 0
     }));
     
-    // Fetch MVP state server-side
-    let mvpState = { player: null, published: false };
+    // Read MVP state directly from Redis (not via API route, which fails SSR on Vercel)
+    let mvpState = { player: null as string | null, published: false };
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/mvp`);
-        if (res.ok) {
-            mvpState = await res.json();
-        }
+        const redis = new Redis(process.env.REDIS_URL || '');
+        const data = await redis.get('s2:vpl_mvp_state_v1');
+        if (data) mvpState = JSON.parse(data);
+        await redis.quit();
     } catch (e) {
         console.error("Failed to fetch MVP state for stats page", e);
     }

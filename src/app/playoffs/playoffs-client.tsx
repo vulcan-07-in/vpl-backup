@@ -270,7 +270,7 @@ export default function PlayoffsClient({
                             <PlayoffRankingSection ranks={ranks} isGroupStageComplete={isGroupStageComplete} />
                         )}
 
-                        <PlayoffInfographic fixtures={resolvedFixtures} ranks={ranks} isGroupStageComplete={isGroupStageComplete} />
+                        <PlayoffInfographic fixtures={resolvedFixtures} ranks={ranks} isGroupStageComplete={isGroupStageComplete} liveStates={liveStates} />
 
                         <PlayoffBracketSection fixtures={resolvedFixtures} liveStates={liveStates} />
                     </div>

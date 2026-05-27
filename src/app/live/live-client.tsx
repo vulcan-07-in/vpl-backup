@@ -14,7 +14,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [showScorecard, setShowScorecard] = useState(false);
-    const [animationEvent, setAnimationEvent] = useState<{ type: '4' | '6' | 'W', player: string, sponsorId: number } | null>(null);
+    const [animationEvent, setAnimationEvent] = useState<{ type: '4' | '6' | 'W' | 'TEAM100' | 'FIFTY' | 'HUNDRED' | 'HATTRICK', player: string, sponsorId: number, extra?: string } | null>(null);
 
     // C4 FIX: Use a ref to track the latest match state for animation detection
     // This avoids the stale closure problem in the polling useEffect
@@ -63,14 +63,54 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                     if (prev && data.timeline.length > prev.timeline.length) {
                         const lastBall = data.timeline[data.timeline.length - 1];
+                        const sponsorId = Math.random() > 0.5 ? 1 : 2;
+                        
+                        // Queue of animations to trigger (most important last, so it shows)
+                        let pendingAnimation: typeof animationEvent = null;
+                        
+                        // Basic ball animations
+                        if (lastBall.runs === 4 && !lastBall.isWicket) {
+                            pendingAnimation = { type: '4', player: lastBall.striker, sponsorId };
+                        } else if (lastBall.runs === 6 && !lastBall.isWicket) {
+                            pendingAnimation = { type: '6', player: lastBall.striker, sponsorId };
+                        }
                         if (lastBall.isWicket) {
-                            setAnimationEvent({ type: 'W', player: lastBall.playerOut || lastBall.striker, sponsorId: Math.random() > 0.5 ? 1 : 2 });
-                            setTimeout(() => setAnimationEvent(null), 4000);
-                        } else if (lastBall.runs === 6) {
-                            setAnimationEvent({ type: '6', player: lastBall.striker, sponsorId: Math.random() > 0.5 ? 1 : 2 });
-                            setTimeout(() => setAnimationEvent(null), 4000);
-                        } else if (lastBall.runs === 4) {
-                            setAnimationEvent({ type: '4', player: lastBall.striker, sponsorId: Math.random() > 0.5 ? 1 : 2 });
+                            pendingAnimation = { type: 'W', player: lastBall.playerOut || lastBall.striker, sponsorId };
+                        }
+                        
+                        // Milestone animations (these override basic ball animations)
+                        const currentInn = data.currentInnings === 1 ? data.innings1 : data.innings2;
+                        const prevInn = prev.currentInnings === 1 ? prev.innings1 : prev.innings2;
+                        
+                        // Team 100: Team just crossed 100 runs
+                        if (currentInn.runs >= 100 && prevInn.runs < 100) {
+                            pendingAnimation = { type: 'TEAM100', player: currentInn.teamName, sponsorId, extra: `${currentInn.runs} RUNS` };
+                        }
+                        
+                        // Player milestones
+                        if (lastBall.striker && currentInn.batsmen[lastBall.striker]) {
+                            const playerRuns = currentInn.batsmen[lastBall.striker].runs;
+                            const prevBatsman = prevInn.batsmen?.[lastBall.striker];
+                            const prevRuns = prevBatsman?.runs ?? 0;
+                            
+                            if (playerRuns >= 100 && prevRuns < 100) {
+                                pendingAnimation = { type: 'HUNDRED', player: lastBall.striker, sponsorId, extra: `${playerRuns} RUNS` };
+                            } else if (playerRuns >= 50 && prevRuns < 50) {
+                                pendingAnimation = { type: 'FIFTY', player: lastBall.striker, sponsorId, extra: `${playerRuns} RUNS` };
+                            }
+                        }
+                        
+                        // 3-wicket haul detection
+                        if (lastBall.isWicket && lastBall.wicketType !== 'RUNOUT' && lastBall.wicketType !== 'RETIRED_HURT') {
+                            const bowlerWickets = currentInn.bowlers[lastBall.bowler]?.wickets ?? 0;
+                            const prevBowlerW = prevInn.bowlers?.[lastBall.bowler]?.wickets ?? 0;
+                            if (bowlerWickets >= 3 && prevBowlerW < 3) {
+                                pendingAnimation = { type: 'HATTRICK', player: lastBall.bowler, sponsorId, extra: `${bowlerWickets} WICKETS` };
+                            }
+                        }
+                        
+                        if (pendingAnimation) {
+                            setAnimationEvent(pendingAnimation);
                             setTimeout(() => setAnimationEvent(null), 4000);
                         }
                     }
@@ -424,9 +464,9 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                     className="absolute inset-0 bg-white"
                                 />
 
-                                {/* Abstract Shapes/Particles Move (Reduced for performance on older phones) */}
+                                {/* Abstract Shapes/Particles Move (Minimal for phone performance) */}
                                 <div className="absolute inset-0 overflow-hidden">
-                                    {[...Array(6)].map((_, i) => (
+                                    {[...Array(3)].map((_, i) => (
                                         <motion.div
                                             key={i}
                                             initial={{ 
@@ -442,7 +482,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                                 opacity: [0, 0.3, 0]
                                             }}
                                             transition={{ duration: 3, ease: "easeOut" }}
-                                            className="absolute w-32 md:w-48 h-32 md:h-48 border-2 border-white/10 rounded-full"
+                                            className="absolute w-24 h-24 border-2 border-white/10 rounded-full"
                                         />
                                     ))}
                                 </div>
@@ -455,30 +495,51 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                     transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                     className="relative flex flex-col items-center justify-center z-10 mx-4 w-full max-w-3xl text-center"
                                 >
-                                    {/* Dynamic Glow Background */}
-                                    <motion.div 
-                                        className={`absolute inset-0 opacity-30 blur-[100px] rounded-full scale-150 bg-white pointer-events-none`}
-                                        animate={{ opacity: [0.1, 0.4, 0.1], scale: [1.2, 1.5, 1.2] }}
-                                        transition={{ duration: 3, ease: "easeInOut", repeat: Infinity }}
-                                    />
+                                    {/* Subtle radial glow — no blur, no scale transform, GPU-friendly */}
+                                    <div className="absolute inset-0 rounded-full bg-white/10 pointer-events-none" />
 
                                     {/* Top Accent Line */}
                                     <div className={`w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent mb-8 opacity-50`} />
 
                                     {/* Main Event Text */}
                                     <motion.h2 
-                                        className={`relative z-10 text-6xl md:text-9xl font-black italic text-transparent bg-clip-text leading-none tracking-tight uppercase ${animationEvent.type === 'W' ? 'bg-white' : 'bg-gradient-to-b from-white to-amber-200'}`}
-                                        style={{ fontFamily: "var(--font-display)", textShadow: "0 10px 40px rgba(255,255,255,0.4)" }}
+                                        className={`relative z-10 text-5xl md:text-8xl font-black italic text-transparent bg-clip-text leading-none tracking-tight uppercase ${
+                                            animationEvent.type === 'W' ? 'bg-white' 
+                                            : animationEvent.type === 'FIFTY' || animationEvent.type === 'HUNDRED' ? 'bg-gradient-to-b from-amber-300 to-amber-600'
+                                            : animationEvent.type === 'TEAM100' ? 'bg-gradient-to-b from-white to-amber-400'
+                                            : animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-300 to-red-600'
+                                            : 'bg-gradient-to-b from-white to-amber-200'
+                                        }`}
+                                        style={{ fontFamily: "var(--font-display)" }}
                                         animate={{ scale: [1, 1.05, 1] }}
                                         transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
                                     >
-                                        {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!' : 'FOUR!'}
+                                        {animationEvent.type === 'W' ? 'WICKET!' 
+                                         : animationEvent.type === '6' ? 'SIX!' 
+                                         : animationEvent.type === '4' ? 'FOUR!'
+                                         : animationEvent.type === 'FIFTY' ? 'HALF CENTURY!'
+                                         : animationEvent.type === 'HUNDRED' ? 'CENTURY!'
+                                         : animationEvent.type === 'TEAM100' ? 'TEAM 100!'
+                                         : animationEvent.type === 'HATTRICK' ? '3 WICKETS!'
+                                         : ''}
                                     </motion.h2>
 
+                                    {/* Extra info for milestones */}
+                                    {animationEvent.extra && (
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.3 }}
+                                            className="relative z-10 mt-3 text-lg md:text-2xl font-black text-amber-400 tracking-[0.5em] uppercase"
+                                        >
+                                            {animationEvent.extra}
+                                        </motion.p>
+                                    )}
+
                                     {/* Separator */}
-                                    <div className="relative z-10 flex items-center justify-center my-8 gap-4 opacity-70">
+                                    <div className="relative z-10 flex items-center justify-center my-6 gap-4 opacity-70">
                                         <div className="h-px w-24 bg-gradient-to-r from-transparent to-white" />
-                                        <div className={`w-2 h-2 rounded-full rotate-45 ${animationEvent.type === 'W' ? 'bg-white' : 'bg-amber-400'}`} />
+                                        <div className={`w-2 h-2 rounded-full rotate-45 ${animationEvent.type === 'W' || animationEvent.type === 'HATTRICK' ? 'bg-white' : 'bg-amber-400'}`} />
                                         <div className="h-px w-24 bg-gradient-to-l from-transparent to-white" />
                                     </div>
 
@@ -489,12 +550,12 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                         transition={{ delay: 0.2 }}
                                         className="relative z-10"
                                     >
-                                        <span className="block text-3xl md:text-6xl font-black text-white uppercase tracking-[0.3em]" style={{ fontFamily: "var(--font-heading)", textShadow: "0 5px 20px rgba(0,0,0,0.8)" }}>
+                                        <span className="block text-2xl md:text-5xl font-black text-white uppercase tracking-[0.3em]" style={{ fontFamily: "var(--font-heading)" }}>
                                             {animationEvent.player}
                                         </span>
                                     </motion.div>
                                     
-                                    <div className={`mt-8 w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-50`} />
+                                    <div className={`mt-6 w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-50`} />
                                 </motion.div>
                             </motion.div>
                         )}
@@ -510,10 +571,10 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         exit={{ opacity: 0, y: 20 }}
                         className="fixed bottom-0 left-0 right-0 z-[10000] flex flex-col items-center py-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"
                     >
-                        <p className="text-[10px] md:text-sm text-zinc-400 font-black tracking-[0.6em] uppercase mb-4">Powered By</p>
+                        <p className="text-[8px] md:text-[10px] text-zinc-500 font-bold tracking-[0.4em] uppercase mb-3">Powered By</p>
                         <img
                             src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
-                            className={`h-20 md:h-32 object-contain opacity-100 drop-shadow-[0_0_40px_rgba(255,255,255,0.4)] ${animationEvent.sponsorId === 1 ? 'rounded-full object-cover aspect-square bg-white p-1 border-4 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.5)]' : ''}`}
+                            className={`h-14 md:h-24 object-contain opacity-90 ${animationEvent.sponsorId === 1 ? 'rounded-full object-cover aspect-square bg-white p-0.5 border-2 border-amber-500/50' : ''}`}
                             alt="Sponsor"
                         />
                     </motion.div>,

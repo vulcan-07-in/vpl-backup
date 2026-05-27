@@ -35,7 +35,7 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
             const b = statsMap[ball.striker];
             if (ball.extraType !== "WD" && ball.extraType !== "SWAP" && ball.extraType !== "DB") {
                 b.runs += ball.runs;
-                if (ball.extraType !== "NB") b.balls += 1;
+                b.balls += 1; // ICC: Both legal deliveries AND no-balls count as balls faced
                 if (ball.runs === 4) b.fours += 1;
                 if (ball.runs === 6) b.sixes += 1;
             }

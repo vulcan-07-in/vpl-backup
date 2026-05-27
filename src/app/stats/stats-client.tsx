@@ -38,10 +38,10 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                 .filter(p => p.balls >= 15)
                 .sort((a, b) => b.strikeRate - a.strikeRate),
             wickets: [...aggregatedStats]
-                .filter(p => p.ballsBowled >= 18) // 3 overs
+                .filter(p => p.ballsBowled >= 6) // 1 over minimum
                 .sort((a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded),
             economy: [...aggregatedStats]
-                .filter(p => p.ballsBowled >= 18) // 3 overs
+                .filter(p => p.ballsBowled >= 6) // 1 over minimum
                 .sort((a, b) => a.economy - b.economy),
             catches: [...aggregatedStats]
                 .filter(p => (p.catches || 0) > 0)
@@ -57,8 +57,8 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
     const categories = [
         { id: "runs", title: "Highest Runs", icon: Trophy, data: leaderboards.runs, unit: "Runs", sub: "Min 15 balls" },
         { id: "strikeRate", title: "Best Strike Rate", icon: Zap, data: leaderboards.strikeRate, unit: "SR", sub: "Min 15 balls" },
-        { id: "wickets", title: "Most Wickets", icon: Target, data: leaderboards.wickets, unit: "Wkts", sub: "Min 3 overs" },
-        { id: "economy", title: "Best Economy", icon: BarChart3, data: leaderboards.economy, unit: "Econ", sub: "Min 3 overs" },
+        { id: "wickets", title: "Most Wickets", icon: Target, data: leaderboards.wickets, unit: "Wkts", sub: "Min 1 over" },
+        { id: "economy", title: "Best Economy", icon: BarChart3, data: leaderboards.economy, unit: "Econ", sub: "Min 1 over" },
         { id: "catches", title: "Most Catches", icon: Trophy, data: leaderboards.catches, unit: "C", sub: "Fielders & Keepers" },
         { id: "stumpings", title: "Most Stumpings", icon: Target, data: leaderboards.stumpings, unit: "St", sub: "Wicketkeepers" },
     ];
