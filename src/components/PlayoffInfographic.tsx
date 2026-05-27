@@ -23,11 +23,20 @@ export default function PlayoffInfographic({
         const f = fixtures.find(x => x.stage === stage);
         if (!f) return { name: fallback, isLoser: false, isWinner: false };
         const name = teamNum === 1 ? f.team1 : f.team2;
-        if (!name || name === "TBD") return { name: fallback, isLoser: false, isWinner: false };
+        if (!name || name === "TBD" || name.startsWith("Rank") || name.includes("Winner") || name.includes("Loser")) {
+            return { name: fallback, isLoser: false, isWinner: false };
+        }
         
-        const isCompleted = !!f.winner;
-        const isWinner = isCompleted && f.winner === name;
-        const isLoser = isCompleted && f.winner !== name && f.winner !== "TIE" && f.winner !== "ABANDONED";
+        const isCompleted = !!f.winner && f.winner !== "TBD";
+        
+        // Extract actual team name from f.winner in case it contains "won by"
+        let actualWinnerStr = f.winner;
+        if (f.winner && f.winner.includes(" won by")) {
+            actualWinnerStr = f.winner.split(" won by")[0].trim();
+        }
+
+        const isWinner = isCompleted && actualWinnerStr === name;
+        const isLoser = isCompleted && !isWinner && actualWinnerStr !== "TIE" && actualWinnerStr !== "ABANDONED";
         
         return { name, isLoser, isWinner };
     };
