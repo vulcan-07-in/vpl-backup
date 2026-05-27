@@ -118,6 +118,8 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
     function renderFixture(fixture: Fixture, isFeaturedKnockout: boolean) {
         const c1 = colorOf(fixture.team1);
         const c2 = colorOf(fixture.team2);
+        const sn1 = shortName(fixture.team1).substring(0, 4).toUpperCase();
+        const sn2 = shortName(fixture.team2).substring(0, 4).toUpperCase();
         const lm = liveMatches[fixture.matchNo];
         const isLive = lm?.status === "LIVE";
         const isInningsBreak = lm?.status === "INNINGS_BREAK";
@@ -127,13 +129,9 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const isKnockout = fixture.group === "-";
         const resultStr = lm?.result || (fixture.winner && fixture.winner !== "TIE" && fixture.winner !== "ABANDONED" ? `${fixture.winner} Won` : fixture.winner === "TIE" ? "Match Tied" : fixture.winner === "ABANDONED" ? "Abandoned" : null);
 
-        // Determine if match has any state in Redis
-        const hasLiveState = !!lm;
-        const isScheduled = lm?.status === "SCHEDULED";
-        const canView = true; // All matches are now clickable
         const targetHref = (isLive || isInningsBreak) ? `/live?matchId=${encodeURIComponent(fixture.matchNo)}` : `/matches/${encodeURIComponent(fixture.matchNo)}`;
 
-        // Get score info
+        // Score info
         const getTeamScore = (teamName: string) => {
             if (!lm) return null;
             if (lm.innings1.teamName === teamName) return lm.innings1;
@@ -148,275 +146,230 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const actualTossDecision = lm?.tossDecision || fixture.tossDecision;
         const tossStr = actualTossWinner && actualTossDecision ? `${actualTossWinner} elected to ${actualTossDecision.toLowerCase()}` : null;
 
-        let containerClasses = "relative overflow-hidden rounded-2xl border bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] group block";
+        // Visual container styles
+        let containerClasses = "relative overflow-hidden rounded-3xl border bg-zinc-950/40 border-white/[0.04] hover:border-amber-500/20 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.015] hover:shadow-[0_20px_50px_rgba(0,0,0,0.7)] group block p-5 sm:p-7";
         if (isFeaturedKnockout) {
-            containerClasses = "relative overflow-hidden rounded-2xl border border-amber-500/40 bg-black/60 backdrop-blur-lg shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-transform hover:scale-[1.02] group block";
-        } else if (isCompleted) {
-            containerClasses = "relative overflow-hidden rounded-2xl border border-white/[0.08] bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] group block cursor-pointer hover:border-amber-500/30";
+            containerClasses = "relative overflow-hidden rounded-3xl border border-amber-500/30 hover:border-amber-400 bg-zinc-950/60 backdrop-blur-2xl shadow-[0_0_50px_rgba(245,158,11,0.08)] transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_20px_60px_rgba(245,158,11,0.15)] group block p-6 sm:p-8";
         } else if (isLive || isInningsBreak) {
-            containerClasses = "relative overflow-hidden rounded-2xl border border-red-500/30 bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] group block cursor-pointer hover:border-red-500/50";
-        } else {
-            containerClasses = "relative overflow-hidden rounded-2xl border border-white/[0.08] bg-black/40 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:scale-[1.01] group block";
+            containerClasses = "relative overflow-hidden rounded-3xl border border-red-500/20 hover:border-red-500/50 bg-zinc-950/50 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:scale-[1.015] hover:shadow-[0_20px_50px_rgba(239,68,68,0.12)] group block p-5 sm:p-7";
         }
 
         const InnerContent = (
-            <>
-                {/* Background gradient slash */}
-                <div className={`absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none ${isFeaturedKnockout ? 'opacity-20' : ''}`} style={{ background: `linear-gradient(110deg, ${c1} 0%, transparent 40%, transparent 60%, ${c2} 100%)` }} />
+            <div className="flex flex-col gap-4 relative z-10">
+                {/* Background high-tech overlay mesh */}
+                <div 
+                    className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 pointer-events-none rounded-3xl" 
+                    style={{ background: `radial-gradient(circle at 20% 50%, ${c1} 0%, transparent 50%), radial-gradient(circle at 80% 50%, ${c2} 0%, transparent 50%)` }} 
+                />
 
-                {/* Mobile layout (< md) */}
-                <div className="md:hidden flex flex-col relative z-10 p-4 gap-2">
-                    <div className="flex justify-between items-center w-full">
-                        <span className={`text-[10px] ${isFeaturedKnockout ? 'text-amber-500 font-bold' : 'text-zinc-500'} tabular-nums uppercase`} style={{ fontFamily: "var(--font-mono)" }}>
-                            {fixture.matchNo}
+                {/* Top bar of the fixture card */}
+                <div className="flex items-center justify-between border-b border-white/[0.03] pb-3 text-xs">
+                    <div className="flex items-center gap-2">
+                        <span className={`font-mono font-bold tracking-widest px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.05] ${isFeaturedKnockout ? 'text-amber-400 border-amber-500/20 bg-amber-500/5' : 'text-zinc-500'}`}>
+                            #{fixture.matchNo}
                         </span>
-                        <span className={`text-[9px] tracking-widest ${isFeaturedKnockout ? 'text-amber-400 font-bold' : 'text-zinc-600'}`}>
-                            {isKnockout ? fixture.stage.toUpperCase() : `GROUP ${fixture.group}`}
+                        <span className={`font-black uppercase tracking-[0.2em] ${isFeaturedKnockout ? 'text-amber-500' : 'text-zinc-600'}`}>
+                            {isKnockout ? fixture.stage : `GROUP ${fixture.group}`}
                         </span>
                     </div>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                        {/* Team 1 */}
-                        <div className={`relative flex flex-col items-center gap-1 min-w-0 transition-opacity ${isCompleted && !win1 ? "opacity-40" : ""}`}>
-                            <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c1, border: `1px solid ${c1}40` }} />
-                            <span className={`${isFeaturedKnockout ? 'text-xl' : 'text-lg'} font-bold text-center w-full leading-tight relative z-10 truncate max-w-[100px]`}
-                                style={{ fontFamily: "var(--font-display)", color: 'white' }}>
-                                {fixture.team1}
-                            </span>
-                            {t1Score && (isCompleted || isLive || isInningsBreak) && (
-                                <span className="text-xs text-zinc-400 font-mono tabular-nums">
-                                    {t1Score.runs}/{t1Score.wickets}
-                                    <span className="text-zinc-600 ml-1 text-[10px]">({t1Score.overs.toFixed(1)})</span>
-                                </span>
-                            )}
-                            {win1 && <Trophy className="w-3.5 h-3.5 text-amber-400" strokeWidth={2.5} />}
-                        </div>
-                        {/* Center */}
-                        <div className="text-center flex flex-col items-center justify-center">
-                            {isCompleted ? (
-                                <span className="text-[9px] font-bold tracking-widest text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10">FT</span>
-                            ) : isLive ? (
-                                <div className="flex flex-col items-center">
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgb(239,68,68)]" />
-                                        <span className="text-[9px] font-bold tracking-widest text-red-500">LIVE</span>
-                                    </div>
-                                </div>
-                            ) : isInningsBreak ? (
-                                <span className="text-[9px] font-bold tracking-widest text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10">BREAK</span>
-                            ) : isScheduled ? (
-                                <div className="flex flex-col items-center gap-0.5">
-                                    <Clock className="w-3 h-3 text-blue-400" />
-                                    <span className="text-[8px] text-blue-400 font-bold leading-tight text-center">
-                                        {formatScheduledTime(lm?.scheduledTime) || "SOON"}
-                                    </span>
-                                </div>
-                            ) : (
-                                <span className="text-[10px] font-bold tracking-widest text-zinc-600">VS</span>
-                            )}
-                        </div>
-                        {/* Team 2 */}
-                        <div className={`relative flex flex-col items-center gap-1 min-w-0 transition-opacity ${isCompleted && !win2 ? "opacity-40" : ""}`}>
-                            <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c2, border: `1px solid ${c2}40` }} />
-                            <span className={`${isFeaturedKnockout ? 'text-xl' : 'text-lg'} font-bold text-center w-full leading-tight relative z-10 truncate max-w-[100px]`}
-                                style={{ fontFamily: "var(--font-display)", color: 'white' }}>
-                                {fixture.team2}
-                            </span>
-                            {t2Score && (isCompleted || isLive || isInningsBreak) && (
-                                <span className="text-xs text-zinc-400 font-mono tabular-nums">
-                                    {t2Score.runs}/{t2Score.wickets}
-                                    <span className="text-zinc-600 ml-1 text-[10px]">({t2Score.overs.toFixed(1)})</span>
-                                </span>
-                            )}
-                            {win2 && <Trophy className="w-3.5 h-3.5 text-amber-400" strokeWidth={2.5} />}
-                        </div>
-                    </div>
-                    {/* Result line on mobile */}
-                    {isCompleted && resultStr && (
-                        <p className="text-[9px] text-amber-500/80 font-bold text-center uppercase tracking-wider mt-1 truncate">{resultStr}</p>
-                    )}
-                    {!isCompleted && tossStr && (
-                        <p className="text-[9px] text-zinc-500 font-bold text-center uppercase tracking-wider mt-1 truncate">{tossStr}</p>
-                    )}
-                </div>
 
-                {/* Desktop layout (md+) */}
-                <div className={`hidden md:grid items-center px-10 relative z-10 ${isFeaturedKnockout ? 'py-10' : 'py-7'}`} style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-                    {/* Left: Team 1 */}
-                    <div className={`relative flex items-center gap-6 justify-end min-w-0 transition-opacity ${isCompleted && !win1 ? "opacity-20" : ""}`}>
-                        {win1 && (
-                            <div className="absolute right-0 w-4/5 h-full bg-gradient-to-l from-white/5 to-transparent blur-2xl" style={{ backgroundImage: `linear-gradient(to left, ${c1}15, transparent)` }} />
-                        )}
-                        <div className="flex flex-col items-end min-w-0 max-w-[200px]">
-                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold py-2 px-1 relative z-10 leading-none truncate max-w-full`}
-                                style={{ fontFamily: "var(--font-display)", color: 'white', textShadow: win1 ? `0 0 30px ${c1}50` : "none" }}>
-                                {fixture.team1}
-                            </span>
-                            {t1Score && (isCompleted || isLive || isInningsBreak) && (
-                                <span className="text-zinc-500 font-mono text-xs mt-1 tracking-widest relative z-10 tabular-nums">
-                                    {t1Score.runs}/{t1Score.wickets} ({t1Score.overs.toFixed(1)})
-                                </span>
-                            )}
-                        </div>
-                        <div className={`relative z-10 rounded-full shrink-0 shadow-2xl ${isFeaturedKnockout ? 'w-8 h-8' : 'w-6 h-6'}`} style={{ backgroundColor: c1, border: `2px solid ${c1}40` }} />
-                        {win1 && <Trophy className={`relative z-10 w-8 h-8 shrink-0 text-amber-400 drop-shadow-2xl ${isFeaturedKnockout ? 'w-10 h-10' : ''}`} strokeWidth={2.5} />}
-                    </div>
-
-                    {/* Center: Info/Score */}
-                    <div className="text-center flex flex-col items-center justify-center px-4">
-                        <div className="flex items-center gap-2 mb-2">
-                             <span className={`text-[10px] tabular-nums font-bold tracking-[0.2em] ${isFeaturedKnockout ? 'text-amber-500' : 'text-zinc-500'}`} style={{ fontFamily: "var(--font-mono)" }}>
-                                #{fixture.matchNo}
-                            </span>
-                            <div className="w-1 h-1 rounded-full bg-white/10" />
-                            <span className={`text-[9px] tracking-[0.3em] font-black uppercase ${isFeaturedKnockout ? 'text-amber-400' : 'text-zinc-600'}`}>
-                                {isKnockout ? fixture.stage : "GROUP " + fixture.group}
-                            </span>
-                        </div>
-
-                        <div className={`min-w-[120px] px-6 py-2 rounded-xl border transition-all duration-300 ${isCompleted ? "text-amber-400 border-amber-500/30 bg-amber-500/5" : isLive ? "text-red-500 border-red-500/30 bg-red-500/10" : isInningsBreak ? "text-blue-400 border-blue-500/30 bg-blue-500/10" : "text-zinc-500 border-white/5 bg-white/[0.02]"}`}>
-                            {isCompleted ? (
-                                <span className="text-xl font-black tracking-tight text-white" style={{ fontFamily: "var(--font-mono)" }}>FT</span>
-                            ) : isLive ? (
-                                <div className="flex flex-col items-center">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgb(239,68,68)]" />
-                                        <span className="text-[10px] font-black tracking-[0.2em]">LIVE</span>
-                                    </div>
-                                </div>
-                            ) : isInningsBreak ? (
-                                <div className="flex flex-col items-center gap-1">
-                                    <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">INNINGS BREAK</span>
-                                </div>
-                            ) : isScheduled ? (
-                                <div className="flex flex-col items-center gap-1">
-                                    <Clock className="w-4 h-4 text-blue-400 mb-1" />
-                                    <span className="text-xs font-bold tracking-wider text-blue-400">
-                                        {formatScheduledTime(lm?.scheduledTime) || "SOON"}
-                                    </span>
-                                </div>
-                            ) : (
-                                <span className="text-sm font-black tracking-[0.5em] opacity-40">VS</span>
-                            )}
-                        </div>
-
-                        {isCompleted && resultStr && (
-                            <div className="mt-3 flex flex-col items-center">
-                                <span className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em] bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 text-center max-w-[250px] truncate">
-                                    {resultStr}
-                                </span>
+                    {/* Live/Status Pill */}
+                    <div>
+                        {isLive ? (
+                            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-500 font-extrabold tracking-widest text-[9px] animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                LIVE
                             </div>
-                        )}
-                        {!isCompleted && tossStr && (
-                            <div className="mt-3 flex flex-col items-center">
-                                <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest bg-white/[0.03] px-3 py-1 rounded-full border border-white/5 text-center max-w-[250px] truncate">
-                                    {tossStr}
-                                </span>
+                        ) : isInningsBreak ? (
+                            <div className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 font-extrabold tracking-widest text-[9px]">
+                                BREAK
+                            </div>
+                        ) : isCompleted ? (
+                            <div className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold tracking-widest text-[9px]">
+                                FINISHED
+                            </div>
+                        ) : (
+                            <div className="text-zinc-600 font-bold uppercase tracking-widest text-[9px]">
+                                SCHEDULED
                             </div>
                         )}
                     </div>
+                </div>
 
-                    {/* Right: Team 2 */}
-                    <div className={`relative flex items-center gap-6 justify-start min-w-0 transition-opacity ${isCompleted && !win2 ? "opacity-20" : ""}`}>
-                        {win2 && (
-                            <div className="absolute left-0 w-4/5 h-full bg-gradient-to-r from-white/5 to-transparent blur-2xl" style={{ backgroundImage: `linear-gradient(to right, ${c2}15, transparent)` }} />
-                        )}
-                        <div className={`relative z-10 rounded-full shrink-0 shadow-2xl ${isFeaturedKnockout ? 'w-8 h-8' : 'w-6 h-6'}`} style={{ backgroundColor: c2, border: `2px solid ${c2}40` }} />
-                        <div className="flex flex-col items-start min-w-0 max-w-[200px]">
-                            <span className={`${isFeaturedKnockout ? 'text-6xl tracking-widest' : 'text-5xl tracking-wide'} font-bold py-2 px-1 relative z-10 leading-none truncate max-w-full`}
-                                style={{ fontFamily: "var(--font-display)", color: 'white', textShadow: win2 ? `0 0 30px ${c2}50` : "none" }}>
-                                {fixture.team2}
+                {/* Teams Grid */}
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-8 py-2">
+                    {/* Team 1 Details */}
+                    <div className={`flex items-center gap-3 sm:gap-5 justify-end min-w-0 transition-all duration-300 ${isCompleted && !win1 ? "opacity-35 blur-[0.3px]" : ""}`}>
+                        {win1 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0 animate-bounce" />}
+                        <div className="flex flex-col items-end min-w-0 text-right">
+                            <span className="text-base sm:text-2xl font-black text-white leading-tight truncate w-full tracking-wide font-display">
+                                {fixture.team1}
                             </span>
-                            {t2Score && (isCompleted || isLive || isInningsBreak) && (
-                                <span className="text-zinc-500 font-mono text-xs mt-1 tracking-widest relative z-10 tabular-nums">
-                                    {t2Score.runs}/{t2Score.wickets} ({t2Score.overs.toFixed(1)})
+                            {t1Score && (isCompleted || isLive || isInningsBreak) && (
+                                <span className="text-xs sm:text-sm text-zinc-400 font-mono font-bold mt-1 tracking-widest">
+                                    {t1Score.runs}/{t1Score.wickets} <span className="text-zinc-600 font-medium text-[10px] sm:text-xs">({t1Score.overs.toFixed(1)})</span>
                                 </span>
                             )}
                         </div>
-                        {win2 && <Trophy className={`relative z-10 w-8 h-8 shrink-0 text-amber-400 drop-shadow-2xl ${isFeaturedKnockout ? 'w-10 h-10' : ''}`} strokeWidth={2.5} />}
+                        {/* High-tech Team Badge */}
+                        <div 
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border transition-all duration-500 shadow-xl"
+                            style={{ 
+                                backgroundColor: `${c1}15`, 
+                                borderColor: `${c1}40`, 
+                                color: c1,
+                                boxShadow: `0 0 20px ${c1}10`
+                            }}
+                        >
+                            {sn1}
+                        </div>
+                    </div>
+
+                    {/* Match VS / Score Divider */}
+                    <div className="flex flex-col items-center justify-center min-w-[40px]">
+                        <div className="h-8 w-px bg-white/[0.05]" />
+                        <span className="text-[10px] tracking-widest font-black text-zinc-700 py-1.5 uppercase font-mono">VS</span>
+                        <div className="h-8 w-px bg-white/[0.05]" />
+                    </div>
+
+                    {/* Team 2 Details */}
+                    <div className={`flex items-center gap-3 sm:gap-5 justify-start min-w-0 transition-all duration-300 ${isCompleted && !win2 ? "opacity-35 blur-[0.3px]" : ""}`}>
+                        {/* High-tech Team Badge */}
+                        <div 
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border transition-all duration-500 shadow-xl"
+                            style={{ 
+                                backgroundColor: `${c2}15`, 
+                                borderColor: `${c2}40`, 
+                                color: c2,
+                                boxShadow: `0 0 20px ${c2}10`
+                            }}
+                        >
+                            {sn2}
+                        </div>
+                        <div className="flex flex-col items-start min-w-0 text-left">
+                            <span className="text-base sm:text-2xl font-black text-white leading-tight truncate w-full tracking-wide font-display">
+                                {fixture.team2}
+                            </span>
+                            {t2Score && (isCompleted || isLive || isInningsBreak) && (
+                                <span className="text-xs sm:text-sm text-zinc-400 font-mono font-bold mt-1 tracking-widest">
+                                    {t2Score.runs}/{t2Score.wickets} <span className="text-zinc-600 font-medium text-[10px] sm:text-xs">({t2Score.overs.toFixed(1)})</span>
+                                </span>
+                            )}
+                        </div>
+                        {win2 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0 animate-bounce" />}
                     </div>
                 </div>
 
-                {/* Desktop hover indicator */}
-                {canView && (
-                    <div className="absolute top-4 right-4 text-zinc-800 group-hover:text-amber-500/40 transition-colors">
-                        <ChevronRight className="w-5 h-5" />
+                {/* Footer Ticker: Toss/Results */}
+                {(resultStr || tossStr) && (
+                    <div className="mt-1 pt-3 border-t border-white/[0.03] flex items-center justify-center">
+                        {isCompleted && resultStr ? (
+                            <span className="text-[10px] sm:text-xs text-amber-400/90 font-bold uppercase tracking-[0.15em] bg-amber-500/5 px-4 py-1.5 rounded-full border border-amber-500/20 text-center max-w-full truncate shadow-sm">
+                                🎉 {resultStr}
+                            </span>
+                        ) : tossStr ? (
+                            <span className="text-[9px] sm:text-[10px] text-zinc-500 font-semibold uppercase tracking-widest bg-white/[0.02] px-4 py-1.5 rounded-full border border-white/[0.04] text-center max-w-full truncate">
+                                📢 {tossStr}
+                            </span>
+                        ) : null}
                     </div>
                 )}
-            </>
+
+                {/* Click action indicator */}
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-zinc-600 group-hover:text-amber-500">
+                    <ChevronRight className="w-4 h-4" />
+                </div>
+            </div>
         );
 
         return (
             <motion.div variants={itemVariants} key={fixture.matchNo}>
-                {canView ? (
-                    <Link href={targetHref} className={containerClasses}>
-                        {InnerContent}
-                    </Link>
-                ) : (
-                    <div className={containerClasses}>
-                        {InnerContent}
-                    </div>
-                )}
+                <Link href={targetHref} className={containerClasses}>
+                    {InnerContent}
+                </Link>
             </motion.div>
         );
     }
 
     return (
-        <main className="min-h-screen pt-24 pb-16 px-4 md:pt-28">
-            <div className="max-w-3xl mx-auto">
+        <main className="min-h-screen pt-24 pb-16 px-4 md:pt-28 relative overflow-hidden bg-black">
+            {/* Ambient background decorative glow lights */}
+            <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-amber-500/[0.02] rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-red-500/[0.01] rounded-full blur-[150px] pointer-events-none" />
+
+            <div className="max-w-3xl mx-auto relative z-10">
+                {/* Stunning Hero Section */}
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    initial={{ opacity: 0, y: -30 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="mb-12 md:mb-16"
+                    transition={{ duration: 0.8, type: "spring" }}
+                    className="mb-16 md:mb-20 text-center relative"
                 >
-                    <p className="text-[11px] tracking-[0.5em] text-zinc-600 mb-3" style={{ fontFamily: "var(--font-body)" }}>
-                        VARCHASVA PREMIER LEAGUE
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-72 h-72 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
+                    
+                    <p className="text-xs tracking-[0.6em] text-amber-500/80 font-bold mb-4 uppercase font-mono">
+                        VARCHASVA PREMIER LEAGUE S2
                     </p>
-                    <h1 className="text-6xl md:text-8xl text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                        MATCHES
+                    <h1 className="text-6xl md:text-9xl text-white font-black leading-none tracking-tighter uppercase font-display bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40">
+                        FIXTURES
                     </h1>
-                    <div className="mt-5 flex items-center gap-4">
-                        <div className="h-px w-8 bg-amber-500" />
-                        <span className="text-xs text-zinc-700 tracking-widest">
-                            {fixtures.length} MATCHES
+                    
+                    <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                        <span className="px-4 py-1.5 rounded-full bg-white/[0.02] border border-white/[0.06] text-[10px] text-zinc-400 font-mono tracking-widest uppercase">
+                            📊 {fixtures.length} Total Matches
+                        </span>
+                        <span className="px-4 py-1.5 rounded-full bg-red-500/5 border border-red-500/20 text-[10px] text-red-400 font-mono tracking-widest uppercase animate-pulse">
+                            🔴 Live Scores Enabled
                         </span>
                     </div>
                 </motion.div>
 
                 {fixtures.length === 0 ? (
-                    <div className="py-24 text-center">
-                        <p className="text-zinc-700 text-sm tracking-widest">MATCHES NOT YET PUBLISHED</p>
+                    <div className="py-24 text-center border border-white/[0.05] rounded-3xl bg-zinc-950/20 backdrop-blur-md">
+                        <p className="text-zinc-600 text-sm tracking-widest uppercase font-mono">MATCHES NOT YET PUBLISHED</p>
                     </div>
                 ) : (
                     <motion.div
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className="space-y-12"
+                        className="space-y-16"
                     >
+                        {/* High-tech Group Mini-Cards */}
                         {hasGroupData && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
                                 {(["A", "B", "C"] as const).map(group => (
-                                    <motion.div variants={itemVariants} key={group} className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4">
-                                        <p className="text-[10px] tracking-[0.4em] text-zinc-600 mb-3" style={{ fontFamily: "var(--font-body)" }}>
-                                            GROUP {group}
-                                        </p>
-                                        <div className="space-y-2">
-                                            {groupTeams[group].map(team => (
-                                                <div key={team} className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colorOf(team) }} />
-                                                    <span className="text-sm text-white font-medium truncate" style={{ fontFamily: "var(--font-heading)" }}>
-                                                        {team}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                    <motion.div 
+                                        variants={itemVariants} 
+                                        key={group} 
+                                        className="relative overflow-hidden rounded-3xl border border-white/[0.04] bg-zinc-950/20 hover:border-amber-500/10 p-5 backdrop-blur-xl shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                                    >
+                                        <div className="flex items-center justify-between border-b border-white/[0.04] pb-2 mb-4">
+                                            <p className="text-xs font-black tracking-widest text-amber-500 uppercase font-mono">
+                                                GROUP {group}
+                                            </p>
+                                            <span className="text-[9px] text-zinc-500 font-mono font-bold">{groupTeams[group].length} TEAMS</span>
                                         </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        )}
+                                        <div className="space-y-3">
+                                            {groupTeams[group].map((team, idx) => (
+                                                <div key={team} className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: colorOf(team), boxShadow: `0 0 8px ${colorOf(team)}` }} />
+                                                        <span className="text-sm text-zinc-300 font-medium truncate font-heading">
+                                                             {team}
+                                                         </span>
+                                                     </div>
+                                                     <span className="text-[9px] font-mono text-zinc-600 font-bold">#{idx + 1}</span>
+                                                 </div>
+                                             ))}
+                                         </div>
+                                     </motion.div>
+                                 ))}
+                             </div>
+                         )}
 
-                        <div className="space-y-16">
+                        {/* Chronological Day Sections */}
+                        <div className="space-y-20">
                             {sortedGroupKeys.map(dateKey => {
                                 const dayNum = dateToDayNum.get(dateKey);
                                 const headerText = dayNum ? `DAY ${dayNum}` : "UNSCHEDULED MATCHES";
@@ -435,22 +388,24 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                 });
 
                                 return (
-                                    <div key={dateKey} className="space-y-6">
-                                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6 border-b border-white/[0.05] pb-4">
+                                    <div key={dateKey} className="space-y-8">
+                                        {/* Premium Day Divider Banner */}
+                                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-white/[0.06] pb-5">
                                             <div>
-                                                <span className="text-[11px] tracking-[0.5em] text-amber-500 font-extrabold uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                                                    {headerText}
+                                                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] tracking-widest text-amber-500 font-bold uppercase font-mono mb-2 shadow-sm">
+                                                    ✨ {headerText}
                                                 </span>
-                                                <h2 className="text-3xl sm:text-4xl text-white font-black leading-none mt-1" style={{ fontFamily: "var(--font-display)" }}>
+                                                <h2 className="text-3xl sm:text-5xl text-white font-black leading-none tracking-tight font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">
                                                     {subHeaderText}
                                                 </h2>
                                             </div>
-                                            <span className="text-xs text-zinc-500 font-mono tracking-widest uppercase sm:pb-1">
+                                            <span className="text-xs text-zinc-500 font-mono tracking-widest uppercase sm:pb-1 font-bold">
                                                 {sortedMatches.length} {sortedMatches.length === 1 ? "MATCH" : "MATCHES"}
                                             </span>
                                         </motion.div>
 
-                                        <div className="space-y-6">
+                                        {/* Scheduled Matches Cards Container */}
+                                        <div className="space-y-8">
                                             {sortedMatches.map(fixture => {
                                                 const isFeaturedKnockout = fixture.group === "-" && 
                                                     !fixture.team1.includes("Group") && !fixture.team1.includes("Pool") && !fixture.team1.includes("Winner") &&
