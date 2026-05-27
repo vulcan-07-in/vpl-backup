@@ -30,6 +30,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [matches, setMatches] = useState<any[]>([]);
     const [newMatch, setNewMatch] = useState({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false });
     const [tossMatch, setTossMatch] = useState<any | null>(null);
+    const [editModal, setEditModal] = useState<{ isOpen: boolean; match: any | null }>({ isOpen: false, match: null });
+    const [editingMatch, setEditingMatch] = useState({ id: "", matchNo: "", stage: "", group: "", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false });
 
     // Broadcast State
     const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
@@ -363,6 +365,24 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             {m.status !== 'COMPLETED' && m.status !== 'ABANDONED' && (
                                                 <button onClick={() => handleAction("/api/matches", { action: "abandon_match", matchNo: m.matchNo }, fetchMatches)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded text-xs font-bold">ABANDON</button>
                                             )}
+                                            <button 
+                                                onClick={() => {
+                                                    setEditingMatch({
+                                                        id: m.id,
+                                                        matchNo: m.matchNo,
+                                                        stage: m.stage,
+                                                        group: m.group || "",
+                                                        team1Id: m.team1Id,
+                                                        team2Id: m.team2Id,
+                                                        scheduledTime: m.scheduledTime ? new Date(m.scheduledTime).toISOString().slice(0, 16) : "",
+                                                        isFunMatch: m.isFunMatch || false,
+                                                    });
+                                                    setEditModal({ isOpen: true, match: m });
+                                                }} 
+                                                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 px-3 py-1 rounded text-xs font-bold border border-amber-500/30"
+                                            >
+                                                EDIT
+                                            </button>
                                             <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
                                         </div>
                                     </div>
@@ -670,6 +690,143 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                     className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black py-3.5 rounded-xl text-xs tracking-widest uppercase shadow-lg shadow-amber-500/10 transition-all"
                                 >
                                     Confirm
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {editModal.isOpen && editModal.match && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+                            <h3 className="text-xl font-black tracking-wider text-white mb-6 uppercase text-center flex items-center justify-center gap-2">
+                                <CalendarDays className="text-amber-500 w-5 h-5" /> Edit Match
+                            </h3>
+                            
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                                <div>
+                                    <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Match Number</label>
+                                    <input 
+                                        type="text" 
+                                        value={editingMatch.matchNo} 
+                                        onChange={e => setEditingMatch({ ...editingMatch, matchNo: e.target.value })} 
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white focus:border-amber-500/50 outline-none font-semibold" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Stage</label>
+                                    <input 
+                                        type="text" 
+                                        value={editingMatch.stage} 
+                                        onChange={e => setEditingMatch({ ...editingMatch, stage: e.target.value })} 
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white focus:border-amber-500/50 outline-none font-semibold" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Group</label>
+                                    <select 
+                                        value={editingMatch.group} 
+                                        onChange={e => setEditingMatch({ ...editingMatch, group: e.target.value })} 
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white focus:border-amber-500/50 outline-none"
+                                    >
+                                        <option value="A">Group A</option>
+                                        <option value="B">Group B</option>
+                                        <option value="C">Group C</option>
+                                        <option value="-">None (Knockout)</option>
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Team 1</label>
+                                        <select 
+                                            value={editingMatch.team1Id} 
+                                            onChange={e => setEditingMatch({ ...editingMatch, team1Id: e.target.value })} 
+                                            className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white focus:border-amber-500/50 outline-none"
+                                        >
+                                            {initialTeams.map(t => <option key={t.id} value={t.id}>{t.shortName}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Team 2</label>
+                                        <select 
+                                            value={editingMatch.team2Id} 
+                                            onChange={e => setEditingMatch({ ...editingMatch, team2Id: e.target.value })} 
+                                            className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white focus:border-amber-500/50 outline-none"
+                                        >
+                                            {initialTeams.map(t => <option key={t.id} value={t.id}>{t.shortName}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Scheduled Time</label>
+                                    <input 
+                                        type="datetime-local" 
+                                        value={editingMatch.scheduledTime} 
+                                        onChange={e => setEditingMatch({ ...editingMatch, scheduledTime: e.target.value })} 
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white focus:border-amber-500/50 outline-none" 
+                                    />
+                                </div>
+                                <label className="flex items-center gap-2 text-sm text-zinc-400 pt-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={editingMatch.isFunMatch} 
+                                        onChange={e => setEditingMatch({ ...editingMatch, isFunMatch: e.target.checked })} 
+                                        className="rounded bg-black border-zinc-800 text-amber-500" 
+                                    />
+                                    Fun Match (No Points)
+                                </label>
+                            </div>
+                            
+                            <div className="flex gap-4 mt-6">
+                                <button 
+                                    onClick={() => setEditModal({ isOpen: false, match: null })}
+                                    className="flex-1 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold py-3 rounded-xl text-xs tracking-widest uppercase transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={async () => {
+                                        setLoading(true);
+                                        try {
+                                            const res = await fetch("/api/matches", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                    action: "update_match",
+                                                    id: editingMatch.id,
+                                                    oldMatchNo: editModal.match.matchNo,
+                                                    matchNo: editingMatch.matchNo,
+                                                    stage: editingMatch.stage,
+                                                    group: editingMatch.group,
+                                                    team1Id: editingMatch.team1Id,
+                                                    team2Id: editingMatch.team2Id,
+                                                    scheduledTime: editingMatch.scheduledTime ? new Date(editingMatch.scheduledTime).toISOString() : null,
+                                                    isFunMatch: editingMatch.isFunMatch,
+                                                }),
+                                            });
+                                            if (!res.ok) {
+                                                const data = await res.json().catch(() => ({ error: res.statusText }));
+                                                alert("❌ Error: " + (data.error || res.statusText));
+                                            } else {
+                                                fetchMatches();
+                                                setEditModal({ isOpen: false, match: null });
+                                            }
+                                        } catch (e: any) {
+                                            alert("❌ " + e.message);
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black py-3 rounded-xl text-xs tracking-widest uppercase shadow-lg shadow-amber-500/10 transition-all"
+                                    disabled={loading}
+                                >
+                                    Save
                                 </button>
                             </div>
                         </motion.div>

@@ -35,6 +35,7 @@ export interface Fixture {
     isFunMatch?: boolean; // Fun matches are excluded from all standings / stats
     tossWinner?: string;
     tossDecision?: string;
+    scheduledTime?: string;
 }
 
 // ==========================================

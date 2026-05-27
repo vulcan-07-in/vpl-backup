@@ -181,7 +181,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
   if (season === 2) {
     const { data: matches, error: matchErr } = await supabase
       .from("Match")
-      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId, status, tossWinnerId, tossDecision, isFunMatch")
+      .select("matchNo, stage, \"group\", team1Id, team2Id, winnerId, status, tossWinnerId, tossDecision, isFunMatch, scheduledTime")
       .order("matchNo", { ascending: true });
     if (matchErr) {
       console.error("Supabase fetchFixtures match error:", matchErr);
@@ -193,9 +193,9 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       return [];
     }
     type TeamIdRow = { id: string; name: string };
-    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null; status: string; tossWinnerId: string | null; tossDecision: string | null; isFunMatch?: boolean };
+    type MatchRow = { matchNo: string; stage: string; group: string | null; team1Id: string; team2Id: string; winnerId: string | null; status: string; tossWinnerId: string | null; tossDecision: string | null; isFunMatch?: boolean; scheduledTime: string | null };
     const idToName = new Map<string, string>((teams as TeamIdRow[] || []).map((t: TeamIdRow) => [t.id, t.name]));
-    return (matches as MatchRow[] || []).map((m: MatchRow) => ({
+    const mapped = (matches as MatchRow[] || []).map((m: MatchRow) => ({
       matchNo: m.matchNo,
       stage: m.stage as any,
       group: (m as any)["group"] as any,
@@ -205,8 +205,21 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       tossWinner: m.tossWinnerId ? idToName.get(m.tossWinnerId) ?? "" : "",
       tossDecision: m.tossDecision ?? "",
       isFunMatch: m.isFunMatch ?? false,
+      scheduledTime: m.scheduledTime ? new Date(m.scheduledTime).toISOString() : undefined,
       sortOrder: parseInt(m.matchNo.replace(/[^0-9]/g, "")) || 0,
     }));
+
+    return mapped.sort((a, b) => {
+      if (a.scheduledTime && b.scheduledTime) {
+        const timeA = new Date(a.scheduledTime).getTime();
+        const timeB = new Date(b.scheduledTime).getTime();
+        if (timeA !== timeB) return timeA - timeB;
+      }
+      const numA = parseInt(a.matchNo.replace(/[^0-9]/g, "")) || 999;
+      const numB = parseInt(b.matchNo.replace(/[^0-9]/g, "")) || 999;
+      if (numA !== numB) return numA - numB;
+      return a.matchNo.localeCompare(b.matchNo);
+    });
   }
   // Season 1 – Prisma (original implementation)
   try {

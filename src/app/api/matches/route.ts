@@ -102,6 +102,49 @@ export async function POST(request: Request) {
             return NextResponse.json({ ok: true });
         }
 
+        if (payload.action === "update_match") {
+            const { id, matchNo, stage, group, team1Id, team2Id, scheduledTime, isFunMatch } = payload;
+            if (!id) throw new Error("Missing match ID");
+
+            const now = new Date().toISOString();
+            const { error } = await supabase
+                .from("Match")
+                .update({
+                    matchNo,
+                    stage,
+                    group: group || null,
+                    team1Id,
+                    team2Id,
+                    scheduledTime: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+                    isFunMatch: isFunMatch ?? false,
+                    updatedAt: now,
+                })
+                .eq("id", id);
+            
+            if (error) throw new Error(error.message);
+
+            // If the match number changed, rename keys in Redis if they exist
+            if (payload.oldMatchNo && payload.oldMatchNo !== matchNo) {
+                try {
+                    const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+                    const oldMatchId = String(payload.oldMatchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                    const newMatchId = String(matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                    const stateStr = await redis.get(`s2:live_match_${oldMatchId}`);
+                    if (stateStr) {
+                        await redis.set(`s2:live_match_${newMatchId}`, stateStr);
+                        await redis.del(`s2:live_match_${oldMatchId}`);
+                    }
+                } catch (e) {
+                    console.error("Redis update match rename error", e);
+                }
+            }
+
+            revalidatePath("/matches");
+            revalidatePath("/points");
+            revalidatePath("/");
+            return NextResponse.json({ ok: true });
+        }
+
         if (payload.action === "delete_all") {
             const { error } = await supabase.from("Match").delete().neq("id", "0");
             if (error) throw new Error(error.message);
