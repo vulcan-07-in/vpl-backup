@@ -453,19 +453,8 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                     animate={{ scale: 1, opacity: 1, y: 0 }}
                                     exit={{ scale: 1.1, opacity: 0, y: -30 }}
                                     transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                                    className="relative flex flex-col items-center z-10 p-8 md:p-12 bg-zinc-950/80 border border-white/10 rounded-3xl backdrop-blur-md shadow-[0_0_50px_rgba(0,0,0,0.8)] mx-4 w-[90%] max-w-lg"
+                                    className="relative flex flex-col items-center z-10 mx-4 w-[90%] max-w-lg"
                                 >
-                                    {/* Sponsor Badge */}
-                                    <motion.div 
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.2 }}
-                                        className="mb-4 md:mb-6 flex flex-col items-center bg-white/5 px-6 py-2 rounded-2xl border border-white/5"
-                                    >
-                                        <p className="text-[8px] text-zinc-400 font-bold tracking-[0.4em] uppercase mb-2">Powered By</p>
-                                        <img src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"} className="h-6 md:h-10 object-contain opacity-90 drop-shadow-lg" alt="Sponsor" />
-                                    </motion.div>
-
                                     <motion.h2 
                                         className={`text-5xl md:text-8xl font-black italic text-transparent bg-clip-text leading-none tracking-tighter drop-shadow-2xl uppercase ${animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-400 to-red-600' : 'bg-gradient-to-br from-amber-300 to-amber-600'}`}
                                         style={{ fontFamily: "var(--font-display)" }}
@@ -487,6 +476,24 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                             </motion.div>
                         )}
                     </AnimatePresence>,
+                    document.body
+                )}
+
+                {/* Sponsor bar — fixed at bottom during animation, visible above everything */}
+                {mounted && typeof document !== 'undefined' && animationEvent && createPortal(
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="fixed bottom-0 left-0 right-0 z-[10000] flex flex-col items-center py-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"
+                    >
+                        <p className="text-[8px] text-zinc-400 font-bold tracking-[0.4em] uppercase mb-2">Powered By</p>
+                        <img
+                            src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
+                            className="h-10 md:h-16 object-contain opacity-95 drop-shadow-2xl"
+                            alt="Sponsor"
+                        />
+                    </motion.div>,
                     document.body
                 )}
 
@@ -621,19 +628,19 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
-                            className="mt-8 flex flex-col items-center gap-2.5 bg-white/5 border border-white/10 px-6 py-3.5 rounded-2xl backdrop-blur-md"
+                            className="mt-8 flex flex-col items-center gap-2.5 bg-white/5 border border-white/10 px-6 py-3.5 rounded-2xl backdrop-blur-md max-w-full w-full"
                         >
                             <span className="text-[9px] font-black tracking-[0.4em] text-zinc-500 uppercase">
                                 THIS OVER (OVER {Math.floor(currentInningsData.overs) + 1})
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 max-w-full w-full justify-start px-1">
                                 {((computedOverGroups[Math.floor(currentInningsData.overs) + 1] || [])).length === 0 ? (
-                                    <span className="text-zinc-500 text-[10px] font-black tracking-widest italic uppercase py-1">Awaiting first ball</span>
+                                    <span className="text-zinc-500 text-[10px] font-black tracking-widest italic uppercase py-1 w-full text-center">Awaiting first ball</span>
                                 ) : (
                                     (computedOverGroups[Math.floor(currentInningsData.overs) + 1] || []).map((ball) => (
                                         <div 
                                             key={ball.id} 
-                                            className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-300 transform hover:scale-110 shadow-lg ${
+                                            className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-300 transform hover:scale-110 shadow-lg ${
                                                 ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/30' : 
                                                 ball.runs >= 6 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/30' : 
                                                 ball.runs >= 4 ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-amber-950/20' : 

@@ -17,7 +17,7 @@ const ELIMINATOR_MATCHUPS = [
 ];
 
 function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: PlayoffRank[], isGroupStageComplete: boolean }) {
-    if (ranks.filter(s => s.team).length === 0) return null;
+    if (ranks.length === 0) return null;
 
     return (
         <motion.div

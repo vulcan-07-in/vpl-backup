@@ -120,18 +120,32 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "update_match") {
-            const { id, matchNo, stage, group, team1Id, team2Id, scheduledTime, isFunMatch } = payload;
+            const { id, matchNo, stage, group, team1Id, team2Id, scheduledTime, isFunMatch, customTeam1Name, customTeam2Name } = payload;
             if (!id) throw new Error("Missing match ID");
 
             const now = new Date().toISOString();
+            
+            // Resolve team IDs from custom names if provided
+            let resolvedTeam1Id = team1Id;
+            let resolvedTeam2Id = team2Id;
+            
+            if (customTeam1Name && customTeam1Name.trim()) {
+                const { data: t1 } = await supabase.from("Team").select("id").ilike("name", customTeam1Name.trim()).single();
+                if (t1?.id) resolvedTeam1Id = t1.id;
+            }
+            if (customTeam2Name && customTeam2Name.trim()) {
+                const { data: t2 } = await supabase.from("Team").select("id").ilike("name", customTeam2Name.trim()).single();
+                if (t2?.id) resolvedTeam2Id = t2.id;
+            }
+
             const { error } = await supabase
                 .from("Match")
                 .update({
                     matchNo,
                     stage,
                     group: group || null,
-                    team1Id,
-                    team2Id,
+                    team1Id: resolvedTeam1Id,
+                    team2Id: resolvedTeam2Id,
                     scheduledTime: scheduledTime ? new Date(scheduledTime).toISOString() : null,
                     isFunMatch: isFunMatch ?? false,
                     updatedAt: now,
@@ -158,6 +172,7 @@ export async function POST(request: Request) {
 
             revalidatePath("/matches");
             revalidatePath("/points");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }

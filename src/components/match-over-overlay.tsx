@@ -144,21 +144,27 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
                 </motion.div>
             </div>
 
-            {/* Confetti-like particles */}
-            <div className="absolute inset-0 pointer-events-none">
-                {[...Array(8)].map((_, i) => (
+            {/* Full-screen confetti */}
+            <div className="fixed inset-0 pointer-events-none z-[210] overflow-hidden">
+                {[...Array(24)].map((_, i) => (
                     <motion.div
                         key={i}
-                        initial={{ opacity: 0, y: -100 }}
+                        initial={{ opacity: 0, y: -20 }}
                         animate={{
-                            y: [null, 1000],
-                            x: [Math.random() * 100 + "%", (Math.random() * 100 + Math.sin(i) * 10) + "%"],
-                            opacity: [0, 1, 0],
-                            rotate: [0, 360 * 2]
+                            y: [null, window?.innerHeight || 900],
+                            x: [Math.random() * window?.innerWidth || Math.random() * 400, (Math.random() * (window?.innerWidth || 400))],
+                            opacity: [0, 1, 1, 0],
+                            rotate: [0, 360 * (Math.random() > 0.5 ? 2 : -2)]
                         }}
-                        transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5 }}
-                        className="absolute w-2 h-2 rounded-sm"
-                        style={{ backgroundColor: i % 3 === 0 ? winnerColor : i % 2 === 0 ? '#EAB308' : '#ffffff' }}
+                        transition={{ duration: 2.5 + Math.random() * 3, repeat: Infinity, delay: Math.random() * 4, ease: 'linear' }}
+                        className="absolute rounded-sm"
+                        style={{
+                            width: `${Math.floor(Math.random() * 8) + 6}px`,
+                            height: `${Math.floor(Math.random() * 8) + 6}px`,
+                            left: `${Math.random() * 100}%`,
+                            top: `-20px`,
+                            backgroundColor: i % 4 === 0 ? winnerColor : i % 4 === 1 ? '#EAB308' : i % 4 === 2 ? '#ffffff' : '#ef4444'
+                        }}
                     />
                 ))}
             </div>

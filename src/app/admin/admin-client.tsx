@@ -387,6 +387,9 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             {m.status !== 'COMPLETED' && m.status !== 'ABANDONED' && (
                                                 <button onClick={() => handleAction("/api/matches", { action: "abandon_match", matchNo: m.matchNo }, fetchMatches)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded text-xs font-bold">ABANDON</button>
                                             )}
+                                            {m.status === 'COMPLETED' && (
+                                                <button onClick={() => handleAction("/api/matches", { action: "clear_winner", matchNo: m.matchNo }, fetchMatches)} className="text-orange-400 hover:bg-orange-500/10 px-3 py-1 rounded text-xs font-bold border border-orange-500/30">RESET</button>
+                                            )}
                                             {m.status !== 'COMPLETED' && (
                                                 <button onClick={() => handleAction("/api/matches", { action: "autoplay_match", matchNo: m.matchNo }, fetchMatches, true)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1 rounded text-xs font-bold border border-blue-500/30">AUTOPLAY</button>
                                             )}
@@ -816,6 +819,34 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                         </select>
                                     </div>
                                 </div>
+                                {/* Manual playoff team override for knockout matches */}
+                                {(editingMatch.group === '-' || editingMatch.group === '') && (
+                                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 space-y-3">
+                                        <p className="text-[10px] text-amber-500/70 tracking-widest uppercase font-bold">Playoff Manual Override (overrides auto-seeding)</p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] text-zinc-500 mb-1">Team 1 Name Override</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Leave blank for auto"
+                                                    value={editingMatch.customTeam1Name}
+                                                    onChange={e => setEditingMatch({ ...editingMatch, customTeam1Name: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm focus:border-amber-500/50 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] text-zinc-500 mb-1">Team 2 Name Override</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Leave blank for auto"
+                                                    value={editingMatch.customTeam2Name}
+                                                    onChange={e => setEditingMatch({ ...editingMatch, customTeam2Name: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm focus:border-amber-500/50 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-widest font-bold">Scheduled Time</label>
                                     <input 
@@ -861,6 +892,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                     team2Id: editingMatch.team2Id,
                                                     scheduledTime: editingMatch.scheduledTime ? new Date(editingMatch.scheduledTime).toISOString() : null,
                                                     isFunMatch: editingMatch.isFunMatch,
+                                                    customTeam1Name: editingMatch.customTeam1Name || null,
+                                                    customTeam2Name: editingMatch.customTeam2Name || null,
                                                 }),
                                             });
                                             if (!res.ok) {
