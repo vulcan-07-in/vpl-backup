@@ -147,34 +147,41 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
             {/* Full-screen continuous confetti using CSS for smooth performance */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes fall {
-                    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
-                    100% { transform: translateY(110vh) rotate(720deg); opacity: 1; }
+                    0% { top: -10%; transform: rotate(0deg) translate3d(0,0,0); opacity: 1; }
+                    100% { top: 110%; transform: rotate(720deg) translate3d(0,0,0); opacity: 1; }
                 }
                 .particle {
                     position: absolute;
-                    top: -10vh;
                     animation: fall linear infinite;
+                    will-change: top, transform;
                 }
+                .shape-circle { border-radius: 50%; }
+                .shape-rect { border-radius: 2px; }
             `}} />
             <div className="fixed inset-0 pointer-events-none z-[210] overflow-hidden">
-                {[...Array(80)].map((_, i) => {
-                    // Pre-calculate to avoid React warnings on hydration mismatch, but here it's fine as it mounts post-load
-                    const size = Math.floor(Math.random() * 10) + 6;
+                {[...Array(100)].map((_, i) => {
+                    const size = Math.floor(Math.random() * 12) + 6;
                     const left = Math.random() * 100;
                     const delay = Math.random() * 5;
                     const duration = 2.5 + Math.random() * 4;
+                    const shapes = ['shape-circle', 'shape-rect', 'shape-rect'];
+                    const shape = shapes[i % shapes.length];
+                    const isLongRect = shape === 'shape-rect' && Math.random() > 0.5;
+                    const colors = [winnerColor, winnerColor, '#ffffff', '#fbbf24'];
+                    const color = colors[i % colors.length];
+
                     return (
                         <div
                             key={i}
-                            className="particle rounded-sm"
+                            className={`particle ${shape}`}
                             style={{
                                 width: `${size}px`,
-                                height: `${size}px`,
+                                height: isLongRect ? `${size * 2.5}px` : `${size}px`,
                                 left: `${left}%`,
-                                backgroundColor: winnerColor,
+                                backgroundColor: color,
                                 animationDuration: `${duration}s`,
                                 animationDelay: `${delay}s`,
-                                opacity: Math.random() * 0.5 + 0.5
+                                opacity: Math.random() * 0.4 + 0.6
                             }}
                         />
                     );

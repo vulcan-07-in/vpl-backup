@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { fetchFixtures, fetchSquads } from "@/lib/data";
+import { fetchFixtures, fetchSquads, fetchTeams, fetchAllLiveStates } from "@/lib/data";
+import { resolveS2Playoffs } from "@/lib/tournament";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
@@ -9,7 +10,10 @@ import { randomUUID } from "crypto";
 export async function GET() {
     try {
         const fixtures = await fetchFixtures(2);
-        return NextResponse.json(fixtures);
+        const teams = await fetchTeams(2);
+        const liveStates = await fetchAllLiveStates();
+        const resolved = resolveS2Playoffs(fixtures, teams, liveStates);
+        return NextResponse.json(resolved);
     } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }

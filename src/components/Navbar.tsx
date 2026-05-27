@@ -14,21 +14,17 @@ interface NavLink {
 
 const links: NavLink[] = [
     { href: "/", label: "HOME" },
-    // { href: "/live", label: "LIVE MATCH" },
-    // { href: "/matches", label: "MATCHES" },
+    { href: "/matches", label: "MATCHES" },
     { href: "/points", label: "STANDINGS" },
     { href: "/playoffs", label: "PLAYOFFS" },
     { href: "/stats", label: "STATS" },
-    // { href: "/squads", label: "SQUADS" },
-    { href: "/auction", label: "AUCTION" },
-    // { href: "/admin", label: "ADMIN" },
+    { href: "/squads", label: "SQUADS" },
 ];
 
 export default function Navbar() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
     const [isMatchLive, setIsMatchLive] = useState(false);
-    const [auctionActive, setAuctionActive] = useState(false);
 
     useEffect(() => {
         const checkLive = async () => {
@@ -40,34 +36,15 @@ export default function Navbar() {
                 }
             } catch (e) {}
         };
-        const checkAuction = async () => {
-            try {
-                const { supabaseBrowser } = await import('@/lib/supabase');
-                const { data } = await supabaseBrowser.from('vpl_auction_state').select('status').eq('id', 1).single();
-                if (data && data.status !== 'WAITING') {
-                    setAuctionActive(true);
-                } else {
-                    setAuctionActive(false);
-                }
-            } catch (e) {}
-        };
         
         checkLive();
-        checkAuction();
         const interval = setInterval(() => {
             checkLive();
-            checkAuction();
         }, 30000); // Check every 30s
         return () => clearInterval(interval);
     }, []);
 
-    const activeLinks = useMemo(() => {
-        const _links = [...links];
-        if (auctionActive) {
-            _links.push({ href: "/squads", label: "SQUADS" });
-        }
-        return _links;
-    }, [auctionActive]);
+    const activeLinks = links;
 
     if (pathname === '/auction' || pathname?.startsWith('/admin')) return null;
 

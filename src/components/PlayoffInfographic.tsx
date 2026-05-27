@@ -8,10 +8,12 @@ export default function PlayoffInfographic({
     fixtures = [],
     ranks = [],
     isGroupStageComplete = false,
+    liveStates = {},
 }: {
     fixtures?: Fixture[];
     ranks?: PlayoffRank[];
     isGroupStageComplete?: boolean;
+    liveStates?: Record<string, any>;
 }) {
     const getRankTeam = (r: number) => {
         if (!isGroupStageComplete) return `Rank ${r}`;
@@ -57,7 +59,8 @@ export default function PlayoffInfographic({
         const t1 = getMatchTeam(stage, 1, fallbackT1);
         const t2 = getMatchTeam(stage, 2, fallbackT2);
         const f = fixtures.find(x => x.stage === stage);
-        return { title: stage, t1, t2, color, isLive: f && !f.winner && f.team1 && f.team2 && f.team1 !== "TBD" && f.team2 !== "TBD" && !f.team1.includes("Rank") };
+        const isLive = f ? liveStates[f.matchNo]?.status === "LIVE" : false;
+        return { title: stage, t1, t2, color, isLive };
     };
 
     const e1 = getMatchBoxProps("Eliminator 1", getRankTeam(1), getRankTeam(6), "red");

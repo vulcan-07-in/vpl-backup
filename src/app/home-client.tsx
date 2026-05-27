@@ -7,48 +7,14 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
-    // { href: "/live", label: "LIVE MATCH" },
-    // { href: "/matches", label: "VIEW MATCHES" },
+    { href: "/matches", label: "VIEW MATCHES" },
     { href: "/points", label: "STANDINGS" },
     { href: "/playoffs", label: "PLAYOFFS" },
     { href: "/stats", label: "VIEW STATS" },
-    // { href: "/squads", label: "VIEW SQUADS" },
-    // { href: "/auction", label: "LIVE AUCTION" },
-    // { href: "/admin", label: "ADMIN HUB" },
 ];
 
 export default function HomeClient({ champion, auctionStartTime, auctionEndTime }: { champion: { name: string; color: string } | null, auctionStartTime: string, auctionEndTime: string }) {
-    const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
-    const [showAuction, setShowAuction] = useState(true);
 
-    useEffect(() => {
-        const targetDate = new Date(auctionStartTime).getTime();
-        const hideDate = new Date(auctionEndTime).getTime();
-
-        const updateCountdown = () => {
-            const now = new Date().getTime();
-            if (now >= hideDate) {
-                setShowAuction(false);
-                return;
-            }
-            setShowAuction(true);
-            const diff = targetDate - now;
-            if (diff <= 0) {
-                setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
-            } else {
-                setTimeLeft({
-                    d: Math.floor(diff / (1000 * 60 * 60 * 24)),
-                    h: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-                    m: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
-                    s: Math.floor((diff % (1000 * 60)) / 1000),
-                });
-            }
-        };
-        
-        updateCountdown();
-        const interval = setInterval(updateCountdown, 1000);
-        return () => clearInterval(interval);
-    }, [auctionStartTime, auctionEndTime]);
 
     return (
         <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 pt-24 md:pt-32">
@@ -138,46 +104,7 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                     transition={{ delay: 0.7, duration: 0.6 }}
                     className="w-full flex flex-col gap-4 mb-2"
                 >
-                    {showAuction && (
-                        <div className="flex flex-col items-center gap-2 px-6 py-5 rounded-3xl w-full border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm shadow-[0_0_30px_rgba(245,158,11,0.1)] relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
-                            <h3 className="text-amber-500 font-bold tracking-widest text-[10px] sm:text-xs uppercase mb-1">Live Auction</h3>
-                            
-                            <div className="flex flex-col items-center text-white">
-                                <p className="text-xl sm:text-2xl font-black uppercase tracking-wider" style={{ fontFamily: "var(--font-display)" }}>20th May</p>
-                                <p className="text-sm sm:text-base font-semibold tracking-wide text-zinc-300">5:00 PM</p>
-                                <p className="text-[11px] sm:text-xs tracking-widest text-zinc-400 mt-1 uppercase">Saraswati Hall</p>
-                            </div>
 
-                            {timeLeft && (timeLeft.d > 0 || timeLeft.h > 0 || timeLeft.m > 0 || timeLeft.s > 0) && (
-                                <div className="flex gap-3 mt-2 mb-2">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-lg sm:text-xl font-bold text-amber-400">{timeLeft.d}</span>
-                                        <span className="text-[9px] text-amber-500/60 tracking-widest">DAYS</span>
-                                    </div>
-                                    <span className="text-lg sm:text-xl font-bold text-amber-500/30">:</span>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-lg sm:text-xl font-bold text-amber-400">{timeLeft.h.toString().padStart(2, '0')}</span>
-                                        <span className="text-[9px] text-amber-500/60 tracking-widest">HRS</span>
-                                    </div>
-                                    <span className="text-lg sm:text-xl font-bold text-amber-500/30">:</span>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-lg sm:text-xl font-bold text-amber-400">{timeLeft.m.toString().padStart(2, '0')}</span>
-                                        <span className="text-[9px] text-amber-500/60 tracking-widest">MIN</span>
-                                    </div>
-                                    <span className="text-lg sm:text-xl font-bold text-amber-500/30">:</span>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-lg sm:text-xl font-bold text-amber-400">{timeLeft.s.toString().padStart(2, '0')}</span>
-                                        <span className="text-[9px] text-amber-500/60 tracking-widest">SEC</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            <Link href="/auction" className="mt-2 w-full max-w-[200px] text-center bg-amber-500 text-black font-black text-xs sm:text-sm uppercase tracking-widest py-2.5 rounded-full hover:bg-amber-400 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-                                View Auction
-                            </Link>
-                        </div>
-                    )}
 
                     {/* Sponsors Section — above match schedule */}
                     <motion.div

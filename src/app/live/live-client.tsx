@@ -453,52 +453,48 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                     animate={{ scale: 1, opacity: 1, y: 0 }}
                                     exit={{ scale: 0.95, opacity: 0, y: -20 }}
                                     transition={{ type: "spring", damping: 20, stiffness: 100 }}
-                                    className="relative flex flex-col items-center justify-center z-10 mx-4 w-full max-w-3xl"
+                                    className="relative flex flex-col items-center justify-center z-10 mx-4 w-full max-w-3xl text-center"
                                 >
-                                    {/* Glassmorphism Card */}
-                                    <div className="relative w-full overflow-hidden rounded-[2.5rem] bg-black/60 backdrop-blur-2xl border border-white/5 shadow-2xl p-10 md:p-20 text-center">
-                                        {/* Dynamic Glow Background */}
-                                        <motion.div 
-                                            className={`absolute inset-0 opacity-20 blur-3xl rounded-full scale-150 ${animationEvent.type === 'W' ? 'bg-red-600' : 'bg-amber-500'}`}
-                                            animate={{ opacity: [0.1, 0.2, 0.1], scale: [1.2, 1.4, 1.2] }}
-                                            transition={{ duration: 3, ease: "easeInOut", repeat: Infinity }}
-                                        />
+                                    {/* Dynamic Glow Background */}
+                                    <motion.div 
+                                        className={`absolute inset-0 opacity-30 blur-[100px] rounded-full scale-150 bg-white pointer-events-none`}
+                                        animate={{ opacity: [0.1, 0.4, 0.1], scale: [1.2, 1.5, 1.2] }}
+                                        transition={{ duration: 3, ease: "easeInOut", repeat: Infinity }}
+                                    />
 
-                                        {/* Top Accent Line */}
-                                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-1 ${animationEvent.type === 'W' ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,1)]' : 'bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,1)]'} rounded-b-full`} />
+                                    {/* Top Accent Line */}
+                                    <div className={`w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent mb-8 opacity-50`} />
 
-                                        {/* Main Event Text */}
-                                        <motion.h2 
-                                            className={`relative z-10 text-5xl md:text-8xl font-black italic text-transparent bg-clip-text leading-none tracking-tight uppercase ${animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-400 via-red-500 to-red-800' : 'bg-gradient-to-br from-amber-200 via-amber-400 to-amber-700'}`}
-                                            style={{ fontFamily: "var(--font-display)", textShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
-                                            animate={{ scale: [1, 1.02, 1] }}
-                                            transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
-                                        >
-                                            {animationEvent.type === 'W' ? 'WICKET' : animationEvent.type === '6' ? 'MAXIMUM' : 'BOUNDARY'}
-                                        </motion.h2>
+                                    {/* Main Event Text */}
+                                    <motion.h2 
+                                        className={`relative z-10 text-6xl md:text-9xl font-black italic text-transparent bg-clip-text leading-none tracking-tight uppercase ${animationEvent.type === 'W' ? 'bg-white' : 'bg-gradient-to-b from-white to-amber-200'}`}
+                                        style={{ fontFamily: "var(--font-display)", textShadow: "0 10px 40px rgba(255,255,255,0.4)" }}
+                                        animate={{ scale: [1, 1.05, 1] }}
+                                        transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
+                                    >
+                                        {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!' : 'FOUR!'}
+                                    </motion.h2>
 
-                                        {/* Separator */}
-                                        <div className="relative z-10 flex items-center justify-center my-8 gap-4 opacity-50">
-                                            <div className="h-px w-16 bg-gradient-to-r from-transparent to-white" />
-                                            <div className={`w-2 h-2 rounded-full rotate-45 ${animationEvent.type === 'W' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                                            <div className="h-px w-16 bg-gradient-to-l from-transparent to-white" />
-                                        </div>
-
-                                        {/* Player Name */}
-                                        <motion.div 
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: 0.2 }}
-                                            className="relative z-10"
-                                        >
-                                            <span className="block text-2xl md:text-5xl font-black text-white uppercase tracking-[0.3em]" style={{ fontFamily: "var(--font-heading)" }}>
-                                                {animationEvent.player}
-                                            </span>
-                                            <span className="block mt-4 text-[10px] md:text-xs text-zinc-400 font-mono tracking-[0.5em] uppercase">
-                                                {animationEvent.type === 'W' ? 'BATTER DISMISSED' : 'BRILLIANT SHOT'}
-                                            </span>
-                                        </motion.div>
+                                    {/* Separator */}
+                                    <div className="relative z-10 flex items-center justify-center my-8 gap-4 opacity-70">
+                                        <div className="h-px w-24 bg-gradient-to-r from-transparent to-white" />
+                                        <div className={`w-2 h-2 rounded-full rotate-45 ${animationEvent.type === 'W' ? 'bg-white' : 'bg-amber-400'}`} />
+                                        <div className="h-px w-24 bg-gradient-to-l from-transparent to-white" />
                                     </div>
+
+                                    {/* Player Name */}
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                        className="relative z-10"
+                                    >
+                                        <span className="block text-3xl md:text-6xl font-black text-white uppercase tracking-[0.3em]" style={{ fontFamily: "var(--font-heading)", textShadow: "0 5px 20px rgba(0,0,0,0.8)" }}>
+                                            {animationEvent.player}
+                                        </span>
+                                    </motion.div>
+                                    
+                                    <div className={`mt-8 w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-50`} />
                                 </motion.div>
                             </motion.div>
                         )}
@@ -517,7 +513,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         <p className="text-[10px] md:text-sm text-zinc-400 font-black tracking-[0.6em] uppercase mb-4">Powered By</p>
                         <img
                             src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
-                            className="h-20 md:h-32 object-contain opacity-100 drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]"
+                            className={`h-20 md:h-32 object-contain opacity-100 drop-shadow-[0_0_40px_rgba(255,255,255,0.4)] ${animationEvent.sponsorId === 1 ? 'rounded-full object-cover aspect-square bg-white p-1 border-4 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.5)]' : ''}`}
                             alt="Sponsor"
                         />
                     </motion.div>,

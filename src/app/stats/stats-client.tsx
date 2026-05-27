@@ -74,16 +74,22 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
     }, [mvpState, initialStats]);
 
     return (
-        <main className="min-h-screen pt-24 pb-20 px-4 md:px-8">
-            <div className="max-w-6xl mx-auto">
-                <header className="mb-16">
-                    <p className="text-[11px] tracking-[0.5em] text-zinc-600 mb-3 uppercase font-bold">VPL Analytics</p>
-                    <h1 className="text-6xl md:text-8xl text-white leading-none font-bold" style={{ fontFamily: "var(--font-display)" }}>
-                        PLAYER STATS
-                    </h1>
-                    <div className="mt-6 flex items-center gap-4">
-                        <div className="h-px w-12 bg-amber-500 border-none" />
-                        <span className="text-xs text-zinc-500 tracking-[0.2em] font-medium">RANKINGS & LEADERBOARDS</span>
+        <main className="min-h-screen pt-24 pb-20 px-4 md:px-8 relative overflow-hidden bg-black">
+            {/* Ambient Background Glows */}
+            <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-amber-600/20 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-amber-900/10 rounded-full blur-[150px] pointer-events-none" />
+            
+            <div className="max-w-7xl mx-auto relative z-10">
+                <header className="mb-16 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div>
+                        <p className="text-[11px] tracking-[0.5em] text-amber-500 mb-3 uppercase font-black">VPL Analytics</p>
+                        <h1 className="text-6xl md:text-8xl text-transparent bg-clip-text bg-gradient-to-br from-white via-amber-100 to-amber-500 leading-none font-black drop-shadow-2xl" style={{ fontFamily: "var(--font-display)" }}>
+                            PLAYER STATS
+                        </h1>
+                        <div className="mt-6 flex flex-col md:flex-row items-center gap-4">
+                            <div className="h-px w-24 bg-gradient-to-r from-transparent via-amber-500 to-transparent md:bg-amber-500 md:w-12 md:bg-none border-none" />
+                            <span className="text-xs text-zinc-400 tracking-[0.3em] font-bold uppercase">Rankings & Leaderboards</span>
+                        </div>
                     </div>
                 </header>
 
@@ -92,38 +98,38 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="mb-16 relative group"
+                        className="mb-20 relative group"
                     >
                         {/* Glow effect */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-500" />
+                        <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 rounded-[3rem] blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-700" />
                         
-                        <div className="relative bg-[#0a0a0a] border border-amber-500/20 rounded-[2rem] overflow-hidden p-8 md:p-12">
+                        <div className="relative bg-black/60 backdrop-blur-3xl border border-amber-500/40 rounded-[2.5rem] overflow-hidden p-8 md:p-14 shadow-[0_0_50px_rgba(245,158,11,0.2)]">
                             <div className="flex flex-col lg:flex-row gap-12 items-center">
                                 {/* Left: MVP Badge */}
                                 <div className="shrink-0 relative">
-                                    <div className="w-32 h-32 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 p-1">
+                                    <div className="w-40 h-40 md:w-56 md:h-56 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 p-1 shadow-[0_0_40px_rgba(245,158,11,0.5)]">
                                         <div className="w-full h-full rounded-full bg-black flex flex-col items-center justify-center p-4">
-                                            <Trophy className="w-12 h-12 md:w-20 md:h-20 text-amber-500 mb-2" />
-                                            <span className="text-[10px] md:text-xs font-black text-amber-500 tracking-[0.3em] uppercase">TOURNAMENT</span>
-                                            <span className="text-lg md:text-2xl font-black text-white leading-none">MVP</span>
+                                            <Trophy className="w-14 h-14 md:w-24 md:h-24 text-amber-400 mb-2 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)]" />
+                                            <span className="text-[10px] md:text-xs font-black text-amber-500 tracking-[0.4em] uppercase">TOURNAMENT</span>
+                                            <span className="text-2xl md:text-4xl font-black text-white leading-none tracking-widest">MVP</span>
                                         </div>
                                     </div>
-                                    <div className="absolute -bottom-4 -right-4 w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-zinc-900 border border-amber-500/30 flex items-center justify-center shadow-2xl">
-                                        <Zap className="w-6 h-6 md:w-8 md:h-8 text-amber-500 fill-amber-500" />
+                                    <div className="absolute -bottom-4 -right-4 w-14 h-14 md:w-20 md:h-20 rounded-full bg-amber-500 border-4 border-black flex items-center justify-center shadow-2xl">
+                                        <Zap className="w-7 h-7 md:w-10 md:h-10 text-black fill-black" />
                                     </div>
                                 </div>
 
                                 {/* Right: Stats & Info */}
                                 <div className="flex-1 text-center lg:text-left">
-                                    <p className="text-amber-500 font-black tracking-[0.4em] text-[10px] md:text-xs uppercase mb-3">Player of the Season</p>
-                                    <h2 className="text-5xl md:text-8xl text-white font-bold leading-none mb-4" style={{ fontFamily: "var(--font-display)" }}>
+                                    <p className="text-amber-500 font-black tracking-[0.5em] text-[10px] md:text-xs uppercase mb-4 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">Player of the Season</p>
+                                    <h2 className="text-6xl md:text-8xl text-white font-bold leading-none mb-6 drop-shadow-xl" style={{ fontFamily: "var(--font-display)" }}>
                                         {mvpPlayer.name}
                                     </h2>
-                                    <div className="flex flex-wrap justify-center lg:justify-start gap-4 mb-8">
-                                        <span className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] md:text-xs font-bold text-zinc-400 tracking-widest uppercase">
+                                    <div className="flex flex-wrap justify-center lg:justify-start gap-4 mb-10">
+                                        <span className="px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs md:text-sm font-black text-zinc-300 tracking-[0.2em] uppercase shadow-lg">
                                             {mvpPlayer.team}
                                         </span>
-                                        <span className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] md:text-xs font-bold text-amber-500 tracking-widest uppercase">
+                                        <span className="px-5 py-2 rounded-full bg-amber-500/20 backdrop-blur-md border border-amber-500/40 text-xs md:text-sm font-black text-amber-400 tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                                             {(mvpPlayer as any).mvpPoints?.toFixed(1) || "0.0"} MVP POINTS
                                         </span>
                                     </div>
@@ -131,11 +137,11 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                     {/* Achievements Grid */}
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         {mvpPlayer.achievements.slice(0, 4).map((ach, i) => (
-                                            <div key={i} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex flex-col items-center lg:items-start">
-                                                <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center mb-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_10px_#f59e0b]" />
+                                            <div key={i} className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col items-center lg:items-start hover:bg-white/[0.05] hover:border-amber-500/30 transition-all">
+                                                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center mb-3 border border-amber-500/30">
+                                                    <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_10px_#fcd34d]" />
                                                 </div>
-                                                <p className="text-[10px] md:text-[11px] font-bold text-white tracking-tight leading-tight uppercase">{ach}</p>
+                                                <p className="text-[10px] md:text-[11px] font-black text-white tracking-[0.1em] leading-tight uppercase text-center lg:text-left">{ach}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -151,39 +157,39 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             key={cat.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+                            className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col hover:border-amber-500/30 hover:bg-white/[0.04] transition-all duration-500 group"
                         >
-                            <div className="p-6 border-b border-white/5 flex justify-between items-end bg-white/[0.02]">
+                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20">
-                                        <cat.icon className="w-6 h-6 text-amber-500" />
+                                    <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30 group-hover:scale-110 transition-transform duration-500">
+                                        <cat.icon className="w-6 h-6 text-amber-400" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-white tracking-tight">{cat.title}</h3>
-                                        {cat.sub && <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mt-0.5">{cat.sub}</p>}
+                                        <h3 className="text-2xl font-black text-white tracking-wide">{cat.title}</h3>
+                                        {cat.sub && <p className="text-[9px] text-amber-500/80 uppercase font-bold tracking-[0.2em] mt-1">{cat.sub}</p>}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-hidden">
+                            <div className="flex-1 overflow-hidden p-2">
                                 {cat.data.length === 0 ? (
-                                    <div className="py-20 text-center text-zinc-600 text-xs uppercase tracking-widest font-bold">No eligible data yet</div>
+                                    <div className="py-20 text-center text-zinc-500 text-[10px] uppercase tracking-[0.3em] font-black">No eligible data yet</div>
                                 ) : (
-                                    <div className="divide-y divide-white/[0.03]">
+                                    <div className="flex flex-col gap-1">
                                         {/* U2 FIX: Default 5, expanded shows top 10 */}
                                         {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => (
-                                            <div key={player.name} className={`p-4 flex items-center justify-between group hover:bg-white/[0.02] transition-colors ${idx < 3 ? 'bg-amber-500/[0.02]' : ''}`}>
-                                                <div className="flex items-center gap-4">
-                                                    <span className={`w-6 text-center font-mono text-xs ${idx === 0 ? 'text-amber-500 font-bold' : idx === 1 ? 'text-zinc-400' : idx === 2 ? 'text-amber-800' : 'text-zinc-700'}`}>
+                                            <div key={player.name} className={`p-4 flex items-center justify-between rounded-xl hover:bg-white/5 transition-all ${idx === 0 ? 'bg-amber-500/10 border border-amber-500/20 shadow-[inset_0_0_20px_rgba(245,158,11,0.1)]' : idx < 3 ? 'bg-white/[0.02]' : ''}`}>
+                                                <div className="flex items-center gap-5">
+                                                    <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-black ${idx === 0 ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.6)]' : idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-white/5 text-zinc-400 border border-white/10'}`}>
                                                         {idx + 1}
-                                                    </span>
+                                                    </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight">{player.name}</p>
-                                                        <p className="text-[9px] text-zinc-500 font-bold tracking-widest uppercase">{player.team}</p>
+                                                        <p className="text-base font-bold text-white group-hover:text-amber-100 transition-colors tracking-tight uppercase">{player.name}</p>
+                                                        <p className="text-[10px] text-zinc-400 font-bold tracking-[0.2em] uppercase mt-0.5">{player.team}</p>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-lg font-black text-white tabular-nums">
+                                                    <p className={`text-2xl font-black tabular-nums leading-none ${idx === 0 ? 'text-amber-400' : 'text-white'}`} style={{ fontFamily: "var(--font-display)" }}>
                                                         {cat.id === "runs" ? player.runs : 
                                                          cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
                                                          cat.id === "wickets" ? player.wickets :
@@ -191,7 +197,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                                          cat.id === "catches" ? player.catches :
                                                          player.stumpings}
                                                     </p>
-                                                    <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest">{cat.unit}</p>
+                                                    <p className="text-[9px] text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">{cat.unit}</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -202,12 +208,12 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             {cat.data.length > 5 && (
                                 <button
                                     onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)}
-                                    className="p-5 w-full bg-white/[0.03] hover:bg-white/[0.05] text-zinc-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2"
+                                    className="p-5 w-full bg-black/40 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400 transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-white/10"
                                 >
                                     {expandedCategory === cat.id ? (
                                         <>SHOW LESS <ChevronUp className="w-4 h-4" /></>
                                     ) : (
-                                        <>VIEW TOP 10 <ChevronDown className="w-4 h-4" /></>
+                                        <>VIEW FULL STANDINGS <ChevronDown className="w-4 h-4" /></>
                                     )}
                                 </button>
                             )}
