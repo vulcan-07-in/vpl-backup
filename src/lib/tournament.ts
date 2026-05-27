@@ -516,19 +516,46 @@ export function resolveS2Playoffs(
         });
     }
 
+    const isPlaceholder = (name: string) => {
+        if (!name) return true;
+        const norm = name.trim().toLowerCase();
+        return (
+            norm === "tbd" || 
+            norm === "" || 
+            norm.startsWith("rank") ||
+            norm.includes("winner") ||
+            norm.includes("loser")
+        );
+    };
+
     return fixtures.map(f => {
+        const hasManualTeam1 = !isPlaceholder(f.team1);
+        const hasManualTeam2 = !isPlaceholder(f.team2);
+
         switch (f.stage) {
             case "Eliminator 1":
-                return { ...f, team1: getTeam(1), team2: getTeam(6) };
+                return { 
+                    ...f, 
+                    team1: hasManualTeam1 ? f.team1 : getTeam(1), 
+                    team2: hasManualTeam2 ? f.team2 : getTeam(6) 
+                };
             case "Eliminator 2":
-                return { ...f, team1: getTeam(2), team2: getTeam(5) };
+                return { 
+                    ...f, 
+                    team1: hasManualTeam1 ? f.team1 : getTeam(2), 
+                    team2: hasManualTeam2 ? f.team2 : getTeam(5) 
+                };
             case "Eliminator 3":
-                return { ...f, team1: getTeam(3), team2: getTeam(4) };
+                return { 
+                    ...f, 
+                    team1: hasManualTeam1 ? f.team1 : getTeam(3), 
+                    team2: hasManualTeam2 ? f.team2 : getTeam(4) 
+                };
             case "Qualifier 1": {
                 return { 
                     ...f, 
-                    team1: rankedWinners[0] || e1w || "E1 Winner", 
-                    team2: rankedWinners[1] || e2w || "E2 Winner" 
+                    team1: hasManualTeam1 ? f.team1 : (rankedWinners[0] || e1w || "E1 Winner"), 
+                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[1] || e2w || "E2 Winner") 
                 };
             }
             case "Qualifier 2": {
@@ -538,14 +565,18 @@ export function resolveS2Playoffs(
                     : "Q1 Loser";
                 return { 
                     ...f, 
-                    team1: q1Loser, 
-                    team2: rankedWinners[2] || e3w || "E3 Winner" 
+                    team1: hasManualTeam1 ? f.team1 : q1Loser, 
+                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[2] || e3w || "E3 Winner") 
                 };
             }
             case "Final": {
                 const q1w = getWinner("Qualifier 1");
                 const q2w = getWinner("Qualifier 2");
-                return { ...f, team1: q1w || "Q1 Winner", team2: q2w || "Q2 Winner" };
+                return { 
+                    ...f, 
+                    team1: hasManualTeam1 ? f.team1 : (q1w || "Q1 Winner"), 
+                    team2: hasManualTeam2 ? f.team2 : (q2w || "Q2 Winner") 
+                };
             }
             default:
                 return f;
