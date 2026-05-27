@@ -51,6 +51,56 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
 
     const hasGroupData = groupTeams.A.length > 0 || groupTeams.B.length > 0 || groupTeams.C.length > 0;
 
+    const getLocalDateString = (isoString?: string) => {
+        if (!isoString) return "TBD";
+        try {
+            const date = new Date(isoString);
+            return date.toLocaleDateString("en-CA"); // YYYY-MM-DD format
+        } catch (e) {
+            return "TBD";
+        }
+    };
+
+    const formatDateHeader = (dateStr: string) => {
+        if (dateStr === "TBD") return "To Be Decided";
+        try {
+            const date = new Date(dateStr + "T00:00:00");
+            const day = date.getDate();
+            const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
+            const weekday = date.toLocaleString('en-US', { weekday: 'long' });
+            const month = date.toLocaleString('en-US', { month: 'long' });
+            return `${weekday}, ${month} ${day}${suffix}`;
+        } catch (e) {
+            return dateStr;
+        }
+    };
+
+    const uniqueDates = Array.from(new Set(
+        fixtures
+            .map(f => getLocalDateString(f.scheduledTime))
+            .filter(d => d !== "TBD")
+    )).sort();
+
+    const dateToDayNum = new Map<string, number>();
+    uniqueDates.forEach((dateStr, idx) => {
+        dateToDayNum.set(dateStr, idx + 1);
+    });
+
+    const groupedFixtures: Record<string, Fixture[]> = {};
+    fixtures.forEach(f => {
+        const dateKey = getLocalDateString(f.scheduledTime);
+        if (!groupedFixtures[dateKey]) {
+            groupedFixtures[dateKey] = [];
+        }
+        groupedFixtures[dateKey].push(f);
+    });
+
+    const sortedGroupKeys = Object.keys(groupedFixtures).sort((a, b) => {
+        if (a === "TBD") return 1;
+        if (b === "TBD") return -1;
+        return a.localeCompare(b);
+    });
+
     const formatScheduledTime = (isoString?: string) => {
         if (!isoString) return null;
         try {
@@ -366,47 +416,52 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             </div>
                         )}
 
-                        <div className="space-y-12">
-                            {fixtures.filter(f => f.group === "-" && 
-                                !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
-                                !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner")).length > 0 && (
-                                <div>
-                                    <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
-                                        <span className="text-[12px] tracking-[0.4em] text-amber-500 font-bold uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                                            KNOCKOUT STAGE
-                                        </span>
-                                        <div className="flex-1 h-px bg-amber-500/20" />
-                                    </motion.div>
-                                    <div className="space-y-6">
-                                        {fixtures
-                                            .filter(f => f.group === "-" && 
-                                                !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
-                                                !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner"))
-                                            .sort((a, b) => b.matchNo.localeCompare(a.matchNo))
-                                            .map(fixture => renderFixture(fixture, true))}
+                        <div className="space-y-16">
+                            {sortedGroupKeys.map(dateKey => {
+                                const dayNum = dateToDayNum.get(dateKey);
+                                const headerText = dayNum ? `DAY ${dayNum}` : "UNSCHEDULED MATCHES";
+                                const subHeaderText = formatDateHeader(dateKey);
+
+                                const sortedMatches = groupedFixtures[dateKey].sort((a, b) => {
+                                    if (a.scheduledTime && b.scheduledTime) {
+                                        const timeA = new Date(a.scheduledTime).getTime();
+                                        const timeB = new Date(b.scheduledTime).getTime();
+                                        if (timeA !== timeB) return timeA - timeB;
+                                    }
+                                    const numA = parseInt(a.matchNo.replace(/[^0-9]/g, "")) || 999;
+                                    const numB = parseInt(b.matchNo.replace(/[^0-9]/g, "")) || 999;
+                                    if (numA !== numB) return numA - numB;
+                                    return a.matchNo.localeCompare(b.matchNo);
+                                });
+
+                                return (
+                                    <div key={dateKey} className="space-y-6">
+                                        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6 border-b border-white/[0.05] pb-4">
+                                            <div>
+                                                <span className="text-[11px] tracking-[0.5em] text-amber-500 font-extrabold uppercase" style={{ fontFamily: "var(--font-body)" }}>
+                                                    {headerText}
+                                                </span>
+                                                <h2 className="text-3xl sm:text-4xl text-white font-black leading-none mt-1" style={{ fontFamily: "var(--font-display)" }}>
+                                                    {subHeaderText}
+                                                </h2>
+                                            </div>
+                                            <span className="text-xs text-zinc-500 font-mono tracking-widest uppercase sm:pb-1">
+                                                {sortedMatches.length} {sortedMatches.length === 1 ? "MATCH" : "MATCHES"}
+                                            </span>
+                                        </motion.div>
+
+                                        <div className="space-y-6">
+                                            {sortedMatches.map(fixture => {
+                                                const isFeaturedKnockout = fixture.group === "-" && 
+                                                    !fixture.team1.includes("Group") && !fixture.team1.includes("Pool") && !fixture.team1.includes("Winner") &&
+                                                    !fixture.team2.includes("Group") && !fixture.team2.includes("Pool") && !fixture.team2.includes("Winner");
+                                                
+                                                return renderFixture(fixture, isFeaturedKnockout);
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-
-                            <div>
-                                <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4">
-                                    <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                                        TOURNAMENT SCHEDULE
-                                    </span>
-                                    <div className="flex-1 h-px bg-white/[0.05]" />
-                                </motion.div>
-
-                                <div className="space-y-4">
-                                    {fixtures
-                                        .filter(f => {
-                                            const isKnockout = f.group === "-";
-                                            const isResolved = !f.team1.includes("Group") && !f.team1.includes("Pool") && !f.team1.includes("Winner") &&
-                                                             !f.team2.includes("Group") && !f.team2.includes("Pool") && !f.team2.includes("Winner");
-                                            return !isKnockout || !isResolved;
-                                        })
-                                        .map(fixture => renderFixture(fixture, false))}
-                                </div>
-                            </div>
+                                );
+                            })}
                         </div>
                     </motion.div>
                 )}
