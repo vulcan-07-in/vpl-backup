@@ -647,49 +647,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         });
     };
 
-    const handleStartSuperOver = async () => {
-        if (!liveState || !selectedMatch) return;
-        
-        // Super over gets 1 over, 3 players (2 wickets max). 
-        // Batting order swaps.
-        const prevInnings2 = liveState.innings2.teamName;
-        const prevInnings1 = liveState.innings1.teamName;
 
-        const superOverState: LiveMatchState = {
-            matchId: `${selectedMatch.matchNo}-SO`,
-            status: "LIVE",
-            currentInnings: 1,
-            matchOvers: 1, // Super over
-            customPlayers: 3, // 2 wickets max
-            innings1: { teamName: prevInnings2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
-            innings2: { teamName: prevInnings1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
-            timeline: [],
-            lastSyncedAt: Date.now(),
-            isFunMatch: selectedMatch.isFunMatch ?? false
-        };
-
-        setLiveState(superOverState);
-        setTossWinner("");
-        setTossDecision(null);
-        setOpenStriker("");
-        setOpenNonStriker("");
-        setOpenBowler("");
-        setActiveScreen("TOSS_SETUP");
-        
-        // Initialize Super Over in KV
-        await fetch("/api/live-score", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(superOverState)
-        });
-
-        // Set as active broadcast
-        await fetch("/api/active-match", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ activeMatchId: superOverState.matchId })
-        });
-    };
 
     // ==========================================
     // DATA ENGINE LOGIC
@@ -887,6 +845,33 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             });
         } catch (e) {
             console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStartSuperOver = async () => {
+        if (!selectedMatch) return;
+        setLoading(true);
+        try {
+            const res = await fetch("/api/matches", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "create_super_over", matchNo: selectedMatch.matchNo })
+            });
+            const data = await res.json();
+            if (data.ok && data.matchNo) {
+                window.location.reload();
+                alert(`Super Over created! Look for ${data.matchNo} in the Matches list.`);
+                
+                // Clear current view
+                setLiveState(null);
+                setSelectedMatch(null);
+                setActiveScreen("SELECT_MATCH");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to create Super Over");
         } finally {
             setLoading(false);
         }

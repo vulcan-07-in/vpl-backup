@@ -101,6 +101,36 @@ export async function POST(request: Request) {
             return NextResponse.json({ ok: true });
         }
 
+        if (payload.action === "create_super_over") {
+            const { matchNo } = payload;
+            if (!matchNo) throw new Error("Missing matchNo");
+            
+            const { data: orig, error: origErr } = await supabase.from("Match").select("*").eq("matchNo", matchNo).single();
+            if (origErr || !orig) throw new Error("Original match not found: " + origErr?.message);
+            
+            const now = new Date().toISOString();
+            const soMatchNo = matchNo + "-SO";
+
+            const { error: insertErr } = await supabase.from("Match").insert({
+                id: randomUUID(),
+                matchNo: soMatchNo,
+                stage: orig.stage,
+                group: orig.group,
+                team1Id: orig.team1Id,
+                team2Id: orig.team2Id,
+                scheduledTime: now,
+                status: "SCHEDULED",
+                isFunMatch: orig.isFunMatch,
+                createdAt: now,
+                updatedAt: now
+            });
+            if (insertErr) throw new Error(insertErr.message);
+
+            revalidatePath("/matches");
+            revalidatePath("/");
+            return NextResponse.json({ ok: true, matchNo: soMatchNo });
+        }
+
         if (payload.action === "delete_match") {
             const { error } = await supabase
                 .from("Match")

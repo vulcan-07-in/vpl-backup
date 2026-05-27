@@ -347,13 +347,13 @@ export interface PlayoffRank {
     nrr: number;
     points: number;
     played: number;
+    isEliminated?: boolean;
 }
 
 /**
- * Computes the 6 playoff seeds for Season 2.
- * Top 2 from each of the 3 groups are collected and ranked by NRR across all groups.
+ * Computes the 6 base playoff seeds strictly from the Group Stage.
  */
-export function computePlayoffRankings(
+export function computeBaseSeeds(
     fixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
@@ -370,6 +370,95 @@ export function computePlayoffRankings(
     qualifiers.sort((a, b) => b.points - a.points || b.nrr - a.nrr);
 
     return qualifiers.map((q, i) => ({ ...q, rank: i + 1 }));
+}
+
+/**
+ * Computes the live playoff rankings by taking the base seeds and adding stats from Eliminators.
+ */
+export function computePlayoffRankings(
+    fixtures: Fixture[],
+    teams: Team[],
+    liveStates: Record<string, LiveMatchState> = {}
+): PlayoffRank[] {
+    const baseSeeds = computeBaseSeeds(fixtures, teams, liveStates);
+    
+    // Check if any Eliminators are completed
+    const eliminators = fixtures.filter(f => f.stage.startsWith("Eliminator") && f.winner && f.winner !== "TIE" && f.winner !== "ABANDONED");
+    
+    if (eliminators.length === 0) {
+        return baseSeeds;
+    }
+
+    const decimalOversToBalls = (overs: number) => Math.floor(overs) * 6 + Math.round((overs % 1) * 10);
+    const normalize = (s: string) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const calculateTotalNRR = (teamName: string): number => {
+        let runsScored = 0, runsAgainst = 0;
+        let oversFaced = 0, oversBowled = 0;
+
+        fixtures.forEach(f => {
+            if (f.isFunMatch || !f.winner) return;
+            if (f.team1 !== teamName && f.team2 !== teamName) return;
+            if (f.stage === "Qualifier 1" || f.stage === "Qualifier 2" || f.stage === "Final") return;
+
+            const liveMatch = liveStates[String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase()] || liveStates[f.matchNo];
+            if (liveMatch && liveMatch.status === "COMPLETED") {
+                const inn1 = liveMatch.innings1;
+                const inn2 = liveMatch.innings2;
+                const isMatch = (innName: string, fixName: string) => normalize(innName).includes(normalize(fixName)) || normalize(fixName).includes(normalize(innName));
+                
+                const t1Score = isMatch(inn1.teamName, teamName) ? inn1 : (isMatch(inn2.teamName, teamName) ? inn2 : null);
+                const t2Score = (t1Score === inn1) ? inn2 : inn1;
+
+                if (t1Score && t2Score) {
+                    runsScored += t1Score.runs;
+                    runsAgainst += t2Score.runs;
+                    const matchOvers = liveMatch.matchOvers || 8;
+                    const ballsFaced = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
+                    const ballsBowled = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
+                    oversFaced += ballsFaced / 6;
+                    oversBowled += ballsBowled / 6;
+                }
+            }
+        });
+        
+        const battingRR = oversFaced > 0 ? (runsScored / oversFaced) : 0;
+        const bowlingRR = oversBowled > 0 ? (runsAgainst / oversBowled) : 0;
+        return battingRR - bowlingRR;
+    };
+
+    const liveSeeds = baseSeeds.map(seed => {
+        let isEliminated = false;
+        let extraPoints = 0;
+        let extraPlayed = 0;
+        
+        eliminators.forEach(e => {
+            if (e.team1 === seed.team || e.team2 === seed.team) {
+                extraPlayed += 1;
+                if (e.winner === seed.team) {
+                    extraPoints += 2;
+                } else {
+                    isEliminated = true;
+                }
+            }
+        });
+
+        return {
+            ...seed,
+            points: seed.points + extraPoints,
+            played: seed.played + extraPlayed,
+            nrr: calculateTotalNRR(seed.team),
+            isEliminated
+        };
+    });
+
+    liveSeeds.sort((a, b) => {
+        if (a.isEliminated && !b.isEliminated) return 1;
+        if (!a.isEliminated && b.isEliminated) return -1;
+        return b.points - a.points || b.nrr - a.nrr;
+    });
+
+    return liveSeeds.map((q, i) => ({ ...q, rank: i + 1 }));
 }
 
 /**
@@ -428,21 +517,16 @@ export function resolveKnockouts(
     });
 }
 
-/**
- * S2: resolves playoff bracket fixture labels using 3-group IPL format.
- * Returns the full fixture list with Eliminator/Qualifier/Final labels resolved.
- */
 export function resolveS2Playoffs(
     fixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
 ): Fixture[] {
-    const seeds = computePlayoffRankings(fixtures, teams, liveStates);
+    const baseSeeds = computeBaseSeeds(fixtures, teams, liveStates);
+    const liveSeeds = computePlayoffRankings(fixtures, teams, liveStates);
     
     const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
     
-    // Group stage is ONLY complete if ALL scheduled group matches are COMPLETED or ABANDONED, AND there is at least one group match.
-    // If we wipe matches, groupMatches might be empty or all SCHEDULED.
     const isGroupStageComplete = groupMatches.length > 0 && groupMatches.every(f => {
         const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
         const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
@@ -450,76 +534,15 @@ export function resolveS2Playoffs(
         return status === "COMPLETED" || status === "ABANDONED" || f.winner;
     });
 
-    const getTeam = (rank: number) => {
+    const getBaseTeam = (rank: number) => {
         if (!isGroupStageComplete) return `Rank ${rank}`;
-        return seeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`;
+        return baseSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`;
     };
 
-    const getWinner = (stage: Stage) =>
-        fixtures.find(f => f.stage === stage)?.winner ?? "";
-
-    // Helper to calculate total NRR for a specific team (Group Stage + Eliminators)
-    const calculateTotalNRR = (teamName: string): number => {
-        let runsScored = 0, runsAgainst = 0;
-        let oversFaced = 0, oversBowled = 0;
-
-        const decimalOversToBalls = (overs: number) => Math.floor(overs) * 6 + Math.round((overs % 1) * 10);
-        const normalize = (s: string) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-
-        fixtures.forEach(f => {
-            if (f.isFunMatch || !f.winner) return;
-            if (f.team1 !== teamName && f.team2 !== teamName) return;
-            if (f.stage === "Qualifier 1" || f.stage === "Qualifier 2" || f.stage === "Final") return;
-
-            const liveMatch = liveStates[String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase()];
-            if (liveMatch && liveMatch.status === "COMPLETED") {
-                const inn1 = liveMatch.innings1;
-                const inn2 = liveMatch.innings2;
-                const isMatch = (innName: string, fixName: string) => normalize(innName).includes(normalize(fixName)) || normalize(fixName).includes(normalize(innName));
-                
-                const t1Score = isMatch(inn1.teamName, teamName) ? inn1 : (isMatch(inn2.teamName, teamName) ? inn2 : null);
-                const t2Score = (t1Score === inn1) ? inn2 : inn1;
-
-                if (t1Score && t2Score) {
-                    runsScored += t1Score.runs;
-                    runsAgainst += t2Score.runs;
-                    const matchOvers = liveMatch.matchOvers || 8;
-                    const ballsFaced = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
-                    const ballsBowled = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
-                    oversFaced += ballsFaced / 6;
-                    oversBowled += ballsBowled / 6;
-                }
-            }
-        });
-        
-        const battingRR = oversFaced > 0 ? (runsScored / oversFaced) : 0;
-        const bowlingRR = oversBowled > 0 ? (runsAgainst / oversBowled) : 0;
-        return battingRR - bowlingRR;
+    const getLiveTeam = (rank: number) => {
+        if (!isGroupStageComplete) return `Rank ${rank} Winner`;
+        return liveSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank} Winner`;
     };
-
-    const standings = calculateStandings(fixtures, teams, liveStates);
-    const getTeamGroupPoints = (teamName: string) => {
-        for (const grp of [standings.groupA, standings.groupB, standings.groupC]) {
-            const t = grp.find(x => x.team === teamName);
-            if (t) return t.points;
-        }
-        return 0;
-    };
-
-    // Dynamically rank the Eliminator winners based on Points, then total NRR
-    const e1w = getWinner("Eliminator 1");
-    const e2w = getWinner("Eliminator 2");
-    const e3w = getWinner("Eliminator 3");
-    
-    let rankedWinners: string[] = [];
-    if (e1w && e2w && e3w) {
-        rankedWinners = [e1w, e2w, e3w].sort((a, b) => {
-            const ptsA = getTeamGroupPoints(a);
-            const ptsB = getTeamGroupPoints(b);
-            if (ptsA !== ptsB) return ptsB - ptsA;
-            return calculateTotalNRR(b) - calculateTotalNRR(a);
-        });
-    }
 
     const isPlaceholder = (name: string) => {
         if (!name) return true;
@@ -541,26 +564,26 @@ export function resolveS2Playoffs(
             case "Eliminator 1":
                 return { 
                     ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getTeam(1), 
-                    team2: hasManualTeam2 ? f.team2 : getTeam(6) 
+                    team1: hasManualTeam1 ? f.team1 : getBaseTeam(1), 
+                    team2: hasManualTeam2 ? f.team2 : getBaseTeam(6) 
                 };
             case "Eliminator 2":
                 return { 
                     ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getTeam(2), 
-                    team2: hasManualTeam2 ? f.team2 : getTeam(5) 
+                    team1: hasManualTeam1 ? f.team1 : getBaseTeam(2), 
+                    team2: hasManualTeam2 ? f.team2 : getBaseTeam(5) 
                 };
             case "Eliminator 3":
                 return { 
                     ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getTeam(3), 
-                    team2: hasManualTeam2 ? f.team2 : getTeam(4) 
+                    team1: hasManualTeam1 ? f.team1 : getBaseTeam(3), 
+                    team2: hasManualTeam2 ? f.team2 : getBaseTeam(4) 
                 };
             case "Qualifier 1": {
                 return { 
                     ...f, 
-                    team1: hasManualTeam1 ? f.team1 : (rankedWinners[0] || "1st Ranked Winner"), 
-                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[1] || "2nd Ranked Winner") 
+                    team1: hasManualTeam1 ? f.team1 : getLiveTeam(1), 
+                    team2: hasManualTeam2 ? f.team2 : getLiveTeam(2) 
                 };
             }
             case "Qualifier 2": {
@@ -571,12 +594,12 @@ export function resolveS2Playoffs(
                 return { 
                     ...f, 
                     team1: hasManualTeam1 ? f.team1 : q1Loser, 
-                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[2] || "3rd Ranked Winner") 
+                    team2: hasManualTeam2 ? f.team2 : getLiveTeam(3) 
                 };
             }
             case "Final": {
-                const q1w = getWinner("Qualifier 1");
-                const q2w = getWinner("Qualifier 2");
+                const q1w = fixtures.find(f => f.stage === "Qualifier 1")?.winner ?? "";
+                const q2w = fixtures.find(f => f.stage === "Qualifier 2")?.winner ?? "";
                 return { 
                     ...f, 
                     team1: hasManualTeam1 ? f.team1 : (q1w || "Q1 Winner"), 
