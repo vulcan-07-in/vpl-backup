@@ -84,7 +84,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         const syntheticState: LiveMatchState = {
                             matchId: fixture.matchNo,
                             status: "SCHEDULED",
-                            scheduledTime: fixture.date || undefined,
+                            scheduledTime: fixture.scheduledTime || undefined,
                             currentInnings: 1,
                             matchOvers: 8,
                             innings1: { teamName: fixture.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
