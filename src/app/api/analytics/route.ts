@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
         const pipeline = redis.pipeline();
 
         // 1. Maintain a short-lived key per visitor+page so we can count concurrents
-        //    TTL of 25s — heartbeat fires every 15s so there's plenty of buffer
+        //    TTL of 300s — heartbeat fires every 120s with 25% sampling, so 5min TTL covers gaps
         const sessionKey = `s2:active_viewer:${visitorId}:${page}`;
-        pipeline.set(sessionKey, "1", "EX", 25);
+        pipeline.set(sessionKey, "1", "EX", 300);
 
         // 2. Increment total page-view counter (persistent hash)
         pipeline.hincrby("s2:page_hits", page, 1);

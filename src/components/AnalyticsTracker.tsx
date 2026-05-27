@@ -63,6 +63,8 @@ export default function AnalyticsTracker() {
         const ping = () => {
             // Avoid logging views when the user is not actively viewing the tab (minimized or background)
             if (document.visibilityState !== "visible") return;
+            // Sample ~25% of pings to reduce Redis load during high-traffic events
+            if (Math.random() > 0.25) return;
 
             fetch("/api/analytics", {
                 method: "POST",
@@ -78,8 +80,8 @@ export default function AnalyticsTracker() {
             body: JSON.stringify({ visitorId, page, device: dev }),
         }).catch(() => { /* silent */ });
 
-        // Heartbeat every 15 seconds to maintain "active" status, only if active and visible
-        const interval = setInterval(ping, 15_000);
+        // Heartbeat every 120s (reduced from 15s to stay within Redis free tier limits)
+        const interval = setInterval(ping, 120_000);
         return () => clearInterval(interval);
     }, [pathname]);
 
