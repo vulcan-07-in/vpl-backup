@@ -41,7 +41,7 @@ export async function GET(request: Request) {
             headers: {
                 // Edge cache: serve stale for up to 3s (matches client poll interval)
                 // All 300 concurrent viewers share ONE upstream Redis read per 3s
-                'Cache-Control': 's-maxage=2, stale-while-revalidate=3',
+                'Cache-Control': 's-maxage=1, stale-while-revalidate=2',
             },
         });
     } catch (error) {

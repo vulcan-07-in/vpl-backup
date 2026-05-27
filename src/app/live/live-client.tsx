@@ -104,7 +104,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
         const interval = setInterval(() => {
             fetchLiveStatus();
             fetchNotifications();
-        }, 3000); // Slightly relaxed polling to reduce load
+        }, 2000); // Fast 2s polling — CDN absorbs the load, Supabase handles 1 read/s easily
         return () => { isMounted = false; clearInterval(interval); };
     }, [fixtures]);
 
