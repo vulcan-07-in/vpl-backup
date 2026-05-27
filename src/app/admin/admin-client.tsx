@@ -401,6 +401,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                         team2Id: m.team2Id,
                                                         scheduledTime: m.scheduledTime ? new Date(m.scheduledTime).toISOString().slice(0, 16) : "",
                                                         isFunMatch: m.isFunMatch || false,
+                                                        customTeam1Name: "",
+                                                        customTeam2Name: ""
                                                     });
                                                     setEditModal({ isOpen: true, match: m });
                                                 }} 
