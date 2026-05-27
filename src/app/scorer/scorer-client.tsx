@@ -600,6 +600,13 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             },
             body: JSON.stringify(newState)
         });
+
+        // Automatically start the broadcast
+        await fetch("/api/active-match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ activeMatchId: selectedMatch.matchNo })
+        });
     };
 
     const handleScheduleMatch = async () => {
@@ -630,6 +637,56 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(newState)
+        });
+
+        await fetch("/api/active-match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ activeMatchId: selectedMatch.matchNo })
+        });
+    };
+
+    const handleStartSuperOver = async () => {
+        if (!liveState || !selectedMatch) return;
+        
+        // Super over gets 1 over, 3 players (2 wickets max). 
+        // Batting order swaps.
+        const prevInnings2 = liveState.innings2.teamName;
+        const prevInnings1 = liveState.innings1.teamName;
+
+        const superOverState: LiveMatchState = {
+            matchId: `${selectedMatch.matchNo}-SO`,
+            status: "LIVE",
+            currentInnings: 1,
+            matchOvers: 1, // Super over
+            customPlayers: 3, // 2 wickets max
+            innings1: { teamName: prevInnings2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+            innings2: { teamName: prevInnings1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+            timeline: [],
+            lastSyncedAt: Date.now(),
+            isFunMatch: selectedMatch.isFunMatch ?? false
+        };
+
+        setLiveState(superOverState);
+        setTossWinner("");
+        setTossDecision(null);
+        setOpenStriker("");
+        setOpenNonStriker("");
+        setOpenBowler("");
+        setActiveScreen("TOSS_SETUP");
+        
+        // Initialize Super Over in KV
+        await fetch("/api/live-score", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(superOverState)
+        });
+
+        // Set as active broadcast
+        await fetch("/api/active-match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ activeMatchId: superOverState.matchId })
         });
     };
 
@@ -1512,7 +1569,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             (liveState.matchOvers * 6 - (Math.floor(currentInningsData.overs) * 6 + Math.round((currentInningsData.overs % 1) * 10))) : null;
 
         return (
-            <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 overflow-hidden flex flex-col">
+            <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 overflow-y-auto overflow-x-hidden flex flex-col">
                 {/* Top Bar - Scorer Info */}
                 <div className="h-16 border-b border-white/10 bg-zinc-950 px-6 flex items-center justify-between sticky top-0 z-50 shrink-0">
                     <div className="flex items-center gap-6">
@@ -1610,7 +1667,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 </div>
 
                 {/* Main Grid - Scrollable on Mobile, Constrained on Desktop */}
-                <div className="p-4 max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-4 flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden">
+                <div className="p-4 max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-4 flex-1 w-full">
                     {/* LEFT COL: Live Scoreboard (The "Big Board") */}
                     <div className="lg:col-span-6 flex flex-col gap-4 overflow-visible lg:overflow-hidden h-auto lg:h-full min-h-0">
                         {/* Main Score Card */}
@@ -1923,6 +1980,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 alert("Scorecard Link Copied!");
                             }}
                             isScorer
+                            onStartSuperOver={handleStartSuperOver}
                         />
                     )}
                     {liveState && liveState.status === "INNINGS_BREAK" && (

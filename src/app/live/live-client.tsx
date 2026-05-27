@@ -14,7 +14,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [showScorecard, setShowScorecard] = useState(false);
-    const [animationEvent, setAnimationEvent] = useState<{ type: '4' | '6' | 'W', player: string } | null>(null);
+    const [animationEvent, setAnimationEvent] = useState<{ type: '4' | '6' | 'W', player: string, sponsorId: number } | null>(null);
 
     // C4 FIX: Use a ref to track the latest match state for animation detection
     // This avoids the stale closure problem in the polling useEffect
@@ -64,13 +64,13 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                     if (prev && data.timeline.length > prev.timeline.length) {
                         const lastBall = data.timeline[data.timeline.length - 1];
                         if (lastBall.isWicket) {
-                            setAnimationEvent({ type: 'W', player: lastBall.playerOut || lastBall.striker });
+                            setAnimationEvent({ type: 'W', player: lastBall.playerOut || lastBall.striker, sponsorId: Math.random() > 0.5 ? 1 : 2 });
                             setTimeout(() => setAnimationEvent(null), 4000);
                         } else if (lastBall.runs === 6) {
-                            setAnimationEvent({ type: '6', player: lastBall.striker });
+                            setAnimationEvent({ type: '6', player: lastBall.striker, sponsorId: Math.random() > 0.5 ? 1 : 2 });
                             setTimeout(() => setAnimationEvent(null), 4000);
                         } else if (lastBall.runs === 4) {
-                            setAnimationEvent({ type: '4', player: lastBall.striker });
+                            setAnimationEvent({ type: '4', player: lastBall.striker, sponsorId: Math.random() > 0.5 ? 1 : 2 });
                             setTimeout(() => setAnimationEvent(null), 4000);
                         }
                     }
@@ -79,7 +79,23 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         setLiveMatch(data);
                     }
                 } else {
-                    if (isMounted) setLiveMatch(null);
+                    const fixture = fixtures.find(f => f.matchNo === matchIdToFetch);
+                    if (fixture) {
+                        const syntheticState: LiveMatchState = {
+                            matchId: fixture.matchNo,
+                            status: "SCHEDULED",
+                            scheduledTime: fixture.date || undefined,
+                            currentInnings: 1,
+                            matchOvers: 8,
+                            innings1: { teamName: fixture.team1, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+                            innings2: { teamName: fixture.team2, runs: 0, wickets: 0, overs: 0, batsmen: {}, bowlers: {} },
+                            timeline: [],
+                            lastSyncedAt: Date.now()
+                        };
+                        if (isMounted) setLiveMatch(syntheticState);
+                    } else {
+                        if (isMounted) setLiveMatch(null);
+                    }
                 }
             } catch (e) {
                 console.error("Live fetch error", e);
@@ -408,9 +424,9 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                     className="absolute inset-0 bg-white"
                                 />
 
-                                {/* Abstract Shapes/Particles Move */}
+                                {/* Abstract Shapes/Particles Move (Reduced for performance on older phones) */}
                                 <div className="absolute inset-0 overflow-hidden">
-                                    {[...Array(12)].map((_, i) => (
+                                    {[...Array(6)].map((_, i) => (
                                         <motion.div
                                             key={i}
                                             initial={{ 
@@ -420,46 +436,52 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                                 rotate: Math.random() * 360
                                             }}
                                             animate={{ 
-                                                x: [null, (Math.random() * 200 - 100) + "vw"],
-                                                y: [null, (Math.random() * 200 - 100) + "vh"],
-                                                scale: [0, 2, 0],
-                                                opacity: [0, 0.5, 0]
+                                                x: [null, (Math.random() * 100 - 50) + "vw"],
+                                                y: [null, (Math.random() * 100 - 50) + "vh"],
+                                                scale: [0, 1.5, 0],
+                                                opacity: [0, 0.3, 0]
                                             }}
-                                            transition={{ duration: 2, ease: "easeOut" }}
-                                            className="absolute w-32 md:w-64 h-32 md:h-64 border border-white/20 rounded-full"
+                                            transition={{ duration: 3, ease: "easeOut" }}
+                                            className="absolute w-32 md:w-48 h-32 md:h-48 border-2 border-white/10 rounded-full"
                                         />
                                     ))}
                                 </div>
 
-                                {/* Center Content */}
+                                {/* Premium Center Content */}
                                 <motion.div
-                                    initial={{ scale: 0.5, opacity: 0, y: 100 }}
+                                    initial={{ scale: 0.8, opacity: 0, y: 30 }}
                                     animate={{ scale: 1, opacity: 1, y: 0 }}
-                                    exit={{ scale: 1.5, opacity: 0, y: -100 }}
-                                    transition={{ type: "spring", damping: 15, stiffness: 200 }}
-                                    className="relative flex flex-col items-center z-10"
+                                    exit={{ scale: 1.1, opacity: 0, y: -30 }}
+                                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                                    className="relative flex flex-col items-center z-10 p-8 md:p-12 bg-zinc-950/80 border border-white/10 rounded-3xl backdrop-blur-md shadow-[0_0_50px_rgba(0,0,0,0.8)] mx-4 w-[90%] max-w-lg"
                                 >
-                                    <div className="absolute -inset-20 bg-black/80 blur-2xl rounded-full" />
-                                    
+                                    {/* Sponsor Badge */}
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                        className="mb-4 md:mb-6 flex flex-col items-center bg-white/5 px-6 py-2 rounded-2xl border border-white/5"
+                                    >
+                                        <p className="text-[8px] text-zinc-400 font-bold tracking-[0.4em] uppercase mb-2">Powered By</p>
+                                        <img src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"} className="h-6 md:h-10 object-contain opacity-90 drop-shadow-lg" alt="Sponsor" />
+                                    </motion.div>
+
                                     <motion.h2 
-                                        className="text-[25vw] md:text-[20vw] font-black italic text-white leading-none tracking-tighter drop-shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative"
+                                        className={`text-5xl md:text-8xl font-black italic text-transparent bg-clip-text leading-none tracking-tighter drop-shadow-2xl uppercase ${animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-400 to-red-600' : 'bg-gradient-to-br from-amber-300 to-amber-600'}`}
                                         style={{ fontFamily: "var(--font-display)" }}
-                                        animate={{ 
-                                            scale: [1, 1.1, 1],
-                                            rotate: [-2, 2, -2]
-                                        }}
-                                        transition={{ duration: 0.5, repeat: 4 }}
+                                        animate={{ scale: [1, 1.05, 1] }}
+                                        transition={{ duration: 0.8, ease: "easeInOut", repeat: Infinity }}
                                     >
                                         {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
                                     </motion.h2>
 
                                     <motion.div 
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.3 }}
-                                        className="relative px-8 md:px-12 py-3 md:py-4 bg-white text-black font-black text-xl md:text-5xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl mt-4 md:mt-0"
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: 0.3, type: "spring" }}
+                                        className="mt-6 px-6 py-3 md:px-10 md:py-4 bg-white text-black font-black text-lg md:text-3xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl"
                                     >
-                                        {animationEvent.player}
+                                        <span className="block skew-x-[12deg] text-center w-full">{animationEvent.player}</span>
                                     </motion.div>
                                 </motion.div>
                             </motion.div>

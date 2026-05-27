@@ -149,7 +149,16 @@ export async function POST(request: Request) {
             const { error } = await supabase.from("Match").delete().neq("id", "0");
             if (error) throw new Error(error.message);
             
-            // Note: We might want to clear all redis s2:live_match keys but typically wipe all is only used at start.
+            // Clear all Redis keys to ensure stats are wiped
+            try {
+                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+                const keys = await redis.keys("s2:live_match_*");
+                if (keys.length > 0) {
+                    await redis.del(...keys);
+                }
+            } catch (e) {
+                console.error("Redis delete_all error", e);
+            }
             
             revalidatePath("/matches");
             revalidatePath("/points");

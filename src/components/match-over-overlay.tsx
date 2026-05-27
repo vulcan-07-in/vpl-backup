@@ -13,6 +13,7 @@ interface MatchOverOverlayProps {
     onBack?: () => void;
     onCopyLink?: () => void;
     isScorer?: boolean;
+    onStartSuperOver?: () => void;
 }
 
 export const MatchOverOverlay = React.memo(function MatchOverOverlay({
@@ -23,7 +24,8 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
     onShowScorecard,
     onBack,
     onCopyLink,
-    isScorer
+    isScorer,
+    onStartSuperOver
 }: MatchOverOverlayProps) {
     return (
         <motion.div
@@ -121,6 +123,14 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
                                 >
                                     Back to Dashboard
                                 </button>
+                                {result.includes("Tied") && onStartSuperOver && (
+                                    <button
+                                        onClick={onStartSuperOver}
+                                        className="flex items-center justify-center gap-3 bg-red-500 text-white font-black px-8 py-5 rounded-2xl tracking-widest uppercase text-xs hover:scale-[1.02] active:scale-95 transition-all w-full shadow-lg shadow-red-500/20 animate-pulse mt-2"
+                                    >
+                                        START SUPER OVER
+                                    </button>
+                                )}
                             </>
                         ) : (
                             <a

@@ -32,7 +32,7 @@ export const InningsBreakOverlay = React.memo(function InningsBreakOverlay({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 text-center overflow-hidden"
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-start p-6 text-center overflow-y-auto custom-scrollbar pt-12 md:pt-24"
         >
             {/* Dramatic Background Glow */}
             <motion.div
@@ -68,7 +68,7 @@ export const InningsBreakOverlay = React.memo(function InningsBreakOverlay({
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden"
+                    className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden mb-8 w-full max-w-lg mx-auto"
                 >
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
 
@@ -98,7 +98,9 @@ export const InningsBreakOverlay = React.memo(function InningsBreakOverlay({
                                     Start 2nd Innings &rarr;
                                 </button>
                             ) : (
-                                <p className="text-[10px] text-zinc-500 tracking-[0.3em] uppercase mt-4 font-bold">Resuming shortly...</p>
+                                <p className="text-[10px] text-zinc-500 tracking-[0.3em] uppercase mt-6 font-bold bg-white/5 px-6 py-3 rounded-full border border-white/10 shadow-inner">
+                                    Resuming shortly...
+                                </p>
                             )}
                         </div>
                     </div>
