@@ -67,9 +67,9 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
         }
     }, [authenticated]);
 
-    const fetchMatches = () => fetch("/api/admin/matches").then(res => res.json()).then(setMatches);
-    const fetchLogs = () => fetch("/api/logs").then(res => res.json()).then(setLogs);
-    const fetchSquads = () => fetch("/api/squads").then(res => res.json()).then(setSquads);
+    const fetchMatches = () => fetch("/api/admin/matches?t=" + Date.now()).then(res => res.json()).then(setMatches);
+    const fetchLogs = () => fetch("/api/logs?t=" + Date.now()).then(res => res.json()).then(setLogs);
+    const fetchSquads = () => fetch("/api/squads?t=" + Date.now()).then(res => res.json()).then(setSquads);
 
     useEffect(() => {
         if (tab === "logs") fetchLogs();
@@ -122,6 +122,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                 alert("❌ Error: " + (data.error || res.statusText));
             } else {
                 if (refreshFn) refreshFn();
+                router.refresh();
             }
         } catch (e: any) {
             alert("❌ " + e.message);
@@ -351,11 +352,11 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 h-[600px] overflow-y-auto custom-scrollbar">
                             <h2 className="text-xl font-black tracking-widest mb-6 flex items-center gap-2"><RotateCw className="text-amber-500"/> Scheduled Matches & Toss</h2>
                             <div className="space-y-4">
-                                {matches.map(m => (
-                                    <div key={m.id} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center">
+                                {matches.map((m, i) => (
+                                    <div key={m.id} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group">
                                         <div>
-                                            <p className="font-bold text-sm text-amber-500">M{m.matchNo} - {m.stage}</p>
-                                            <p className="font-bold">{initialTeams.find(t=>t.id===m.team1Id)?.shortName} vs {initialTeams.find(t=>t.id===m.team2Id)?.shortName}</p>
+                                            <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
+                                            <p className="font-bold">{initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
                                             <p className="text-xs text-zinc-500">{m.status}</p>
                                         </div>
                                         <div className="flex flex-col gap-2">
@@ -384,6 +385,26 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                 EDIT
                                             </button>
                                             <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
+                                        </div>
+                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
+                                            {i > 0 && (
+                                                <button 
+                                                    onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i-1].matchNo }, fetchMatches, true)}
+                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white p-1 rounded"
+                                                    title="Move Up"
+                                                >
+                                                    ↑
+                                                </button>
+                                            )}
+                                            {i < matches.length - 1 && (
+                                                <button 
+                                                    onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i+1].matchNo }, fetchMatches, true)}
+                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white p-1 rounded"
+                                                    title="Move Down"
+                                                >
+                                                    ↓
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

@@ -261,20 +261,18 @@ export async function POST(request: Request) {
             const { match1, match2 } = payload;
             if (!match1 || !match2) throw new Error("Missing match numbers");
 
-            // Swap using a temporary matchNo to avoid unique constraint violations
-            const tempMatchNo = `TEMP_${Date.now()}`;
-            
-            // 1. match1 -> TEMP
-            const { error: err1 } = await supabase.from("Match").update({ matchNo: tempMatchNo }).eq("matchNo", match1);
+            // Fetch both matches
+            const { data: m1Data } = await supabase.from("Match").select("id, scheduledTime").eq("matchNo", match1).single();
+            const { data: m2Data } = await supabase.from("Match").select("id, scheduledTime").eq("matchNo", match2).single();
+
+            if (!m1Data || !m2Data) throw new Error("Could not find matches to swap");
+
+            // Swap their scheduledTimes
+            const { error: err1 } = await supabase.from("Match").update({ scheduledTime: m2Data.scheduledTime }).eq("id", m1Data.id);
             if (err1) throw new Error(err1.message);
 
-            // 2. match2 -> match1
-            const { error: err2 } = await supabase.from("Match").update({ matchNo: match1 }).eq("matchNo", match2);
+            const { error: err2 } = await supabase.from("Match").update({ scheduledTime: m1Data.scheduledTime }).eq("id", m2Data.id);
             if (err2) throw new Error(err2.message);
-
-            // 3. TEMP -> match2
-            const { error: err3 } = await supabase.from("Match").update({ matchNo: match2 }).eq("matchNo", tempMatchNo);
-            if (err3) throw new Error(err3.message);
 
             revalidatePath("/matches");
             revalidatePath("/");
