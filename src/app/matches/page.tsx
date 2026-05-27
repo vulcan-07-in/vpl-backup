@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     description: "Match schedule and live results for VPL Season 2.",
 };
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const redis = new Redis(process.env.REDIS_URL || "");
 
 export default async function MatchesPage() {
