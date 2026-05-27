@@ -8,7 +8,7 @@ export async function GET() {
     try {
         const activeMatchId = await redis.get('s2:active_live_match_id');
         return NextResponse.json({ activeMatchId }, {
-            headers: { 'Cache-Control': 's-maxage=5, stale-while-revalidate=10' }
+            headers: { 'Cache-Control': 's-maxage=15, stale-while-revalidate=20' }
         });
     } catch (error) {
         console.error('active-match GET Error:', error);

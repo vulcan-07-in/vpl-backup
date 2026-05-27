@@ -21,44 +21,21 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Fetch isFunMatch flag dynamically from Supabase Match table
-        const { data: matchRow } = await supabase
+        // Fetch live state and isFunMatch directly from Supabase
+        const { data: match, error } = await supabase
             .from('Match')
-            .select('isFunMatch')
+            .select('liveState, isFunMatch')
             .eq('matchNo', matchId)
             .single();
-        const isFunMatch = matchRow?.isFunMatch ?? false;
 
-        // 1. Try the live Redis key
-        let data = await redis.get(liveKey(matchId));
-        let matchState = data ? JSON.parse(data) as LiveMatchState : null;
-
-        // 2. Fall back to the completed archive in Redis
-        if (!matchState) {
-            const archivedData = await redis.get(completedKey(matchId));
-            if (archivedData) {
-                matchState = JSON.parse(archivedData) as LiveMatchState;
-            }
-        }
-
-        // 3. Fall back to Supabase liveState column
-        if (!matchState) {
-            const { data: match } = await supabase
-                .from('Match')
-                .select('liveState')
-                .eq('matchNo', matchId)
-                .single();
-            if (match?.liveState) {
-                matchState = match.liveState as unknown as LiveMatchState;
-            }
-        }
-
-        if (!matchState) {
+        if (error || !match || !match.liveState) {
             return NextResponse.json({ error: 'Match not found or not live' }, { status: 404 });
         }
 
+        const matchState = match.liveState as unknown as LiveMatchState;
+        
         // Force bind isFunMatch to the returned live state
-        matchState.isFunMatch = isFunMatch;
+        matchState.isFunMatch = match.isFunMatch ?? false;
 
         return NextResponse.json(matchState, {
             headers: {
