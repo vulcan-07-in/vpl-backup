@@ -27,3 +27,11 @@ Before merging to `main` or pushing a significant update to `season-2-preview`:
 2. Verify `REDIS_URL` in the deployment environment.
 3. Ensure no hardcoded database IDs or URLs exist in the codebase.
 4. Confirm that the cache flush policies will not impact the wrong environment.
+
+## GIT PUSH & REMOTE RULES (CRITICAL)
+- **Primary push target**: Always push all updates exclusively to the **`vulcan`** remote (associated with the Vulcan GitHub account):
+  - Remote Name: `vulcan`
+  - URL: `https://github.com/vulcan-07-in/vpl-backup.git`
+- **Command**: Run `git push vulcan <branch-name>` (e.g., `git push vulcan season-2-preview`).
+- **NEVER** push directly to `origin` (personal/old repository) unless specifically instructed. All active staging/production pipelines utilize the Vulcan environment setup.
+
