@@ -335,6 +335,26 @@ export async function POST(request: Request) {
                 };
             }).filter(m => m.team1Id && m.team2Id); // This will now include knockouts because of TBD fallback
 
+            // 1. Clean existing matches that have these match numbers (M1-M24) to avoid duplicate key conflicts
+            const generatedMatchNos = generated.map(f => f.matchNo);
+            const { error: deleteErr } = await supabase
+                .from("Match")
+                .delete()
+                .in("matchNo", generatedMatchNos);
+            if (deleteErr) throw new Error("Failed to clear existing auto-gen fixtures: " + deleteErr.message);
+
+            // 2. Clean matching Redis keys to ensure fresh scorer state
+            try {
+                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+                for (const mNo of generatedMatchNos) {
+                    const matchId = String(mNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                    await redis.del(`s2:live_match_${matchId}`);
+                }
+            } catch (e) {
+                console.error("Redis autogen clean error", e);
+            }
+
+            // 3. Insert newly generated matches
             if (inserts.length > 0) {
                 const { error } = await supabase.from("Match").insert(inserts);
                 if (error) throw new Error(error.message);
