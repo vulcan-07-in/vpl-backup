@@ -305,7 +305,6 @@ export async function POST(request: Request) {
                     shortName: "TBD",
                     color: "#333333",
                     groupId: "-",
-                    purse: 0,
                     createdAt: now,
                     updatedAt: now
                 }).select("id, name, groupId").single();
