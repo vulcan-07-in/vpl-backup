@@ -124,6 +124,11 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
             } else {
                 if (refreshFn) refreshFn();
                 router.refresh();
+                if (payload.action === "auto_generate") {
+                    alert("✅ Fixtures auto-generated successfully!");
+                } else if (payload.action === "delete_all") {
+                    alert("✅ All fixtures wiped successfully!");
+                }
             }
         } catch (e: any) {
             alert("❌ " + e.message);
