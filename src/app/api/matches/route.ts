@@ -420,7 +420,7 @@ export async function POST(request: Request) {
             
             if (team1Name === "TBD" || team2Name === "TBD") {
                 const { resolveS2Playoffs } = await import("@/lib/tournament");
-                const { fetchAllLiveStates } = await import("@/lib/data");
+                const { fetchAllLiveStates, fetchTeams } = await import("@/lib/data");
                 const fixs = await fetchFixtures(2);
                 const tms = await fetchTeams(2);
                 const liveStates = await fetchAllLiveStates();
