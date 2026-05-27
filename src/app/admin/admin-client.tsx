@@ -690,27 +690,33 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 <button 
                                     onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                                     className="flex-1 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold py-3.5 rounded-xl text-xs tracking-widest uppercase transition-all"
+                                    disabled={loading}
                                 >
                                     Cancel
                                 </button>
                                 <button 
-                                    onClick={() => {
+                                    onClick={async () => {
                                         if (confirmModal.actionText) {
                                             const el = document.getElementById("confirm-modal-input") as HTMLInputElement;
                                             if (el && el.value.trim().toUpperCase() === confirmModal.actionText.toUpperCase()) {
-                                                confirmModal.onConfirm();
+                                                setLoading(true);
+                                                await confirmModal.onConfirm();
+                                                setLoading(false);
                                                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
                                             } else {
                                                 alert(`Please type "${confirmModal.actionText}" exactly to proceed.`);
                                             }
                                         } else {
-                                            confirmModal.onConfirm();
+                                            setLoading(true);
+                                            await confirmModal.onConfirm();
+                                            setLoading(false);
                                             setConfirmModal(prev => ({ ...prev, isOpen: false }));
                                         }
                                     }}
-                                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black py-3.5 rounded-xl text-xs tracking-widest uppercase shadow-lg shadow-amber-500/10 transition-all"
+                                    disabled={loading}
+                                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black py-3.5 rounded-xl text-xs tracking-widest uppercase shadow-lg shadow-amber-500/10 transition-all disabled:opacity-50"
                                 >
-                                    Confirm
+                                    {loading ? "PROCESSING..." : "Confirm"}
                                 </button>
                             </div>
                         </motion.div>

@@ -262,16 +262,26 @@ export async function POST(request: Request) {
             if (!match1 || !match2) throw new Error("Missing match numbers");
 
             // Fetch both matches
-            const { data: m1Data } = await supabase.from("Match").select("id, scheduledTime").eq("matchNo", match1).single();
-            const { data: m2Data } = await supabase.from("Match").select("id, scheduledTime").eq("matchNo", match2).single();
+            const { data: m1Data } = await supabase.from("Match").select("id, team1Id, team2Id, group, isFunMatch").eq("matchNo", match1).single();
+            const { data: m2Data } = await supabase.from("Match").select("id, team1Id, team2Id, group, isFunMatch").eq("matchNo", match2).single();
 
             if (!m1Data || !m2Data) throw new Error("Could not find matches to swap");
 
-            // Swap their scheduledTimes
-            const { error: err1 } = await supabase.from("Match").update({ scheduledTime: m2Data.scheduledTime }).eq("id", m1Data.id);
+            // Swap their teams and groups (contents)
+            const { error: err1 } = await supabase.from("Match").update({ 
+                team1Id: m2Data.team1Id, 
+                team2Id: m2Data.team2Id, 
+                group: m2Data.group,
+                isFunMatch: m2Data.isFunMatch
+            }).eq("id", m1Data.id);
             if (err1) throw new Error(err1.message);
 
-            const { error: err2 } = await supabase.from("Match").update({ scheduledTime: m1Data.scheduledTime }).eq("id", m2Data.id);
+            const { error: err2 } = await supabase.from("Match").update({ 
+                team1Id: m1Data.team1Id, 
+                team2Id: m1Data.team2Id, 
+                group: m1Data.group,
+                isFunMatch: m1Data.isFunMatch
+            }).eq("id", m2Data.id);
             if (err2) throw new Error(err2.message);
 
             revalidatePath("/matches");
