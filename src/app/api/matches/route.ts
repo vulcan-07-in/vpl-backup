@@ -201,9 +201,18 @@ export async function POST(request: Request) {
         if (payload.action === "clear_winner") {
             const { error } = await supabase
                 .from("Match")
-                .update({ winnerId: null, status: "SCHEDULED" })
+                .update({ winnerId: null, status: "SCHEDULED", liveState: null })
                 .eq("matchNo", payload.matchNo);
             if (error) throw new Error(error.message);
+            
+            try {
+                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+                const matchId = String(payload.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                await redis.del(`s2:live_match_${matchId}`);
+            } catch (e) {
+                console.error("Redis clear_winner error", e);
+            }
+            
             revalidatePath("/matches");
             revalidatePath("/points");
             revalidatePath("/stats");

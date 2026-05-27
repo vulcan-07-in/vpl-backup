@@ -346,6 +346,7 @@ export interface PlayoffRank {
     group: "A" | "B" | "C";
     nrr: number;
     points: number;
+    played: number;
 }
 
 /**
@@ -360,9 +361,9 @@ export function computePlayoffRankings(
     const { groupA, groupB, groupC } = calculateStandings(fixtures, teams, liveStates);
 
     const qualifiers: Omit<PlayoffRank, "rank">[] = [
-        ...(groupA.slice(0, 2).map(s => ({ team: s.team, group: "A" as const, nrr: s.nrr, points: s.points }))),
-        ...(groupB.slice(0, 2).map(s => ({ team: s.team, group: "B" as const, nrr: s.nrr, points: s.points }))),
-        ...(groupC.slice(0, 2).map(s => ({ team: s.team, group: "C" as const, nrr: s.nrr, points: s.points }))),
+        ...(groupA.slice(0, 2).map(s => ({ team: s.played > 0 ? s.team : "", group: "A" as const, nrr: s.nrr, points: s.points, played: s.played }))),
+        ...(groupB.slice(0, 2).map(s => ({ team: s.played > 0 ? s.team : "", group: "B" as const, nrr: s.nrr, points: s.points, played: s.played }))),
+        ...(groupC.slice(0, 2).map(s => ({ team: s.played > 0 ? s.team : "", group: "C" as const, nrr: s.nrr, points: s.points, played: s.played }))),
     ];
 
     // Rank by points first, then NRR

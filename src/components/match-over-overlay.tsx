@@ -144,29 +144,41 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
                 </motion.div>
             </div>
 
-            {/* Full-screen confetti */}
+            {/* Full-screen continuous confetti using CSS for smooth performance */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fall {
+                    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+                    100% { transform: translateY(110vh) rotate(720deg); opacity: 1; }
+                }
+                .particle {
+                    position: absolute;
+                    top: -10vh;
+                    animation: fall linear infinite;
+                }
+            `}} />
             <div className="fixed inset-0 pointer-events-none z-[210] overflow-hidden">
-                {[...Array(24)].map((_, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{
-                            y: [null, window?.innerHeight || 900],
-                            x: [Math.random() * window?.innerWidth || Math.random() * 400, (Math.random() * (window?.innerWidth || 400))],
-                            opacity: [0, 1, 1, 0],
-                            rotate: [0, 360 * (Math.random() > 0.5 ? 2 : -2)]
-                        }}
-                        transition={{ duration: 2.5 + Math.random() * 3, repeat: Infinity, delay: Math.random() * 4, ease: 'linear' }}
-                        className="absolute rounded-sm"
-                        style={{
-                            width: `${Math.floor(Math.random() * 8) + 6}px`,
-                            height: `${Math.floor(Math.random() * 8) + 6}px`,
-                            left: `${Math.random() * 100}%`,
-                            top: `-20px`,
-                            backgroundColor: i % 4 === 0 ? winnerColor : i % 4 === 1 ? '#EAB308' : i % 4 === 2 ? '#ffffff' : '#ef4444'
-                        }}
-                    />
-                ))}
+                {[...Array(80)].map((_, i) => {
+                    // Pre-calculate to avoid React warnings on hydration mismatch, but here it's fine as it mounts post-load
+                    const size = Math.floor(Math.random() * 10) + 6;
+                    const left = Math.random() * 100;
+                    const delay = Math.random() * 5;
+                    const duration = 2.5 + Math.random() * 4;
+                    return (
+                        <div
+                            key={i}
+                            className="particle rounded-sm"
+                            style={{
+                                width: `${size}px`,
+                                height: `${size}px`,
+                                left: `${left}%`,
+                                backgroundColor: winnerColor,
+                                animationDuration: `${duration}s`,
+                                animationDelay: `${delay}s`,
+                                opacity: Math.random() * 0.5 + 0.5
+                            }}
+                        />
+                    );
+                })}
             </div>
         </motion.div>
     );

@@ -449,26 +449,26 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                                 {/* Premium Center Content */}
                                 <motion.div
-                                    initial={{ scale: 0.8, opacity: 0, y: 30 }}
+                                    initial={{ scale: 0.5, opacity: 0, y: 50 }}
                                     animate={{ scale: 1, opacity: 1, y: 0 }}
-                                    exit={{ scale: 1.1, opacity: 0, y: -30 }}
-                                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                                    className="relative flex flex-col items-center z-10 mx-4 w-[90%] max-w-lg"
+                                    exit={{ scale: 1.2, opacity: 0, y: -50 }}
+                                    transition={{ type: "spring", damping: 15, stiffness: 200 }}
+                                    className="relative flex flex-col items-center z-10 mx-4 w-[95%] max-w-5xl"
                                 >
                                     <motion.h2 
-                                        className={`text-5xl md:text-8xl font-black italic text-transparent bg-clip-text leading-none tracking-tighter drop-shadow-2xl uppercase ${animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-400 to-red-600' : 'bg-gradient-to-br from-amber-300 to-amber-600'}`}
-                                        style={{ fontFamily: "var(--font-display)" }}
-                                        animate={{ scale: [1, 1.05, 1] }}
-                                        transition={{ duration: 0.8, ease: "easeInOut", repeat: Infinity }}
+                                        className={`text-7xl md:text-[12rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter drop-shadow-[0_0_50px_rgba(255,255,255,0.4)] uppercase ${animationEvent.type === 'W' ? 'bg-gradient-to-br from-red-400 to-red-600' : 'bg-gradient-to-br from-amber-300 to-amber-600'}`}
+                                        style={{ fontFamily: "var(--font-display)", textShadow: "0px 10px 30px rgba(0,0,0,0.8)" }}
+                                        animate={{ scale: [1, 1.08, 1] }}
+                                        transition={{ duration: 0.6, ease: "easeInOut", repeat: Infinity }}
                                     >
                                         {animationEvent.type === 'W' ? 'WICKET!' : animationEvent.type === '6' ? 'SIX!!' : 'FOUR!'}
                                     </motion.h2>
 
                                     <motion.div 
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: 0.3, type: "spring" }}
-                                        className="mt-6 px-6 py-3 md:px-10 md:py-4 bg-white text-black font-black text-lg md:text-3xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-2xl"
+                                        initial={{ opacity: 0, scale: 0.5, rotate: -5 }}
+                                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                        transition={{ delay: 0.3, type: "spring", stiffness: 150 }}
+                                        className="mt-8 px-10 py-5 md:px-20 md:py-8 bg-white text-black font-black text-3xl md:text-6xl uppercase tracking-[0.2em] skew-x-[-12deg] shadow-[0_30px_60px_rgba(255,255,255,0.3)] border-4 border-black"
                                     >
                                         <span className="block skew-x-[12deg] text-center w-full">{animationEvent.player}</span>
                                     </motion.div>
@@ -487,10 +487,10 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         exit={{ opacity: 0, y: 20 }}
                         className="fixed bottom-0 left-0 right-0 z-[10000] flex flex-col items-center py-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"
                     >
-                        <p className="text-[8px] text-zinc-400 font-bold tracking-[0.4em] uppercase mb-2">Powered By</p>
+                        <p className="text-[10px] md:text-sm text-zinc-400 font-black tracking-[0.6em] uppercase mb-4">Powered By</p>
                         <img
                             src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
-                            className="h-10 md:h-16 object-contain opacity-95 drop-shadow-2xl"
+                            className="h-20 md:h-32 object-contain opacity-100 drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]"
                             alt="Sponsor"
                         />
                     </motion.div>,
