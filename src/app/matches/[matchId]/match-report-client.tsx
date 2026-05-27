@@ -108,7 +108,7 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
         const topBatter = allBatsmen[0];
         const topBowler = allBowlers[0];
         
-        let mvp = null;
+        let mvp: any = null;
         let maxPoints = -1;
         
         const playerStats = new Map();
