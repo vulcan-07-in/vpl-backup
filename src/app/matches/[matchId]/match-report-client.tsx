@@ -63,7 +63,17 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
     const c1 = colorOf(fixture?.team1);
     const c2 = colorOf(fixture?.team2);
     const isCompleted = matchState?.status === "COMPLETED" || !!fixture?.winner;
-    const winnerName = matchState?.winner || fixture?.winner || null;
+    let winnerName = matchState?.winner || fixture?.winner || null;
+    
+    // Fix winnerName if it's TBD
+    if (winnerName && (winnerName === "TBD" || winnerName.startsWith("Rank") || winnerName.includes("Winner") || winnerName.includes("Loser"))) {
+        if (matchState?.status === "COMPLETED") {
+            const r1 = matchState.innings1.runs;
+            const r2 = matchState.innings2.runs;
+            if (r1 > r2) winnerName = fixture?.team1 || winnerName;
+            else if (r2 > r1) winnerName = fixture?.team2 || winnerName;
+        }
+    }
 
     const renderInningsScorecard = (innings: LiveMatchState["innings1"], inningsNum: number) => {
         return (
@@ -154,7 +164,26 @@ export default function MatchReportClient({ matchId, fixture, teams }: Props) {
                             <div className="mt-4">
                                 <span className="text-xs text-amber-500/80 font-bold uppercase tracking-[0.3em]"
                                     style={{ fontFamily: "var(--font-body)" }}>
-                                    {matchState?.result || (fixture?.winner === "TIE" ? "Match Tied" : fixture?.winner === "ABANDONED" ? "Match Abandoned" : `${fixture?.winner} Won`)}
+                                    {(() => {
+                                        let resultStr = matchState?.result || (fixture?.winner === "TIE" ? "Match Tied" : fixture?.winner === "ABANDONED" ? "Match Abandoned" : `${fixture?.winner} Won`);
+                                        if (resultStr && (resultStr.startsWith("TBD won") || resultStr.startsWith("Rank") || resultStr.includes("Winner") || resultStr.includes("Loser"))) {
+                                            if (matchState?.status === "COMPLETED") {
+                                                const r1 = matchState.innings1.runs;
+                                                const r2 = matchState.innings2.runs;
+                                                let actualWinner = null;
+                                                if (r1 > r2) actualWinner = fixture?.team1;
+                                                else if (r2 > r1) actualWinner = fixture?.team2;
+                                                
+                                                if (actualWinner && actualWinner !== "TBD") {
+                                                    const wonByIndex = resultStr.indexOf(" won by");
+                                                    if (wonByIndex !== -1) {
+                                                        resultStr = `${actualWinner}${resultStr.substring(wonByIndex)}`;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        return resultStr;
+                                    })()}
                                 </span>
                             </div>
                         )}

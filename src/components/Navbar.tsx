@@ -17,6 +17,7 @@ const links: NavLink[] = [
     // { href: "/live", label: "LIVE MATCH" },
     // { href: "/matches", label: "MATCHES" },
     { href: "/points", label: "STANDINGS" },
+    { href: "/playoffs", label: "PLAYOFFS" },
     // { href: "/stats", label: "STATS" },
     // { href: "/squads", label: "SQUADS" },
     { href: "/auction", label: "AUCTION" },

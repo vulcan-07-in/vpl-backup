@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     // { href: "/live", label: "LIVE MATCH" },
     // { href: "/matches", label: "VIEW MATCHES" },
     { href: "/points", label: "STANDINGS" },
+    { href: "/playoffs", label: "PLAYOFFS" },
     // { href: "/stats", label: "VIEW STATS" },
     // { href: "/squads", label: "VIEW SQUADS" },
     // { href: "/auction", label: "LIVE AUCTION" },

@@ -127,7 +127,28 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const win1 = isCompleted && (fixture.winner === fixture.team1 || lm?.winner === fixture.team1);
         const win2 = isCompleted && (fixture.winner === fixture.team2 || lm?.winner === fixture.team2);
         const isKnockout = fixture.group === "-";
-        const resultStr = lm?.result || (fixture.winner && fixture.winner !== "TIE" && fixture.winner !== "ABANDONED" ? `${fixture.winner} Won` : fixture.winner === "TIE" ? "Match Tied" : fixture.winner === "ABANDONED" ? "Abandoned" : null);
+        
+        let resultStr = lm?.result || (fixture.winner && fixture.winner !== "TIE" && fixture.winner !== "ABANDONED" ? `${fixture.winner} Won` : fixture.winner === "TIE" ? "Match Tied" : fixture.winner === "ABANDONED" ? "Abandoned" : null);
+
+        // Fix for "TBD won" bug caused by older live state generated before teams were resolved
+        if (resultStr && (resultStr.startsWith("TBD won") || resultStr.startsWith("Rank") || resultStr.includes("Winner") || resultStr.includes("Loser"))) {
+            if (lm?.status === "COMPLETED") {
+                const r1 = lm.innings1.runs;
+                const r2 = lm.innings2.runs;
+                let actualWinner = null;
+                if (r1 > r2) {
+                    actualWinner = fixture.team1;
+                } else if (r2 > r1) {
+                    actualWinner = fixture.team2;
+                }
+                if (actualWinner && actualWinner !== "TBD") {
+                    const wonByIndex = resultStr.indexOf(" won by");
+                    if (wonByIndex !== -1) {
+                        resultStr = `${actualWinner}${resultStr.substring(wonByIndex)}`;
+                    }
+                }
+            }
+        }
 
         const targetHref = (isLive || isInningsBreak) ? `/live?matchId=${encodeURIComponent(fixture.matchNo)}` : `/matches/${encodeURIComponent(fixture.matchNo)}`;
 
@@ -196,67 +217,62 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                     </div>
                 </div>
 
-                {/* Teams Grid */}
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-8 py-2">
-                    {/* Team 1 Details */}
-                    <div className={`flex items-center gap-3 sm:gap-5 justify-end min-w-0 transition-all duration-300 ${isCompleted && !win1 ? "opacity-35 blur-[0.3px]" : ""}`}>
-                        {win1 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0 animate-bounce" />}
-                        <div className="flex flex-col items-end min-w-0 text-right">
-                            <span className="text-base sm:text-2xl font-black text-white leading-tight truncate w-full tracking-wide font-display">
+                {/* Teams Vertical Stack */}
+                <div className="flex flex-col gap-2 relative z-10 w-full mt-3">
+                    {/* Team 1 */}
+                    <div className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] transition-opacity ${isCompleted && !win1 ? "opacity-50 grayscale-[50%]" : "bg-white/[0.04]"}`}>
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border shadow-xl"
+                                style={{ backgroundColor: `${c1}15`, borderColor: `${c1}40`, color: c1, boxShadow: `0 0 15px ${c1}10` }}>
+                                {sn1}
+                            </div>
+                            <span className={`text-lg sm:text-2xl font-bold truncate tracking-wide ${win1 ? 'text-white' : 'text-zinc-200'}`} style={{ fontFamily: "var(--font-display)" }}>
                                 {fixture.team1}
                             </span>
-                            {t1Score && (isCompleted || isLive || isInningsBreak) && (
-                                <span className="text-xs sm:text-sm text-zinc-400 font-mono font-bold mt-1 tracking-widest">
-                                    {t1Score.runs}/{t1Score.wickets} <span className="text-zinc-600 font-medium text-[10px] sm:text-xs">({t1Score.overs.toFixed(1)})</span>
-                                </span>
-                            )}
+                            {win1 && <Trophy size={18} className="text-amber-400 shrink-0 ml-1 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" />}
                         </div>
-                        {/* High-tech Team Badge */}
-                        <div 
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border transition-all duration-500 shadow-xl"
-                            style={{ 
-                                backgroundColor: `${c1}15`, 
-                                borderColor: `${c1}40`, 
-                                color: c1,
-                                boxShadow: `0 0 20px ${c1}10`
-                            }}
-                        >
-                            {sn1}
-                        </div>
+                        {t1Score && (isCompleted || isLive || isInningsBreak) ? (
+                            <div className="text-right shrink-0 ml-4">
+                                <div className="text-xl sm:text-2xl font-bold text-white tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
+                                    {t1Score.runs}<span className="text-sm sm:text-base text-zinc-500">/{t1Score.wickets}</span>
+                                </div>
+                                <div className="text-[9px] sm:text-[10px] text-zinc-500 tracking-widest mt-0.5 uppercase" style={{ fontFamily: "var(--font-body)" }}>
+                                    {t1Score.overs.toFixed(1)} OVS
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-right shrink-0 ml-4">
+                                <div className="text-xl sm:text-2xl font-bold text-zinc-800 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>-</div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Match VS / Score Divider */}
-                    <div className="flex flex-col items-center justify-center min-w-[40px]">
-                        <div className="h-8 w-px bg-white/[0.05]" />
-                        <span className="text-[10px] tracking-widest font-black text-zinc-700 py-1.5 uppercase font-mono">VS</span>
-                        <div className="h-8 w-px bg-white/[0.05]" />
-                    </div>
-
-                    {/* Team 2 Details */}
-                    <div className={`flex items-center gap-3 sm:gap-5 justify-start min-w-0 transition-all duration-300 ${isCompleted && !win2 ? "opacity-35 blur-[0.3px]" : ""}`}>
-                        {/* High-tech Team Badge */}
-                        <div 
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border transition-all duration-500 shadow-xl"
-                            style={{ 
-                                backgroundColor: `${c2}15`, 
-                                borderColor: `${c2}40`, 
-                                color: c2,
-                                boxShadow: `0 0 20px ${c2}10`
-                            }}
-                        >
-                            {sn2}
-                        </div>
-                        <div className="flex flex-col items-start min-w-0 text-left">
-                            <span className="text-base sm:text-2xl font-black text-white leading-tight truncate w-full tracking-wide font-display">
+                    {/* Team 2 */}
+                    <div className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] transition-opacity ${isCompleted && !win2 ? "opacity-50 grayscale-[50%]" : "bg-white/[0.04]"}`}>
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border shadow-xl"
+                                style={{ backgroundColor: `${c2}15`, borderColor: `${c2}40`, color: c2, boxShadow: `0 0 15px ${c2}10` }}>
+                                {sn2}
+                            </div>
+                            <span className={`text-lg sm:text-2xl font-bold truncate tracking-wide ${win2 ? 'text-white' : 'text-zinc-200'}`} style={{ fontFamily: "var(--font-display)" }}>
                                 {fixture.team2}
                             </span>
-                            {t2Score && (isCompleted || isLive || isInningsBreak) && (
-                                <span className="text-xs sm:text-sm text-zinc-400 font-mono font-bold mt-1 tracking-widest">
-                                    {t2Score.runs}/{t2Score.wickets} <span className="text-zinc-600 font-medium text-[10px] sm:text-xs">({t2Score.overs.toFixed(1)})</span>
-                                </span>
-                            )}
+                            {win2 && <Trophy size={18} className="text-amber-400 shrink-0 ml-1 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" />}
                         </div>
-                        {win2 && <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0 animate-bounce" />}
+                        {t2Score && (isCompleted || isLive || isInningsBreak) ? (
+                            <div className="text-right shrink-0 ml-4">
+                                <div className="text-xl sm:text-2xl font-bold text-white tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
+                                    {t2Score.runs}<span className="text-sm sm:text-base text-zinc-500">/{t2Score.wickets}</span>
+                                </div>
+                                <div className="text-[9px] sm:text-[10px] text-zinc-500 tracking-widest mt-0.5 uppercase" style={{ fontFamily: "var(--font-body)" }}>
+                                    {t2Score.overs.toFixed(1)} OVS
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-right shrink-0 ml-4">
+                                <div className="text-xl sm:text-2xl font-bold text-zinc-800 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>-</div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

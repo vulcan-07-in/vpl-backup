@@ -414,8 +414,23 @@ export async function POST(request: Request) {
             const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
             const now = new Date().toISOString();
 
-            const team1Name = teamMap.get(match.team1Id) || "Team 1";
-            const team2Name = teamMap.get(match.team2Id) || "Team 2";
+            // Try to resolve dynamic playoff names if they are TBD
+            let team1Name = teamMap.get(match.team1Id) || "Team 1";
+            let team2Name = teamMap.get(match.team2Id) || "Team 2";
+            
+            if (team1Name === "TBD" || team2Name === "TBD") {
+                const { resolveS2Playoffs } = await import("@/lib/tournament");
+                const { fetchAllLiveStates } = await import("@/lib/data");
+                const fixs = await fetchFixtures(2);
+                const tms = await fetchTeams(2);
+                const liveStates = await fetchAllLiveStates();
+                const resolvedFixs = resolveS2Playoffs(fixs, tms, liveStates);
+                const targetFix = resolvedFixs.find(f => f.matchNo === match.matchNo);
+                if (targetFix) {
+                    team1Name = targetFix.team1 !== "TBD" ? targetFix.team1 : team1Name;
+                    team2Name = targetFix.team2 !== "TBD" ? targetFix.team2 : team2Name;
+                }
+            }
 
             const squads = await fetchSquads(2);
 

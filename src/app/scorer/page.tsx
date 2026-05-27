@@ -1,4 +1,5 @@
-import { fetchFixtures, fetchTeams, fetchSquads } from "@/lib/data";
+import { fetchFixtures, fetchTeams, fetchSquads, fetchAllLiveStates } from "@/lib/data";
+import { resolveS2Playoffs } from "@/lib/tournament";
 import ScorerClient from "./scorer-client";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Metadata } from "next";
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 export default async function ScorerPage() {
     const fixtures = await fetchFixtures(2);
     const teams = await fetchTeams(2);
+    const liveStates = await fetchAllLiveStates();
+    const resolvedFixtures = resolveS2Playoffs(fixtures, teams, liveStates);
     const squadsData = await fetchSquads(2);
 
     // Map squads into easily accessible dictionary of names with robust matching
@@ -25,7 +28,7 @@ export default async function ScorerPage() {
 
     return (
         <ErrorBoundary>
-            <ScorerClient fixtures={fixtures} teams={teams} squads={squadDictionary} />
+            <ScorerClient fixtures={resolvedFixtures} teams={teams} squads={squadDictionary} />
         </ErrorBoundary>
     );
 }
