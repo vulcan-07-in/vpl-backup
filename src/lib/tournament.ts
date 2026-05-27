@@ -439,6 +439,9 @@ export function resolveS2Playoffs(
     const seeds = computePlayoffRankings(fixtures, teams, liveStates);
     
     const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
+    
+    // Group stage is ONLY complete if ALL scheduled group matches are COMPLETED or ABANDONED, AND there is at least one group match.
+    // If we wipe matches, groupMatches might be empty or all SCHEDULED.
     const isGroupStageComplete = groupMatches.length > 0 && groupMatches.every(f => {
         const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
         const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];

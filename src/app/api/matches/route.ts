@@ -50,8 +50,25 @@ export async function POST(request: Request) {
             const now = new Date().toISOString();
             
             let group = payload.group || null;
-            if (!group && !payload.isFunMatch) {
-                const { data: team1Row } = await supabase.from("Team").select("groupId").eq("id", payload.team1Id).single();
+            let team1Id = payload.team1Id;
+            let team2Id = payload.team2Id;
+
+            // Handle manual string entry for fun matches
+            if (payload.isFunMatch) {
+                const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+                
+                if (!isUuid(team1Id)) {
+                    const newId = randomUUID();
+                    await supabase.from("Team").insert({ id: newId, name: team1Id, shortName: team1Id.substring(0, 3).toUpperCase(), groupId: null, purse: 0, image: "" });
+                    team1Id = newId;
+                }
+                if (!isUuid(team2Id)) {
+                    const newId = randomUUID();
+                    await supabase.from("Team").insert({ id: newId, name: team2Id, shortName: team2Id.substring(0, 3).toUpperCase(), groupId: null, purse: 0, image: "" });
+                    team2Id = newId;
+                }
+            } else if (!group) {
+                const { data: team1Row } = await supabase.from("Team").select("groupId").eq("id", team1Id).single();
                 if (team1Row?.groupId) {
                     group = team1Row.groupId;
                 } else {
@@ -64,8 +81,8 @@ export async function POST(request: Request) {
                 matchNo: payload.matchNo,
                 stage: payload.stage,
                 group: group,
-                team1Id: payload.team1Id,
-                team2Id: payload.team2Id,
+                team1Id: team1Id,
+                team2Id: team2Id,
                 scheduledTime: payload.scheduledTime
                     ? new Date(payload.scheduledTime).toISOString()
                     : null,
@@ -443,40 +460,114 @@ export async function POST(request: Request) {
 
             const squads = await fetchSquads(2);
 
-            const generateInnings = (teamName: string, opponentName: string, overs = 8) => {
+            const generateFullInnings = (teamName: string, opponentName: string, inningsNum: 1 | 2, matchOvers: number) => {
                 const squad = squads.find(s => s.teamName === teamName);
                 const oppSquad = squads.find(s => s.teamName === opponentName);
                 
-                const players = squad ? squad.players.map(p => p.name) : [];
-                const oppPlayers = oppSquad ? oppSquad.players.map(p => p.name) : [];
+                const players = squad && squad.players.length >= 8 ? squad.players.map(p => p.name) : Array.from({length: 8}, (_, i) => `${teamName} P${i+1}`);
+                const oppPlayers = oppSquad && oppSquad.players.length >= 8 ? oppSquad.players.map(p => p.name) : Array.from({length: 8}, (_, i) => `${opponentName} P${i+1}`);
                 
-                const p1 = players[0] || "Player 1";
-                const p2 = players[1] || "Player 2";
-                const b1 = oppPlayers[0] || "Bowler 1";
-                const b2 = oppPlayers[1] || "Bowler 2";
+                let strikerIdx = 0;
+                let nonStrikerIdx = 1;
+                let nextBatsmanIdx = 2;
+                let currentBowlerIdx = 0;
+                
+                let totalRuns = 0;
+                let totalWickets = 0;
+                const timeline: any[] = [];
+                const batsmenStats: Record<string, any> = {};
+                const bowlerStats: Record<string, any> = {};
+                
+                players.forEach(p => batsmenStats[p] = { name: p, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false });
+                oppPlayers.forEach(p => bowlerStats[p] = { name: p, overs: 0, maidens: 0, runs: 0, wickets: 0 });
 
-                const runs = Math.floor(Math.random() * 60) + 40;
-                const wickets = Math.floor(Math.random() * 8);
-                const isAllOut = wickets === 8;
-                const finalOvers = isAllOut ? overs : parseFloat((Math.floor(Math.random() * (overs - 1)) + Math.random()).toFixed(1));
-                return {
-                    teamName,
-                    runs,
-                    wickets,
-                    overs: finalOvers,
-                    batsmen: {
-                        [p1]: { name: p1, runs: 20, balls: 15, fours: 2, sixes: 1, isOut: true },
-                        [p2]: { name: p2, runs: runs - 20, balls: 20, fours: 4, sixes: 2, isOut: false }
-                    },
-                    bowlers: {
-                        [b1]: { name: b1, overs: 2, maidens: 0, runs: 15, wickets: 2 },
-                        [b2]: { name: b2, overs: 2, maidens: 0, runs: 20, wickets: 1 }
+                let ballsInOver = 0;
+                let currentOver = 0;
+                let isAllOut = false;
+
+                for (let ball = 1; ball <= matchOvers * 6; ball++) {
+                    if (isAllOut) break;
+
+                    const striker = players[strikerIdx];
+                    const nonStriker = players[nonStrikerIdx];
+                    const bowler = oppPlayers[currentBowlerIdx];
+
+                    const rand = Math.random();
+                    let runs = 0;
+                    let isWicket = false;
+                    
+                    if (rand < 0.05) isWicket = true;
+                    else if (rand < 0.3) runs = 0;
+                    else if (rand < 0.6) runs = 1;
+                    else if (rand < 0.75) runs = 2;
+                    else if (rand < 0.85) runs = 4;
+                    else runs = 6;
+
+                    timeline.push({
+                        id: `b${inningsNum}_${ball}`,
+                        timestamp: Date.now() + ball * 1000 + (inningsNum === 2 ? 100000 : 0),
+                        innings: inningsNum,
+                        over: currentOver + (ballsInOver + 1) / 10,
+                        striker,
+                        nonStriker,
+                        bowler,
+                        runs,
+                        extras: 0,
+                        isWicket,
+                        wicketType: isWicket ? "BOWLED" : undefined
+                    });
+
+                    batsmenStats[striker].balls++;
+                    batsmenStats[striker].runs += runs;
+                    if (runs === 4) batsmenStats[striker].fours++;
+                    if (runs === 6) batsmenStats[striker].sixes++;
+                    
+                    bowlerStats[bowler].runs += runs;
+                    totalRuns += runs;
+
+                    ballsInOver++;
+                    
+                    if (isWicket) {
+                        batsmenStats[striker].isOut = true;
+                        bowlerStats[bowler].wickets++;
+                        totalWickets++;
+                        if (totalWickets >= 7) { // 8 player squad = 7 wickets for all out
+                            isAllOut = true;
+                        } else {
+                            strikerIdx = nextBatsmanIdx++;
+                        }
+                    } else if (runs % 2 !== 0) {
+                        const temp = strikerIdx;
+                        strikerIdx = nonStrikerIdx;
+                        nonStrikerIdx = temp;
                     }
+
+                    if (ballsInOver === 6) {
+                        bowlerStats[bowler].overs++;
+                        currentOver++;
+                        ballsInOver = 0;
+                        currentBowlerIdx = (currentBowlerIdx + 1) % oppPlayers.length;
+                        const temp = strikerIdx;
+                        strikerIdx = nonStrikerIdx;
+                        nonStrikerIdx = temp;
+                    }
+                }
+
+                if (ballsInOver > 0) {
+                    bowlerStats[oppPlayers[currentBowlerIdx]].overs += ballsInOver / 6;
+                }
+
+                return {
+                    innings: { teamName, runs: totalRuns, wickets: totalWickets, overs: currentOver + ballsInOver / 10, batsmen: batsmenStats, bowlers: bowlerStats },
+                    timeline
                 };
             };
 
-            const inn1 = generateInnings(team1Name, team2Name);
-            const inn2 = generateInnings(team2Name, team1Name);
+            const data1 = generateFullInnings(team1Name, team2Name, 1, 8);
+            const data2 = generateFullInnings(team2Name, team1Name, 2, 8);
+            const inn1 = data1.innings;
+            const inn2 = data2.innings;
+            const fullTimeline = [...data1.timeline, ...data2.timeline];
 
             const winnerId = inn1.runs > inn2.runs ? match.team1Id : (inn2.runs > inn1.runs ? match.team2Id : null);
             let winnerName = winnerId ? teamMap.get(winnerId) : "TIE";
@@ -488,7 +579,7 @@ export async function POST(request: Request) {
                 currentInnings: 2,
                 innings1: inn1,
                 innings2: inn2,
-                timeline: [{ id: "b1", timestamp: Date.now(), innings: 1, over: 0.1, striker: Object.keys(inn1.batsmen)[0], nonStriker: Object.keys(inn1.batsmen)[1], bowler: Object.keys(inn1.bowlers)[0], runs: 1, extras: 0, isWicket: false }],
+                timeline: fullTimeline,
                 matchOvers: 8,
                 winner: winnerName,
                 result

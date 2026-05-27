@@ -31,7 +31,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [newMatch, setNewMatch] = useState({ matchNo: "", stage: "Group A", group: "A", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false });
     const [tossMatch, setTossMatch] = useState<any | null>(null);
     const [editModal, setEditModal] = useState<{ isOpen: boolean; match: any | null }>({ isOpen: false, match: null });
-    const [editingMatch, setEditingMatch] = useState({ id: "", matchNo: "", stage: "", group: "", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false });
+    const [editingMatch, setEditingMatch] = useState({ id: "", matchNo: "", stage: "", group: "", team1Id: "", team2Id: "", scheduledTime: "", isFunMatch: false, customTeam1Name: "", customTeam2Name: "" });
 
     // Broadcast State
     const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
@@ -339,14 +339,23 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                     <input type="text" placeholder="Stage (e.g. Group A)" value={newMatch.stage} onChange={e => setNewMatch({...newMatch, stage: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <select value={newMatch.team1Id} onChange={e => setNewMatch({...newMatch, team1Id: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required>
-                                        <option value="">Select Team 1</option>
-                                        {initialTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
-                                    <select value={newMatch.team2Id} onChange={e => setNewMatch({...newMatch, team2Id: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required>
-                                        <option value="">Select Team 2</option>
-                                        {initialTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
+                                    {newMatch.isFunMatch ? (
+                                        <>
+                                            <input type="text" placeholder="Custom Team 1 Name" value={newMatch.team1Id} onChange={e => setNewMatch({...newMatch, team1Id: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required />
+                                            <input type="text" placeholder="Custom Team 2 Name" value={newMatch.team2Id} onChange={e => setNewMatch({...newMatch, team2Id: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <select value={newMatch.team1Id} onChange={e => setNewMatch({...newMatch, team1Id: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required>
+                                                <option value="">Select Team 1</option>
+                                                {initialTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            </select>
+                                            <select value={newMatch.team2Id} onChange={e => setNewMatch({...newMatch, team2Id: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required>
+                                                <option value="">Select Team 2</option>
+                                                {initialTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            </select>
+                                        </>
+                                    )}
                                 </div>
                                 <input type="datetime-local" value={newMatch.scheduledTime} onChange={e => setNewMatch({...newMatch, scheduledTime: e.target.value})} className="w-full bg-black border border-zinc-800 rounded-xl p-3" required />
                                 <label className="flex items-center gap-2 text-sm text-zinc-400">

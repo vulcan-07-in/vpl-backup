@@ -24,56 +24,96 @@ function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: Playoff
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-12"
         >
             <div className="flex items-center gap-4 mb-6">
-                <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                    Playoff Rankings
+                <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase flex items-center gap-2" style={{ fontFamily: "var(--font-body)" }}>
+                    Live Playoff Rankings
                 </span>
                 <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
 
-            {/* Seed list */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-8">
-                {ranks.map(s => (
-                    <div key={s.rank} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                        <span
-                            className="text-2xl font-bold tabular-nums text-amber-500/40 leading-none"
-                            style={{ fontFamily: "var(--font-mono)" }}
-                        >
-                            {s.rank}
-                        </span>
-                        <div>
-                            <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>
-                                {isGroupStageComplete ? s.team : "TBD"}
-                            </p>
-                            <p className="text-[10px] text-zinc-600 tracking-widest">
-                                {isGroupStageComplete ? `GRP ${s.group} · NRR ${s.nrr > 0 ? "+" : ""}${s.nrr.toFixed(3)}` : "AWAITING CONFIRMATION"}
-                            </p>
-                        </div>
+            <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl overflow-hidden shadow-2xl mb-8">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-white/5 bg-white/[0.02]">
+                                <th className="p-4 text-[10px] tracking-widest text-zinc-500 uppercase font-mono font-normal">Rank</th>
+                                <th className="p-4 text-[10px] tracking-widest text-zinc-500 uppercase font-mono font-normal">Team</th>
+                                <th className="p-4 text-[10px] tracking-widest text-zinc-500 uppercase font-mono font-normal text-center">Group</th>
+                                <th className="p-4 text-[10px] tracking-widest text-amber-500 uppercase font-mono font-bold text-center">Pts</th>
+                                <th className="p-4 text-[10px] tracking-widest text-zinc-500 uppercase font-mono font-normal text-right">NRR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {ranks.map((s, idx) => {
+                                // Simple qualification logic: if they are rank 1 or 2, and group stage is complete, they are mathematically Q.
+                                // If group stage is NOT complete, it's a live ranking.
+                                const isQualified = isGroupStageComplete;
+                                return (
+                                    <tr key={s.rank} className={`border-b border-white/[0.02] hover:bg-white/[0.02] transition-colors ${idx < 6 ? 'bg-white/[0.01]' : 'opacity-50'}`}>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-lg font-bold tabular-nums ${idx < 6 ? 'text-white' : 'text-zinc-600'}`} style={{ fontFamily: "var(--font-mono)" }}>
+                                                    {s.rank}
+                                                </span>
+                                                {isQualified && idx < 6 && (
+                                                    <span className="px-1.5 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-500 text-[8px] font-bold tracking-widest border border-emerald-500/20">Q</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`font-bold tracking-wide ${idx < 6 ? 'text-zinc-200' : 'text-zinc-600'}`} style={{ fontFamily: "var(--font-heading)" }}>
+                                                {s.team || "TBD"}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="text-xs font-mono text-zinc-500">{s.group}</span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="text-sm font-bold text-amber-500 tabular-nums">{s.points}</span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <span className={`text-xs font-mono tabular-nums ${s.nrr > 0 ? 'text-emerald-400' : s.nrr < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
+                                                {s.nrr > 0 ? "+" : ""}{s.nrr.toFixed(3)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                {!isGroupStageComplete && (
+                    <div className="p-3 bg-amber-500/5 border-t border-amber-500/10 text-center">
+                        <span className="text-[10px] text-amber-500/80 uppercase tracking-widest animate-pulse">● LIVE PROJECTIONS - GROUP STAGE IN PROGRESS</span>
                     </div>
-                ))}
+                )}
             </div>
 
             {/* Eliminator matchups */}
             <div className="flex items-center gap-4 mb-4">
                 <span className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: "var(--font-body)" }}>
-                    Eliminators
+                    Eliminators Setup
                 </span>
                 <div className="flex-1 h-px bg-white/[0.05]" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {ELIMINATOR_MATCHUPS.map(({ label, ranks: [s1, s2] }) => {
                     const t1 = ranks.find(s => s.rank === s1);
                     const t2 = ranks.find(s => s.rank === s2);
                     return (
-                        <div key={label} className="px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                            <p className="text-[9px] tracking-[0.35em] text-zinc-600 mb-3 uppercase">{label}</p>
-                            <div className="space-y-2">
+                        <div key={label} className="p-5 rounded-2xl bg-gradient-to-br from-zinc-900 to-black border border-white/10 hover:border-amber-500/30 transition-colors shadow-lg">
+                            <p className="text-[9px] tracking-[0.35em] text-amber-500/70 mb-4 uppercase font-bold">{label}</p>
+                            <div className="space-y-3">
                                 {[t1, t2].map((t, i) => t ? (
-                                    <div key={i} className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "#EAB308" }} />
-                                        <span className="text-sm text-white font-semibold">{isGroupStageComplete ? t.team : `Rank ${t.rank}`}</span>
-                                        <span className="text-[10px] text-zinc-600 ml-auto">#{t.rank}</span>
+                                    <div key={i} className="flex items-center gap-3">
+                                        <div className="w-6 h-6 rounded bg-zinc-800 flex items-center justify-center border border-zinc-700 shrink-0">
+                                            <span className="text-[10px] text-zinc-400 font-mono font-bold">{t.rank}</span>
+                                        </div>
+                                        <span className={`text-sm font-semibold truncate ${isGroupStageComplete ? 'text-white' : 'text-zinc-400'}`}>
+                                            {isGroupStageComplete ? t.team : `Rank ${t.rank} Projection`}
+                                        </span>
                                     </div>
                                 ) : (
                                     <div key={i} className="text-xs text-zinc-700">TBD</div>

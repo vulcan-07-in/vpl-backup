@@ -29,14 +29,26 @@ export default function PlayoffInfographic({
         
         const isCompleted = !!f.winner && f.winner !== "TBD";
         
-        // Extract actual team name from f.winner in case it contains "won by"
-        let actualWinnerStr = f.winner;
-        if (f.winner && f.winner.includes(" won by")) {
-            actualWinnerStr = f.winner.split(" won by")[0].trim();
+        let isWinner = false;
+        let isLoser = false;
+        
+        if (isCompleted) {
+            // Highly robust matching to detect if this team won
+            const normalize = (s: string) => String(s || "").trim().toLowerCase();
+            const nName = normalize(name);
+            const nWinner = normalize(f.winner);
+            
+            if (nWinner === "tie" || nWinner === "abandoned") {
+                isWinner = false;
+                isLoser = false;
+            } else if (nWinner.includes(nName) || nName.includes(nWinner.split(" won by")[0].trim())) {
+                isWinner = true;
+                isLoser = false;
+            } else {
+                isWinner = false;
+                isLoser = true;
+            }
         }
-
-        const isWinner = isCompleted && actualWinnerStr === name;
-        const isLoser = isCompleted && !isWinner && actualWinnerStr !== "TIE" && actualWinnerStr !== "ABANDONED";
         
         return { name, isLoser, isWinner };
     };
