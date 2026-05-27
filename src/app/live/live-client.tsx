@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from 'react-dom';
-import { type Fixture, type Team, type LiveMatchState } from "@/lib/tournament";
+import { type Fixture, type Team, type LiveMatchState, type BallEvent } from "@/lib/tournament";
 import { Clock, Bell, X, Trophy, ChevronLeft, AlertCircle, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Scorecard } from "@/components/scorecard";
@@ -309,6 +309,32 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
     const currentInningsData = liveMatch.currentInnings === 1 ? liveMatch.innings1 : liveMatch.innings2;
     const battingColor = colorOf(currentInningsData.teamName);
 
+    // Compute accurate over groups by replaying timeline for current innings
+    const computedOverGroups = (() => {
+        const inningsBalls = liveMatch.timeline
+            .filter(b => b.innings === liveMatch.currentInnings && b.extraType !== 'SWAP' && b.extraType !== 'DB' && b.extraType !== 'OVERRIDE');
+        
+        const groups: Record<number, BallEvent[]> = {};
+        let currentOver = 1;
+        let ballsInOver = 0;
+        
+        for (const ball of inningsBalls) {
+            if (!groups[currentOver]) groups[currentOver] = [];
+            groups[currentOver].push(ball);
+            
+            if (ball.extraType !== 'WD' && ball.extraType !== 'NB') {
+                ballsInOver++;
+                if (ballsInOver >= 6) {
+                    currentOver++;
+                    ballsInOver = 0;
+                }
+            }
+        }
+        
+        return groups;
+    })();
+    const hasDeliveries = Object.keys(computedOverGroups).length > 0;
+
     const activeStriker = currentInningsData.batsmen[currentInningsData.strikerRef || ""];
     const activeNonStriker = currentInningsData.batsmen[currentInningsData.nonStrikerRef || ""];
     const activeBowler = currentInningsData.bowlers[currentInningsData.currentBowlerRef || ""];
@@ -568,6 +594,38 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                             </div>
                         </motion.div>
 
+                        {/* Premium "This Over" Strip */}
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                            className="mt-8 flex flex-col items-center gap-2.5 bg-white/5 border border-white/10 px-6 py-3.5 rounded-2xl backdrop-blur-md"
+                        >
+                            <span className="text-[9px] font-black tracking-[0.4em] text-zinc-500 uppercase">
+                                THIS OVER (OVER {Math.floor(currentInningsData.overs) + 1})
+                            </span>
+                            <div className="flex items-center gap-2">
+                                {((computedOverGroups[Math.floor(currentInningsData.overs) + 1] || [])).length === 0 ? (
+                                    <span className="text-zinc-500 text-[10px] font-black tracking-widest italic uppercase py-1">Awaiting first ball</span>
+                                ) : (
+                                    (computedOverGroups[Math.floor(currentInningsData.overs) + 1] || []).map((ball) => (
+                                        <div 
+                                            key={ball.id} 
+                                            className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs border transition-all duration-300 transform hover:scale-110 shadow-lg ${
+                                                ball.isWicket ? 'bg-red-600 border-red-400 text-white shadow-red-900/30' : 
+                                                ball.runs >= 6 ? 'bg-amber-500 border-amber-300 text-black shadow-amber-900/30' : 
+                                                ball.runs >= 4 ? 'bg-amber-500/20 border-amber-500/30 text-amber-500 shadow-amber-950/20' : 
+                                                ball.extras > 0 ? 'bg-blue-500/20 border-blue-500/30 text-blue-400 shadow-blue-950/20' : 
+                                                'bg-white/5 border-white/10 text-zinc-300'
+                                            }`}
+                                        >
+                                            {ball.isWicket ? 'W' : ball.extras > 0 ? `${ball.runs || ''}${ball.extraType}` : ball.runs}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </motion.div>
+
                         {/* 2nd Innings Chasing Info with Premium Banner */}
                         {liveMatch.currentInnings === 2 && (() => {
                             const runsNeeded = (liveMatch.innings1.runs + 1) - currentInningsData.runs;
@@ -723,15 +781,10 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                 </div>
                             </div>
                             <div className="flex flex-col gap-6 w-full mt-4">
-                                {Object.entries(
-                                    liveMatch.timeline.reduce((acc: any, ball) => {
-                                        const getOverNum = (o: number) => Math.floor(o) + 1;
-                                        const overNum = getOverNum(ball.over);
-                                        if (!acc[overNum]) acc[overNum] = [];
-                                        acc[overNum].push(ball);
-                                        return acc;
-                                    }, {})
-                                ).sort((a, b) => Number(b[0]) - Number(a[0])).slice(0, 3).map(([overNum, balls]: [string, any]) => (
+                                {Object.entries(computedOverGroups)
+                                .sort((a, b) => Number(b[0]) - Number(a[0]))
+                                .slice(0, 3)
+                                .map(([overNum, balls]) => (
                                     <div key={overNum} className="flex flex-col gap-4">
                                         <div className="flex items-center gap-4">
                                             <span className="text-white font-black italic text-lg md:text-xl tracking-widest uppercase">OVER {overNum}</span>

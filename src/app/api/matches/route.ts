@@ -279,7 +279,7 @@ export async function POST(request: Request) {
                 const team2Id = nameToId.get(f.team2) || tbdTeam?.id;
                 
                 return {
-                    id: crypto.randomUUID(),
+                    id: randomUUID(),
                     matchNo: f.matchNo,
                     stage: f.stage,
                     group: f.group === "-" ? null : f.group,

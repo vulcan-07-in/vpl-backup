@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins, BarChart3, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "squads" | "logs";
 
@@ -39,6 +40,20 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
 
     const [squads, setSquads] = useState<any[]>([]);
+
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        actionText?: string;
+        actionInputPlaceholder?: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => {},
+    });
 
     useEffect(() => {
         if (authenticated) {
@@ -79,7 +94,21 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     }
 
     async function handleAction(endpoint: string, payload: any, refreshFn?: () => void, skipConfirm = false) {
-        if (!skipConfirm && !confirm("Are you sure?")) return;
+        if (!skipConfirm) {
+            setConfirmModal({
+                isOpen: true,
+                title: "Confirm Action",
+                message: "Are you sure you want to perform this action?",
+                onConfirm: async () => {
+                    await executeAction(endpoint, payload, refreshFn);
+                }
+            });
+            return;
+        }
+        await executeAction(endpoint, payload, refreshFn);
+    }
+
+    async function executeAction(endpoint: string, payload: any, refreshFn?: () => void) {
         try {
             const res = await fetch(endpoint, {
                 method: "POST",
@@ -266,16 +295,28 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 <h2 className="text-xl font-black tracking-widest flex items-center gap-2"><CalendarDays className="text-amber-500"/> Schedule Match</h2>
                                 <div className="flex gap-2">
                                     <button onClick={() => {
-                                        if(confirm("Are you sure you want to auto-generate all group and playoff fixtures?")) {
-                                            handleAction("/api/matches", { action: "auto_generate" }, fetchMatches);
-                                        }
+                                        setConfirmModal({
+                                            isOpen: true,
+                                            title: "Auto-Generate Fixtures",
+                                            message: "Are you sure you want to auto-generate all group and playoff fixtures? This will append the generated matches to your schedule.",
+                                            onConfirm: () => {
+                                                handleAction("/api/matches", { action: "auto_generate" }, fetchMatches, true);
+                                            }
+                                        });
                                     }} className="bg-zinc-800 hover:bg-zinc-700 text-xs font-bold px-3 py-1.5 rounded text-white tracking-widest uppercase transition-colors">
                                         Auto-Gen
                                     </button>
                                     <button onClick={() => {
-                                        if(prompt("Type 'DELETE ALL' to clear all fixtures.") === "DELETE ALL") {
-                                            handleAction("/api/matches", { action: "delete_all" }, fetchMatches);
-                                        }
+                                        setConfirmModal({
+                                            isOpen: true,
+                                            title: "Wipe All Fixtures",
+                                            message: "⚠️ WARNING: This will permanently delete all scheduled and completed matches, reset points tables, and clear active broadcast status. This cannot be undone.",
+                                            actionText: "DELETE ALL",
+                                            actionInputPlaceholder: "DELETE ALL",
+                                            onConfirm: () => {
+                                                handleAction("/api/matches", { action: "delete_all" }, fetchMatches, true);
+                                            }
+                                        });
                                     }} className="bg-red-500/20 text-red-500 hover:bg-red-500/40 text-xs font-bold px-3 py-1.5 rounded tracking-widest uppercase transition-colors">
                                         Wipe
                                     </button>
@@ -568,6 +609,73 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                     </div>
                 )}
             </div>
+
+            {/* Custom Premium Confirmation Modal */}
+            <AnimatePresence>
+                {confirmModal.isOpen && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl relative overflow-hidden text-center"
+                        >
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+                            <h3 className="text-xl font-black tracking-wider text-white mb-2 uppercase">{confirmModal.title}</h3>
+                            <p className="text-zinc-400 text-sm leading-relaxed mb-6">{confirmModal.message}</p>
+                            
+                            {confirmModal.actionText && (
+                                <div className="mb-6">
+                                    <input 
+                                        type="text" 
+                                        id="confirm-modal-input"
+                                        placeholder={confirmModal.actionInputPlaceholder || `Type "${confirmModal.actionText}" to confirm`}
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-center tracking-widest font-mono text-sm uppercase text-amber-500 focus:border-amber-500/50 outline-none"
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                const val = (e.target as HTMLInputElement).value;
+                                                if (val.trim().toUpperCase() === confirmModal.actionText?.toUpperCase()) {
+                                                    confirmModal.onConfirm();
+                                                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <p className="text-[10px] text-zinc-500 mt-2">Type the exact phrase above and click Confirm (or press Enter)</p>
+                                </div>
+                            )}
+
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                    className="flex-1 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold py-3.5 rounded-xl text-xs tracking-widest uppercase transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        if (confirmModal.actionText) {
+                                            const el = document.getElementById("confirm-modal-input") as HTMLInputElement;
+                                            if (el && el.value.trim().toUpperCase() === confirmModal.actionText.toUpperCase()) {
+                                                confirmModal.onConfirm();
+                                                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                            } else {
+                                                alert(`Please type "${confirmModal.actionText}" exactly to proceed.`);
+                                            }
+                                        } else {
+                                            confirmModal.onConfirm();
+                                            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                        }
+                                    }}
+                                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black py-3.5 rounded-xl text-xs tracking-widest uppercase shadow-lg shadow-amber-500/10 transition-all"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

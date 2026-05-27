@@ -1478,8 +1478,31 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         const activeNonStriker = currentInningsData.batsmen[currentInningsData.nonStrikerRef || ""] || null;
         const activeBowler = currentInningsData.bowlers[currentInningsData.currentBowlerRef || ""] || null;
 
-        // Recent balls for the timeline (last 12)
-        const recentTimeline = [...liveState.timeline].reverse().slice(0, 12);
+        // Compute accurate over groups by replaying timeline for current innings
+        const computedOverGroups = (() => {
+            const inningsBalls = liveState.timeline
+                .filter(b => b.innings === liveState.currentInnings && b.extraType !== 'SWAP' && b.extraType !== 'DB' && b.extraType !== 'OVERRIDE');
+            
+            const groups: Record<number, BallEvent[]> = {};
+            let currentOver = 1;
+            let ballsInOver = 0;
+            
+            for (const ball of inningsBalls) {
+                if (!groups[currentOver]) groups[currentOver] = [];
+                groups[currentOver].push(ball);
+                
+                if (ball.extraType !== 'WD' && ball.extraType !== 'NB') {
+                    ballsInOver++;
+                    if (ballsInOver >= 6) {
+                        currentOver++;
+                        ballsInOver = 0;
+                    }
+                }
+            }
+            
+            return groups;
+        })();
+        const hasDeliveries = Object.keys(computedOverGroups).length > 0;
 
         // Match Result & Target Logic
         const isSecondInnings = liveState.currentInnings === 2;
@@ -1630,20 +1653,14 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex-1 flex flex-col min-h-0 overflow-hidden">
                             <h3 className="text-[10px] font-bold tracking-widest text-zinc-500 mb-3 uppercase">Recent Deliveries</h3>
                             <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                                {recentTimeline.length === 0 ? (
+                                {!hasDeliveries ? (
                                     <div className="h-full flex items-center justify-center text-zinc-600 text-xs tracking-widest italic">
                                         No deliveries recorded yet
                                     </div>
                                 ) : (
-                                    Object.entries(
-                                        recentTimeline.reduce((acc, ball) => {
-                                            const getOverNum = (o: number) => Math.floor(o) + 1;
-                                            const overNum = getOverNum(ball.over);
-                                            if (!acc[overNum]) acc[overNum] = [];
-                                            acc[overNum].push(ball);
-                                            return acc;
-                                        }, {} as Record<number, BallEvent[]>)
-                                    ).sort((a, b) => Number(b[0]) - Number(a[0])).map(([overNum, balls]) => (
+                                    Object.entries(computedOverGroups)
+                                    .sort((a, b) => Number(b[0]) - Number(a[0]))
+                                    .map(([overNum, balls]) => (
                                         <div key={overNum} className="bg-black/40 border border-zinc-800/50 p-3 rounded-xl mb-2 shrink-0">
                                             <div className="flex justify-between items-center mb-2 border-b border-zinc-800/50 pb-2">
                                                 <span className="text-zinc-500 font-bold tracking-widest text-[9px] uppercase">OVER {overNum}</span>
