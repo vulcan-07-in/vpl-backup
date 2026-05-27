@@ -394,6 +394,90 @@ export async function POST(request: Request) {
             return NextResponse.json({ ok: true, generated: inserts.length });
         }
 
+        if (payload.action === "autoplay_match") {
+            const { matchNo } = payload;
+            if (!matchNo) throw new Error("Missing matchNo for autoplay");
+
+            const { data: match, error: fetchErr } = await supabase
+                .from("Match")
+                .select("id, matchNo, team1Id, team2Id")
+                .eq("matchNo", matchNo)
+                .single();
+                
+            if (fetchErr) throw new Error(fetchErr.message);
+            if (!match) return NextResponse.json({ error: "Match not found" }, { status: 404 });
+
+            const { data: teams, error: teamsErr } = await supabase.from("Team").select("id, name");
+            if (teamsErr) throw new Error(teamsErr.message);
+            const teamMap = new Map(teams.map((t: any) => [t.id, t.name]));
+
+            const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+            const now = new Date().toISOString();
+
+            const team1Name = teamMap.get(match.team1Id) || "Team 1";
+            const team2Name = teamMap.get(match.team2Id) || "Team 2";
+
+            const generateInnings = (teamName: string, overs = 8) => {
+                const runs = Math.floor(Math.random() * 60) + 40;
+                const wickets = Math.floor(Math.random() * 8);
+                const isAllOut = wickets === 8;
+                const finalOvers = isAllOut ? overs : parseFloat((Math.floor(Math.random() * (overs - 1)) + Math.random()).toFixed(1));
+                return {
+                    teamName,
+                    runs,
+                    wickets,
+                    overs: finalOvers,
+                    batsmen: {
+                        "Player 1": { name: "Player 1", runs: 20, balls: 15, fours: 2, sixes: 1, isOut: true },
+                        "Player 2": { name: "Player 2", runs: runs - 20, balls: 20, fours: 4, sixes: 2, isOut: false }
+                    },
+                    bowlers: {
+                        "Bowler 1": { name: "Bowler 1", overs: 2, maidens: 0, runs: 15, wickets: 2 },
+                        "Bowler 2": { name: "Bowler 2", overs: 2, maidens: 0, runs: 20, wickets: 1 }
+                    }
+                };
+            };
+
+            const inn1 = generateInnings(team1Name);
+            const inn2 = generateInnings(team2Name);
+
+            const winnerId = inn1.runs > inn2.runs ? match.team1Id : (inn2.runs > inn1.runs ? match.team2Id : null);
+            let winnerName = winnerId ? teamMap.get(winnerId) : "TIE";
+            let result = winnerName === "TIE" ? "Match Tied" : `${winnerName} won by ${Math.abs(inn1.runs - inn2.runs)} runs`;
+
+            const liveState = {
+                matchId: match.matchNo,
+                status: "COMPLETED",
+                currentInnings: 2,
+                innings1: inn1,
+                innings2: inn2,
+                timeline: [{ id: "b1", timestamp: Date.now(), innings: 1, over: 0.1, striker: "P1", nonStriker: "P2", bowler: "B1", runs: 1, extras: 0, isWicket: false }],
+                matchOvers: 8,
+                winner: winnerName,
+                result
+            };
+
+            const { error: updErr } = await supabase
+                .from("Match")
+                .update({ 
+                    status: "COMPLETED", 
+                    winnerId, 
+                    liveState,
+                    updatedAt: now
+                })
+                .eq("id", match.id);
+            
+            if (updErr) console.error("Error updating match", updErr);
+
+            const matchIdStr = String(match.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+            await redis.set(`s2:live_match_${matchIdStr}`, JSON.stringify(liveState));
+
+            revalidatePath("/matches");
+            revalidatePath("/points");
+            revalidatePath("/");
+            return NextResponse.json({ ok: true, generated: 1 });
+        }
+
         if (Array.isArray(payload)) {
             return NextResponse.json({ ok: true, message: "Use individual match updates." });
         }

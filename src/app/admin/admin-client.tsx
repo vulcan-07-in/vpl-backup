@@ -378,6 +378,9 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             {m.status !== 'COMPLETED' && m.status !== 'ABANDONED' && (
                                                 <button onClick={() => handleAction("/api/matches", { action: "abandon_match", matchNo: m.matchNo }, fetchMatches)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded text-xs font-bold">ABANDON</button>
                                             )}
+                                            {m.status === 'SCHEDULED' && (
+                                                <button onClick={() => handleAction("/api/matches", { action: "autoplay_match", matchNo: m.matchNo }, fetchMatches, true)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1 rounded text-xs font-bold border border-blue-500/30">AUTOPLAY</button>
+                                            )}
                                             <button 
                                                 onClick={() => {
                                                     setEditingMatch({
