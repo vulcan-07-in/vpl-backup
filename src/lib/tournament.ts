@@ -559,19 +559,19 @@ export function resolveS2Playoffs(
             case "Qualifier 1": {
                 return { 
                     ...f, 
-                    team1: hasManualTeam1 ? f.team1 : (rankedWinners[0] || e1w || "E1 Winner"), 
-                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[1] || e2w || "E2 Winner") 
+                    team1: hasManualTeam1 ? f.team1 : (rankedWinners[0] || "1st Ranked Winner"), 
+                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[1] || "2nd Ranked Winner") 
                 };
             }
             case "Qualifier 2": {
                 const q1f = fixtures.find(x => x.stage === "Qualifier 1");
-                const q1Loser = q1f?.winner
+                const q1Loser = q1f?.winner && q1f.team1 && q1f.team2 && q1f.team1 !== "TBD" && q1f.team2 !== "TBD"
                     ? (q1f.winner === q1f.team1 ? q1f.team2 : q1f.team1)
                     : "Q1 Loser";
                 return { 
                     ...f, 
                     team1: hasManualTeam1 ? f.team1 : q1Loser, 
-                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[2] || e3w || "E3 Winner") 
+                    team2: hasManualTeam2 ? f.team2 : (rankedWinners[2] || "3rd Ranked Winner") 
                 };
             }
             case "Final": {

@@ -136,7 +136,7 @@ const BRACKET_STAGES = [
     { stage: "Final" as const, short: "FINAL" },
 ];
 
-function PlayoffBracketSection({ fixtures }: { fixtures: Fixture[] }) {
+function PlayoffBracketSection({ fixtures, liveStates }: { fixtures: Fixture[], liveStates: Record<string, any> }) {
     const knockoutFixtures = fixtures.filter(f =>
         ["Eliminator 1", "Eliminator 2", "Eliminator 3", "Qualifier 1", "Qualifier 2", "Final"].includes(f.stage)
     );
@@ -160,7 +160,8 @@ function PlayoffBracketSection({ fixtures }: { fixtures: Fixture[] }) {
                 {BRACKET_STAGES.map(({ stage, short }) => {
                     const f = knockoutFixtures.find(x => x.stage === stage);
                     if (!f) return null;
-                    const isLive = !f.winner && f.team1 && f.team2 && !f.team1.includes("Seed") && !f.team1.includes("Winner") && !f.team1.includes("Loser");
+                    const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                    const isLive = liveStates[cleanId(f.matchNo)]?.status === "LIVE";
                     const isCompleted = !!f.winner;
 
                     return (
@@ -271,7 +272,7 @@ export default function PlayoffsClient({
 
                         <PlayoffInfographic fixtures={resolvedFixtures} ranks={ranks} isGroupStageComplete={isGroupStageComplete} />
 
-                        <PlayoffBracketSection fixtures={resolvedFixtures} />
+                        <PlayoffBracketSection fixtures={resolvedFixtures} liveStates={liveStates} />
                     </div>
                 )}
             </div>

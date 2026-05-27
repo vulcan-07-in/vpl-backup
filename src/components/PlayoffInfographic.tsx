@@ -92,7 +92,7 @@ export default function PlayoffInfographic({
             </div>
 
             {/* Desktop Bracket Diagram Container */}
-            <div className="min-w-[850px] bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 relative shadow-2xl flex items-center justify-between">
+            <div className="min-w-[850px] bg-zinc-950/40 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 relative shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex items-center justify-between overflow-hidden">
                 
                 {/* Stage 1: Qualification Ranks */}
                 <div className="flex flex-col gap-6 relative z-10 w-[140px]">
@@ -113,27 +113,36 @@ export default function PlayoffInfographic({
 
                 {/* SVG Connecting Lines (Layered behind boxes) */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+                    <defs>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
                     {/* E1 Lines */}
-                    <path d="M 160 115 C 200 115, 200 142.5, 240 142.5" fill="none" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" />
-                    <path d="M 160 170 C 200 170, 200 142.5, 240 142.5" fill="none" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" />
+                    <path d="M 160 115 C 200 115, 200 142.5, 240 142.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="3" filter="url(#glow)" />
+                    <path d="M 160 170 C 200 170, 200 142.5, 240 142.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="3" filter="url(#glow)" />
                     
                     {/* E2 Lines */}
-                    <path d="M 160 240 C 200 240, 200 267.5, 240 267.5" fill="none" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" />
-                    <path d="M 160 295 C 200 295, 200 267.5, 240 267.5" fill="none" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" />
+                    <path d="M 160 240 C 200 240, 200 267.5, 240 267.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="3" filter="url(#glow)" />
+                    <path d="M 160 295 C 200 295, 200 267.5, 240 267.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="3" filter="url(#glow)" />
 
                     {/* E3 Lines */}
-                    <path d="M 160 365 C 200 365, 200 392.5, 240 392.5" fill="none" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" />
-                    <path d="M 160 420 C 200 420, 200 392.5, 240 392.5" fill="none" stroke="rgba(245, 158, 11, 0.2)" strokeWidth="2" />
+                    <path d="M 160 365 C 200 365, 200 392.5, 240 392.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="3" filter="url(#glow)" />
+                    <path d="M 160 420 C 200 420, 200 392.5, 240 392.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="3" filter="url(#glow)" />
 
                     {/* Re-ranking convergence (Dotted lines from E1, E2, E3 to Re-Ranking) */}
-                    <path d="M 390 142.5 C 440 142.5, 430 267.5, 470 267.5" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="2" strokeDasharray="4 4" />
-                    <path d="M 390 267.5 L 470 267.5" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="2" strokeDasharray="4 4" />
-                    <path d="M 390 392.5 C 440 392.5, 430 267.5, 470 267.5" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="2" strokeDasharray="4 4" />
+                    <path d="M 390 142.5 C 440 142.5, 430 267.5, 470 267.5" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="3" strokeDasharray="6 6" />
+                    <path d="M 390 267.5 L 470 267.5" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="3" strokeDasharray="6 6" />
+                    <path d="M 390 392.5 C 440 392.5, 430 267.5, 470 267.5" fill="none" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="3" strokeDasharray="6 6" />
 
                     {/* Qualifiers Lines */}
-                    <path d="M 610 200 C 650 200, 650 240, 690 240" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="2" />
-                    <path d="M 610 335 C 650 335, 650 280, 690 280" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="2" />
-                    <path d="M 540 230 C 540 335, 470 335, 470 335" fill="none" stroke="rgba(255, 50, 50, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
+                    <path d="M 610 200 C 650 200, 650 240, 690 240" fill="none" stroke="rgba(245, 158, 11, 0.6)" strokeWidth="3" filter="url(#glow)" />
+                    <path d="M 610 335 C 650 335, 650 280, 690 280" fill="none" stroke="rgba(245, 158, 11, 0.6)" strokeWidth="3" filter="url(#glow)" />
+                    <path d="M 540 230 C 540 335, 470 335, 470 335" fill="none" stroke="rgba(239, 68, 68, 0.5)" strokeWidth="3" strokeDasharray="6 6" />
                 </svg>
 
                 {/* Stage 2: Eliminators */}
@@ -169,18 +178,18 @@ export default function PlayoffInfographic({
                 </div>
 
                 {/* Stage 5: Final */}
-                <div className="flex flex-col relative z-10 w-[150px] items-center justify-center mt-6">
-                    <div className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest text-center mb-4 absolute -top-8 w-full">Championship</div>
-                    <div className={`bg-gradient-to-br from-amber-500/20 to-black border ${finalMatch?.winner ? 'border-amber-400' : 'border-amber-500/50'} rounded-xl p-4 w-full shadow-[0_0_30px_rgba(245,158,11,0.15)] text-center relative overflow-hidden`}>
-                        <div className="absolute top-0 right-0 p-2 opacity-20"><TrophyIcon /></div>
-                        <div className="text-[10px] text-amber-500 uppercase tracking-widest font-bold mb-3 relative z-10">THE FINAL</div>
+                <div className="flex flex-col relative z-10 w-[160px] items-center justify-center mt-6">
+                    <div className="text-[11px] text-yellow-500 font-black uppercase tracking-[0.3em] text-center mb-6 absolute -top-10 w-full drop-shadow-[0_0_10px_rgba(234,179,8,0.8)]">Championship</div>
+                    <div className={`bg-gradient-to-br from-amber-600/30 via-black to-black border-2 ${finalMatch?.winner ? 'border-amber-400 shadow-[0_0_50px_rgba(245,158,11,0.4)]' : 'border-amber-500/50'} rounded-2xl p-5 w-full text-center relative overflow-hidden backdrop-blur-xl`}>
+                        <div className="absolute top-0 right-0 p-3 opacity-30"><TrophyIcon /></div>
+                        <div className="text-[11px] text-amber-500 uppercase tracking-widest font-black mb-4 relative z-10">THE FINAL</div>
                         
-                        <div className={`bg-black/60 rounded px-2 py-2 text-white font-mono text-xs border border-white/5 mb-1 relative z-10 ${finalMatch?.winner === fT1 ? 'ring-1 ring-amber-500 text-amber-400' : finalMatch?.winner && finalMatch.winner !== fT1 ? 'opacity-30 line-through' : ''}`}>{fT1}</div>
-                        <div className="text-[10px] text-zinc-600 my-1 font-bold relative z-10">VS</div>
-                        <div className={`bg-black/60 rounded px-2 py-2 text-white font-mono text-xs border border-white/5 relative z-10 ${finalMatch?.winner === fT2 ? 'ring-1 ring-amber-500 text-amber-400' : finalMatch?.winner && finalMatch.winner !== fT2 ? 'opacity-30 line-through' : ''}`}>{fT2}</div>
+                        <div className={`bg-black/80 rounded-lg px-3 py-2.5 text-white font-mono text-xs border border-white/10 mb-2 relative z-10 shadow-inner ${finalMatch?.winner === fT1 ? 'ring-2 ring-amber-400 text-amber-400 bg-amber-950/50' : finalMatch?.winner && finalMatch.winner !== fT1 ? 'opacity-30 line-through' : ''}`}>{fT1}</div>
+                        <div className="text-[11px] text-amber-500/70 my-2 font-black relative z-10 tracking-widest">VS</div>
+                        <div className={`bg-black/80 rounded-lg px-3 py-2.5 text-white font-mono text-xs border border-white/10 relative z-10 shadow-inner ${finalMatch?.winner === fT2 ? 'ring-2 ring-amber-400 text-amber-400 bg-amber-950/50' : finalMatch?.winner && finalMatch.winner !== fT2 ? 'opacity-30 line-through' : ''}`}>{fT2}</div>
                         
                         {finalMatch?.winner && (
-                            <div className="mt-3 text-[10px] text-amber-400 font-bold tracking-widest animate-pulse">{finalMatch.winner} WINS</div>
+                            <div className="mt-4 text-[11px] text-amber-400 font-black tracking-widest animate-pulse drop-shadow-[0_0_10px_rgba(245,158,11,0.8)] uppercase">{finalMatch.winner} WINS</div>
                         )}
                     </div>
                 </div>
@@ -192,27 +201,27 @@ export default function PlayoffInfographic({
 
 function RankBox({ rank, name }: { rank: number, name: string }) {
     return (
-        <div className="bg-black border border-white/10 rounded-lg py-2.5 px-3 flex flex-col shadow-md text-center">
-            <span className="text-zinc-500 text-[8px] uppercase tracking-widest mb-1">Rank {rank}</span>
-            <span className="text-white font-bold text-xs truncate max-w-full" style={{ fontFamily: "var(--font-heading)" }}>{name}</span>
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl py-3 px-4 flex flex-col shadow-xl text-center hover:bg-white/10 transition-colors">
+            <span className="text-amber-500/70 text-[9px] uppercase tracking-[0.2em] mb-1 font-bold">Rank {rank}</span>
+            <span className="text-white font-bold text-sm truncate max-w-full tracking-wide" style={{ fontFamily: "var(--font-heading)" }}>{name}</span>
         </div>
     );
 }
 
 function MatchBox({ title, t1, t2, color, isLive }: any) {
-    const borderColor = color === 'red' ? 'border-red-900/50' : 'border-amber-900/50';
-    const bgColor = color === 'red' ? 'bg-red-950/20' : 'bg-amber-950/20';
-    const titleColor = color === 'red' ? 'text-red-500' : 'text-amber-500';
+    const borderColor = color === 'red' ? 'border-red-500/30' : 'border-amber-500/30';
+    const bgColor = color === 'red' ? 'bg-red-950/30' : 'bg-amber-950/30';
+    const titleColor = color === 'red' ? 'text-red-400' : 'text-amber-400';
 
     return (
-        <div className={`border ${borderColor} ${bgColor} rounded-xl p-3 shadow-lg relative ${isLive ? 'ring-1 ring-red-500/50' : ''}`}>
-            {isLive && <div className="absolute -top-2 -right-2 bg-red-500 text-black text-[8px] font-bold px-1.5 py-0.5 rounded shadow-lg animate-pulse uppercase">Live</div>}
-            <div className={`text-[9px] ${titleColor} uppercase tracking-widest font-bold mb-2 text-center truncate`}>{title}</div>
-            <div className="flex flex-col gap-1">
-                <div className={`bg-black/60 rounded px-2 py-1.5 text-white font-mono text-xs border border-white/5 text-center truncate ${t1.isWinner ? 'text-amber-400 font-bold' : t1.isLoser ? 'opacity-30 line-through' : ''}`}>
+        <div className={`backdrop-blur-xl border ${borderColor} ${bgColor} rounded-2xl p-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] relative transition-all ${isLive ? 'ring-2 ring-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'hover:scale-[1.02]'}`}>
+            {isLive && <div className="absolute -top-3 -right-3 bg-red-500 text-white text-[9px] font-black tracking-widest px-2 py-1 rounded shadow-lg animate-pulse uppercase border border-red-400">Live</div>}
+            <div className={`text-[10px] ${titleColor} uppercase tracking-[0.2em] font-bold mb-3 text-center truncate`}>{title}</div>
+            <div className="flex flex-col gap-2">
+                <div className={`bg-black/80 rounded-lg px-3 py-2 text-white font-mono text-xs border border-white/10 text-center truncate shadow-inner ${t1.isWinner ? 'ring-1 ring-amber-500 text-amber-400 font-bold bg-amber-950/40' : t1.isLoser ? 'opacity-40 line-through' : ''}`}>
                     {t1.name}
                 </div>
-                <div className={`bg-black/60 rounded px-2 py-1.5 text-white font-mono text-xs border border-white/5 text-center truncate ${t2.isWinner ? 'text-amber-400 font-bold' : t2.isLoser ? 'opacity-30 line-through' : ''}`}>
+                <div className={`bg-black/80 rounded-lg px-3 py-2 text-white font-mono text-xs border border-white/10 text-center truncate shadow-inner ${t2.isWinner ? 'ring-1 ring-amber-500 text-amber-400 font-bold bg-amber-950/40' : t2.isLoser ? 'opacity-40 line-through' : ''}`}>
                     {t2.name}
                 </div>
             </div>

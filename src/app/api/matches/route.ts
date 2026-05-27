@@ -626,6 +626,8 @@ export async function POST(request: Request) {
 
             revalidatePath("/matches");
             revalidatePath("/points");
+            revalidatePath("/playoffs");
+            revalidatePath("/stats");
             revalidatePath("/");
             return NextResponse.json({ ok: true, generated: 1 });
         }
