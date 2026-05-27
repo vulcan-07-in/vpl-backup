@@ -120,7 +120,8 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         const c2 = colorOf(fixture.team2);
         const sn1 = shortName(fixture.team1).substring(0, 4).toUpperCase();
         const sn2 = shortName(fixture.team2).substring(0, 4).toUpperCase();
-        const lm = liveMatches[fixture.matchNo];
+        const cleanId = String(fixture.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        const lm = liveMatches[cleanId] || liveMatches[fixture.matchNo] || liveMatches[String(fixture.matchNo).trim()];
         const isLive = lm?.status === "LIVE";
         const isInningsBreak = lm?.status === "INNINGS_BREAK";
         const isCompleted = !!fixture.winner || lm?.status === "COMPLETED";
