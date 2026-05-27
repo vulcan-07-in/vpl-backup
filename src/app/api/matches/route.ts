@@ -321,6 +321,27 @@ export async function POST(request: Request) {
                 const team1Id = nameToId.get(f.team1) || tbdTeam?.id;
                 const team2Id = nameToId.get(f.team2) || tbdTeam?.id;
                 
+                // Calculate dynamic time across 4 days (6 matches per day)
+                const matchNum = parseInt(f.matchNo.replace(/[^0-9]/g, "")) || 1;
+                let dayOffset = 0;
+                let hourOffset = 0;
+                if (matchNum <= 6) {
+                    dayOffset = 0;
+                    hourOffset = matchNum - 1;
+                } else if (matchNum <= 12) {
+                    dayOffset = 1;
+                    hourOffset = matchNum - 7;
+                } else if (matchNum <= 18) {
+                    dayOffset = 2;
+                    hourOffset = matchNum - 13;
+                } else {
+                    dayOffset = 3;
+                    hourOffset = matchNum - 19;
+                }
+                const scheduledDate = new Date("2026-05-28T18:00:00.000Z");
+                scheduledDate.setUTCDate(scheduledDate.getUTCDate() + dayOffset);
+                scheduledDate.setUTCHours(scheduledDate.getUTCHours() + hourOffset);
+
                 return {
                     id: randomUUID(),
                     matchNo: f.matchNo,
@@ -330,6 +351,7 @@ export async function POST(request: Request) {
                     team2Id: team2Id,
                     status: "SCHEDULED",
                     isFunMatch: false,
+                    scheduledTime: scheduledDate.toISOString(),
                     createdAt: now,
                     updatedAt: now,
                 };
