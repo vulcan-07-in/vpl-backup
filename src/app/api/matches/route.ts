@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { fetchFixtures } from "@/lib/data";
+import { fetchFixtures, fetchSquads } from "@/lib/data";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
@@ -417,7 +417,20 @@ export async function POST(request: Request) {
             const team1Name = teamMap.get(match.team1Id) || "Team 1";
             const team2Name = teamMap.get(match.team2Id) || "Team 2";
 
-            const generateInnings = (teamName: string, overs = 8) => {
+            const squads = await fetchSquads(2);
+
+            const generateInnings = (teamName: string, opponentName: string, overs = 8) => {
+                const squad = squads.find(s => s.teamName === teamName);
+                const oppSquad = squads.find(s => s.teamName === opponentName);
+                
+                const players = squad ? squad.players.map(p => p.name) : [];
+                const oppPlayers = oppSquad ? oppSquad.players.map(p => p.name) : [];
+                
+                const p1 = players[0] || "Player 1";
+                const p2 = players[1] || "Player 2";
+                const b1 = oppPlayers[0] || "Bowler 1";
+                const b2 = oppPlayers[1] || "Bowler 2";
+
                 const runs = Math.floor(Math.random() * 60) + 40;
                 const wickets = Math.floor(Math.random() * 8);
                 const isAllOut = wickets === 8;
@@ -428,18 +441,18 @@ export async function POST(request: Request) {
                     wickets,
                     overs: finalOvers,
                     batsmen: {
-                        "Player 1": { name: "Player 1", runs: 20, balls: 15, fours: 2, sixes: 1, isOut: true },
-                        "Player 2": { name: "Player 2", runs: runs - 20, balls: 20, fours: 4, sixes: 2, isOut: false }
+                        [p1]: { name: p1, runs: 20, balls: 15, fours: 2, sixes: 1, isOut: true },
+                        [p2]: { name: p2, runs: runs - 20, balls: 20, fours: 4, sixes: 2, isOut: false }
                     },
                     bowlers: {
-                        "Bowler 1": { name: "Bowler 1", overs: 2, maidens: 0, runs: 15, wickets: 2 },
-                        "Bowler 2": { name: "Bowler 2", overs: 2, maidens: 0, runs: 20, wickets: 1 }
+                        [b1]: { name: b1, overs: 2, maidens: 0, runs: 15, wickets: 2 },
+                        [b2]: { name: b2, overs: 2, maidens: 0, runs: 20, wickets: 1 }
                     }
                 };
             };
 
-            const inn1 = generateInnings(team1Name);
-            const inn2 = generateInnings(team2Name);
+            const inn1 = generateInnings(team1Name, team2Name);
+            const inn2 = generateInnings(team2Name, team1Name);
 
             const winnerId = inn1.runs > inn2.runs ? match.team1Id : (inn2.runs > inn1.runs ? match.team2Id : null);
             let winnerName = winnerId ? teamMap.get(winnerId) : "TIE";
@@ -451,7 +464,7 @@ export async function POST(request: Request) {
                 currentInnings: 2,
                 innings1: inn1,
                 innings2: inn2,
-                timeline: [{ id: "b1", timestamp: Date.now(), innings: 1, over: 0.1, striker: "P1", nonStriker: "P2", bowler: "B1", runs: 1, extras: 0, isWicket: false }],
+                timeline: [{ id: "b1", timestamp: Date.now(), innings: 1, over: 0.1, striker: Object.keys(inn1.batsmen)[0], nonStriker: Object.keys(inn1.batsmen)[1], bowler: Object.keys(inn1.bowlers)[0], runs: 1, extras: 0, isWicket: false }],
                 matchOvers: 8,
                 winner: winnerName,
                 result
