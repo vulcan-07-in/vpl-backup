@@ -111,6 +111,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     }
 
     async function executeAction(endpoint: string, payload: any, refreshFn?: () => void) {
+        setLoading(true);
         try {
             const res = await fetch(endpoint, {
                 method: "POST",
@@ -126,6 +127,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
             }
         } catch (e: any) {
             alert("❌ " + e.message);
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -302,8 +305,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             isOpen: true,
                                             title: "Auto-Generate Fixtures",
                                             message: "Are you sure you want to auto-generate all group and playoff fixtures? This will append the generated matches to your schedule.",
-                                            onConfirm: () => {
-                                                handleAction("/api/matches", { action: "auto_generate" }, fetchMatches, true);
+                                            onConfirm: async () => {
+                                                await handleAction("/api/matches", { action: "auto_generate" }, fetchMatches, true);
                                             }
                                         });
                                     }} className="bg-zinc-800 hover:bg-zinc-700 text-xs font-bold px-3 py-1.5 rounded text-white tracking-widest uppercase transition-colors">
@@ -316,8 +319,8 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             message: "⚠️ WARNING: This will permanently delete all scheduled and completed matches, reset points tables, and clear active broadcast status. This cannot be undone.",
                                             actionText: "DELETE ALL",
                                             actionInputPlaceholder: "DELETE ALL",
-                                            onConfirm: () => {
-                                                handleAction("/api/matches", { action: "delete_all" }, fetchMatches, true);
+                                            onConfirm: async () => {
+                                                await handleAction("/api/matches", { action: "delete_all" }, fetchMatches, true);
                                             }
                                         });
                                     }} className="bg-red-500/20 text-red-500 hover:bg-red-500/40 text-xs font-bold px-3 py-1.5 rounded tracking-widest uppercase transition-colors">
@@ -357,7 +360,11 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                         <div>
                                             <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
                                             <p className="font-bold">{initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
-                                            <p className="text-xs text-zinc-500">{m.status}</p>
+                                            <p className="text-xs text-zinc-500 mt-1">
+                                                {m.scheduledTime ? new Date(m.scheduledTime).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : "Time TBD"} 
+                                                <span className="mx-2">•</span> 
+                                                {m.status}
+                                            </p>
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             {m.status === 'SCHEDULED' && !m.tossWinnerId && (
