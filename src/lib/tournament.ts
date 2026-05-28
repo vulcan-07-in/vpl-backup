@@ -641,8 +641,7 @@ export function resolveS2Playoffs(
 
     // ── Pass 4: Qualifier 2 ────────────────────────────────────────────────
     const q1 = afterPass3.find(f => f.stage === "Qualifier 1") ?? null;
-    const q1ls = q1 ? getLiveState(q1, liveStates) : null;
-    const q1Winner: string = q1?.winner || q1ls?.winner || "";
+    const q1Winner: string = q1 ? resolveElimWinner(q1, liveStates) : "";
 
     // Derive Q1 Loser (only if Q1 has real team names and a recorded winner)
     const q1Loser: string = (() => {
@@ -658,15 +657,16 @@ export function resolveS2Playoffs(
 
     // ── Pass 5: Final ──────────────────────────────────────────────────────
     const q2 = afterPass4.find(f => f.stage === "Qualifier 2") ?? null;
-    const q2ls = q2 ? getLiveState(q2, liveStates) : null;
+    const q2Winner: string = q2 ? resolveElimWinner(q2, liveStates) : "";
 
-    const finalT1: string = q1?.winner || q1ls?.winner || "Q1 Winner";
-    const finalT2: string = q2?.winner || q2ls?.winner || "Q2 Winner";
+    const finalT1: string = q1Winner || "Q1 Winner";
+    const finalT2: string = q2Winner || "Q2 Winner";
 
     return afterPass4.map(f => {
         if (f.stage !== "Final") return f;
         return { ...f, team1: finalT1, team2: finalT2 };
     });
 }
+
 
 // Data fetching has been migrated to src/lib/data.ts to prevent Prisma leaking into client bundles.
