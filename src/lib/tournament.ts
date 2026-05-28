@@ -341,7 +341,7 @@ export function realOvers(v: number): number {
 // ── S2 Playoff Seeding & Bracket ─────────────────────────────────────────────
 
 export interface PlayoffRank {
-    rank: number;       // 1–6
+    rank: number;       // 1–6 before eliminators, 1–3 after (among survivors)
     team: string;
     group: "A" | "B" | "C";
     nrr: number;
@@ -350,8 +350,34 @@ export interface PlayoffRank {
     isEliminated?: boolean;
 }
 
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
+/** Normalize a team name for comparison: lowercase, trimmed. */
+const n = (s: string) => String(s ?? "").trim().toLowerCase();
+
+/** True if a team-name field is a placeholder (not a real team yet). */
+const isPlaceholder = (name: string) => {
+    const v = n(name);
+    return !v || v === "tbd" || v.startsWith("rank") || v.includes("winner") || v.includes("loser");
+};
+
+/** Get the liveState for a fixture, keyed by cleaned matchNo. */
+const getLiveState = (f: Fixture, liveStates: Record<string, LiveMatchState>): LiveMatchState | null => {
+    const key = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, "").toLowerCase();
+    return liveStates[key] ?? liveStates[String(f.matchNo).trim()] ?? null;
+};
+
+/** True if a fixture is done (has a winner in DB or liveState). */
+const isDone = (f: Fixture, liveStates: Record<string, LiveMatchState>) => {
+    const ls = getLiveState(f, liveStates);
+    return !!(f.winner || ls?.status === "COMPLETED" || ls?.status === "ABANDONED");
+};
+
+// ─── Base Seeds ───────────────────────────────────────────────────────────────
+
 /**
- * Computes the 6 base playoff seeds strictly from the Group Stage.
+ * The 6 teams that qualified from the group stage, ranked 1–6 by Pts → NRR.
+ * Reads ONLY group-stage fixtures. Never touches playoff rows.
  */
 export function computeBaseSeeds(
     fixtures: Fixture[],
@@ -360,135 +386,97 @@ export function computeBaseSeeds(
 ): PlayoffRank[] {
     const { groupA, groupB, groupC } = calculateStandings(fixtures, teams, liveStates);
 
-    const qualifiers: Omit<PlayoffRank, "rank">[] = [
-        ...(groupA.slice(0, 2).map(s => ({ team: s.played > 0 ? s.team : "", group: "A" as const, nrr: s.nrr, points: s.points, played: s.played }))),
-        ...(groupB.slice(0, 2).map(s => ({ team: s.played > 0 ? s.team : "", group: "B" as const, nrr: s.nrr, points: s.points, played: s.played }))),
-        ...(groupC.slice(0, 2).map(s => ({ team: s.played > 0 ? s.team : "", group: "C" as const, nrr: s.nrr, points: s.points, played: s.played }))),
+    const pool: Omit<PlayoffRank, "rank">[] = [
+        ...groupA.slice(0, 2).map(s => ({ team: s.team, group: "A" as const, nrr: s.nrr, points: s.points, played: s.played })),
+        ...groupB.slice(0, 2).map(s => ({ team: s.team, group: "B" as const, nrr: s.nrr, points: s.points, played: s.played })),
+        ...groupC.slice(0, 2).map(s => ({ team: s.team, group: "C" as const, nrr: s.nrr, points: s.points, played: s.played })),
     ];
 
-    // Rank by points first, then NRR
-    qualifiers.sort((a, b) => b.points - a.points || b.nrr - a.nrr);
-
-    return qualifiers.map((q, i) => ({ ...q, rank: i + 1 }));
+    pool.sort((a, b) => b.points - a.points || b.nrr - a.nrr);
+    return pool.map((q, i) => ({ ...q, rank: i + 1 }));
 }
 
+// ─── Live Rankings (post-eliminator) ─────────────────────────────────────────
+
 /**
- * Computes the live playoff rankings by taking the base seeds and adding stats from Eliminators.
+ * After eliminators are played, re-rank the 6 teams.
+ *
+ * IMPORTANT: this must receive the RESOLVED fixture list where Eliminator
+ * team1/team2 are already filled with real team names (not "Rank X" placeholders).
+ * That is why resolveS2Playoffs calls computePlayoffRankings AFTER Pass 1.
+ *
+ * Logic:
+ *  - Start from 6 base seeds.
+ *  - For each completed Eliminator, winner gets +2 pts, loser is marked eliminated.
+ *  - Sort: survivors first (by pts desc → NRR desc), then eliminated teams.
+ *  - Re-number ranks 1–6.
  */
 export function computePlayoffRankings(
-    fixtures: Fixture[],
+    resolvedFixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
 ): PlayoffRank[] {
-    const baseSeeds = computeBaseSeeds(fixtures, teams, liveStates);
-    
-    // Check if any Eliminators are completed
-    const eliminators = fixtures.filter(f => f.stage.startsWith("Eliminator") && f.winner && f.winner !== "TIE" && f.winner !== "ABANDONED");
-    
-    if (eliminators.length === 0) {
+    const baseSeeds = computeBaseSeeds(resolvedFixtures, teams, liveStates);
+
+    // All completed eliminator fixtures with a real winner
+    const completedEliminators = resolvedFixtures.filter(f =>
+        f.stage.startsWith("Eliminator") &&
+        !f.isFunMatch &&
+        f.winner &&
+        f.winner !== "TIE" &&
+        f.winner !== "ABANDONED" &&
+        !isPlaceholder(f.team1) &&
+        !isPlaceholder(f.team2)
+    );
+
+    if (completedEliminators.length === 0) {
+        // No eliminators finished yet — base seeds are the playoff rankings
         return baseSeeds;
     }
 
-    const decimalOversToBalls = (overs: number) => Math.floor(overs) * 6 + Math.round((overs % 1) * 10);
-    const normalize = (s: string) => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Track outcomes per team
+    const outcomes = new Map<string, { bonusPoints: number; eliminated: boolean }>();
+    for (const seed of baseSeeds) {
+        outcomes.set(n(seed.team), { bonusPoints: 0, eliminated: false });
+    }
 
-    const calculateTotalNRR = (teamName: string): number => {
-        let runsScored = 0, runsAgainst = 0;
-        let oversFaced = 0, oversBowled = 0;
+    for (const elim of completedEliminators) {
+        const winNorm = n(elim.winner);
+        const t1Norm  = n(elim.team1);
+        const t2Norm  = n(elim.team2);
 
-        fixtures.forEach(f => {
-            if (f.isFunMatch || !f.winner) return;
-            if (f.team1 !== teamName && f.team2 !== teamName) return;
-            if (f.stage === "Qualifier 1" || f.stage === "Qualifier 2" || f.stage === "Final") return;
+        // Winner gets +2 bonus points
+        if (outcomes.has(winNorm)) {
+            outcomes.get(winNorm)!.bonusPoints += 2;
+        }
 
-            const liveMatch = liveStates[String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase()] || liveStates[f.matchNo];
-            if (liveMatch && liveMatch.status === "COMPLETED") {
-                const inn1 = liveMatch.innings1;
-                const inn2 = liveMatch.innings2;
-                const isMatch = (innName: string, fixName: string) => normalize(innName).includes(normalize(fixName)) || normalize(fixName).includes(normalize(innName));
-                
-                const t1Score = isMatch(inn1.teamName, teamName) ? inn1 : (isMatch(inn2.teamName, teamName) ? inn2 : null);
-                const t2Score = (t1Score === inn1) ? inn2 : inn1;
+        // The OTHER participant is the loser → eliminated
+        const loserNorm = winNorm === t1Norm ? t2Norm : t1Norm;
+        if (outcomes.has(loserNorm)) {
+            outcomes.get(loserNorm)!.eliminated = true;
+        }
+    }
 
-                if (t1Score && t2Score) {
-                    runsScored += t1Score.runs;
-                    runsAgainst += t2Score.runs;
-                    const matchOvers = liveMatch.matchOvers || 8;
-                    const ballsFaced = (t1Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t1Score.overs);
-                    const ballsBowled = (t2Score.wickets >= 8) ? (matchOvers * 6) : decimalOversToBalls(t2Score.overs);
-                    oversFaced += ballsFaced / 6;
-                    oversBowled += ballsBowled / 6;
-                }
-            }
-        });
-        
-        const battingRR = oversFaced > 0 ? (runsScored / oversFaced) : 0;
-        const bowlingRR = oversBowled > 0 ? (runsAgainst / oversBowled) : 0;
-        return battingRR - bowlingRR;
-    };
-
-    const liveSeeds = baseSeeds.map(seed => {
-        let isEliminated = false;
-        let extraPoints = 0;
-        let extraPlayed = 0;
-        
-        eliminators.forEach(e => {
-            const normalize = (s: string) => String(s || "").trim().toLowerCase();
-            const seedTeam = normalize(seed.team);
-
-            if (normalize(e.team1) === seedTeam || normalize(e.team2) === seedTeam) {
-                extraPlayed += 1;
-                if (normalize(e.winner) === seedTeam) {
-                    extraPoints += 2;
-                }
-            }
-        });
-
-        // Strikeoff teams which lost any knockout match where a loss means elimination
-        fixtures.forEach(e => {
-            if (e.isFunMatch) return;
-            if (e.stage.startsWith("Eliminator") || e.stage.startsWith("Qualifier 2") || e.stage.startsWith("Final")) {
-                const normalize = (s: string) => String(s || "").trim().toLowerCase();
-                const seedTeam = normalize(seed.team);
-
-                if (normalize(e.team1) === seedTeam || normalize(e.team2) === seedTeam) {
-                    if (e.winner && e.winner !== "TIE" && e.winner !== "ABANDONED") {
-                        const nWin = normalize(e.winner);
-                        const nT1 = normalize(e.team1);
-                        const nT2 = normalize(e.team2);
-                        // Only strikeoff if the winner is one of the two actual participants
-                        if (nWin === nT1 || nWin === nT2) {
-                            if (nWin !== seedTeam) {
-                                isEliminated = true;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
+    const updated: PlayoffRank[] = baseSeeds.map(seed => {
+        const outcome = outcomes.get(n(seed.team)) ?? { bonusPoints: 0, eliminated: false };
         return {
             ...seed,
-            points: seed.points + extraPoints,
-            played: seed.played + extraPlayed,
-            nrr: calculateTotalNRR(seed.team),
-            isEliminated
+            points: seed.points + outcome.bonusPoints,
+            isEliminated: outcome.eliminated,
         };
     });
 
-    liveSeeds.sort((a, b) => {
-        if (a.isEliminated && !b.isEliminated) return 1;
-        if (!a.isEliminated && b.isEliminated) return -1;
+    // Survivors first (sorted by pts → NRR), then eliminated (sorted by original rank)
+    updated.sort((a, b) => {
+        if (a.isEliminated !== b.isEliminated) return a.isEliminated ? 1 : -1;
         return b.points - a.points || b.nrr - a.nrr;
     });
 
-    return liveSeeds.map((q, i) => ({ ...q, rank: i + 1 }));
+    return updated.map((s, i) => ({ ...s, rank: i + 1 }));
 }
 
-/**
- * S1: resolves 2-group knockout fixture labels.
- * Kept for Season 1 back-compat.
- */
+// ─── S1 Knockout Resolution (back-compat) ────────────────────────────────────
+
 export function resolveKnockouts(
     fixtures: Fixture[],
     teams: Team[],
@@ -498,14 +486,12 @@ export function resolveKnockouts(
 
     const getQualifiers = (
         standings: Standing[],
-        groupFixtures: Fixture[],
         group: "A" | "B"
     ): { first: string | null; second: string | null } => {
         if (standings.length < 3) return { first: null, second: null };
         const [p1, p2, p3] = standings;
         const gamesLeft3rd = 3 - p3.played;
         const maxPts3rd = p3.points + gamesLeft3rd * 2;
-
         const first = p1.points > maxPts3rd ? p1.team : null;
         const tiedFor2nd = p2.points === p3.points && p2.nrr === p3.nrr;
         const second = (!tiedFor2nd && p2.points > maxPts3rd)
@@ -516,137 +502,116 @@ export function resolveKnockouts(
         return { first, second };
     };
 
-    const groupAFix = fixtures.filter(f => f.group === "A");
-    const groupBFix = fixtures.filter(f => f.group === "B");
-    const { first: a1, second: a2 } = getQualifiers(groupA, groupAFix, "A");
-    const { first: b1, second: b2 } = getQualifiers(groupB, groupBFix, "B");
+    const { first: a1, second: a2 } = getQualifiers(groupA, "A");
+    const { first: b1, second: b2 } = getQualifiers(groupB, "B");
 
     return fixtures.map(f => {
-        if (f.stage === "Semi-Final 1") {
-            return { ...f, team1: a1 ?? f.team1, team2: b2 ?? f.team2 };
-        }
-        if (f.stage === "Semi-Final 2") {
-            return { ...f, team1: b1 ?? f.team1, team2: a2 ?? f.team2 };
-        }
+        if (f.stage === "Semi-Final 1") return { ...f, team1: a1 ?? f.team1, team2: b2 ?? f.team2 };
+        if (f.stage === "Semi-Final 2") return { ...f, team1: b1 ?? f.team1, team2: a2 ?? f.team2 };
         if (f.stage === "Final") {
             const sf1 = fixtures.find(x => x.stage === "Semi-Final 1");
             const sf2 = fixtures.find(x => x.stage === "Semi-Final 2");
-            return {
-                ...f,
-                team1: sf1?.winner || f.team1,
-                team2: sf2?.winner || f.team2,
-            };
+            return { ...f, team1: sf1?.winner || f.team1, team2: sf2?.winner || f.team2 };
         }
         return f;
     });
 }
 
+// ─── S2 Full Bracket Resolution ───────────────────────────────────────────────
+
+/**
+ * Produces the complete resolved fixture list for the S2 playoff bracket.
+ *
+ * Pass 1 — Eliminators
+ *   Always force-seeded from the base seeds (Rank 1v6, 2v5, 3v4).
+ *   Ignores whatever team IDs the DB might have stored.
+ *
+ * Pass 2 — Live rankings
+ *   Computed from the Pass-1-resolved eliminator fixtures so that
+ *   winner/loser matching works on real team names.
+ *
+ * Pass 3 — Qualifier 1  :  Survivor Rank 1  vs  Survivor Rank 2
+ * Pass 4 — Qualifier 2  :  Q1 Loser          vs  Survivor Rank 3
+ * Pass 5 — Final        :  Q1 Winner          vs  Q2 Winner
+ *
+ * If a stage's prerequisites aren't complete yet, placeholder strings
+ * like "Rank 1 (Post-Elim)" or "Q1 Winner" are used so the UI degrades
+ * gracefully rather than showing corrupted data.
+ */
 export function resolveS2Playoffs(
     fixtures: Fixture[],
     teams: Team[],
     liveStates: Record<string, LiveMatchState> = {}
 ): Fixture[] {
-    const baseSeeds = computeBaseSeeds(fixtures, teams, liveStates);
-    
+    // ── Guard: group stage must be complete before we can seed eliminators ──
     const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
-    
-    const isGroupStageComplete = groupMatches.length > 0 && groupMatches.every(f => {
-        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-        const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
-        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
-        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
+    const groupStageComplete =
+        groupMatches.length > 0 &&
+        groupMatches.every(f => isDone(f, liveStates));
+
+    const baseSeeds = computeBaseSeeds(fixtures, teams, liveStates);
+
+    const getBase = (rank: number): string =>
+        groupStageComplete
+            ? (baseSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`)
+            : `Rank ${rank}`;
+
+    // ── Pass 1: Eliminators ────────────────────────────────────────────────
+    const afterPass1 = fixtures.map(f => {
+        if (f.stage === "Eliminator 1") return { ...f, team1: getBase(1), team2: getBase(6) };
+        if (f.stage === "Eliminator 2") return { ...f, team1: getBase(2), team2: getBase(5) };
+        if (f.stage === "Eliminator 3") return { ...f, team1: getBase(3), team2: getBase(4) };
+        return f;
     });
 
-    const getBaseTeam = (rank: number) => {
-        if (!isGroupStageComplete) return `Rank ${rank}`;
-        return baseSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`;
+    // ── Pass 2: Live rankings (from resolved eliminators) ──────────────────
+    const liveRanks    = computePlayoffRankings(afterPass1, teams, liveStates);
+    const survivors    = liveRanks.filter(r => !r.isEliminated);
+
+    // Are all 3 eliminators finished?
+    const allEliminatorsComplete = afterPass1
+        .filter(f => f.stage.startsWith("Eliminator") && !f.isFunMatch)
+        .every(f => isDone(f, liveStates));
+
+    const getSurvivor = (rank: number): string => {
+        if (!allEliminatorsComplete) return `Rank ${rank} (Post-Elim)`;
+        return survivors.find(s => s.rank === rank)?.team ?? `Rank ${rank} Winner`;
     };
 
-    const isPlaceholder = (name: string) => {
-        if (!name) return true;
-        const norm = name.trim().toLowerCase();
-        return (
-            norm === "tbd" || 
-            norm === "" || 
-            norm.startsWith("rank") ||
-            norm.includes("winner") ||
-            norm.includes("loser")
-        );
-    };
-
-    const resolvedFixtures = [...fixtures];
-    
-    // First pass: Resolve Eliminators only
-    for (let i = 0; i < resolvedFixtures.length; i++) {
-        const f = resolvedFixtures[i];
-        if (!f.stage.startsWith("Eliminator")) continue;
-        
-        if (f.stage.startsWith("Eliminator 1")) {
-            resolvedFixtures[i] = { ...f, team1: getBaseTeam(1), team2: getBaseTeam(6) };
-        } else if (f.stage.startsWith("Eliminator 2")) {
-            resolvedFixtures[i] = { ...f, team1: getBaseTeam(2), team2: getBaseTeam(5) };
-        } else if (f.stage.startsWith("Eliminator 3")) {
-            resolvedFixtures[i] = { ...f, team1: getBaseTeam(3), team2: getBaseTeam(4) };
-        }
-    }
-
-    // Now that Eliminators have real team names instead of "TBD" or "Rank X", compute liveSeeds.
-    const liveSeeds = computePlayoffRankings(resolvedFixtures, teams, liveStates);
-
-    const eliminators = resolvedFixtures.filter(f => f.stage.startsWith("Eliminator") && !f.isFunMatch);
-    const eliminatorsComplete = eliminators.length > 0 && eliminators.every(f => {
-        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-        const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
-        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
-        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
+    // ── Pass 3: Qualifier 1 ────────────────────────────────────────────────
+    const afterPass3 = afterPass1.map(f => {
+        if (f.stage !== "Qualifier 1") return f;
+        return { ...f, team1: getSurvivor(1), team2: getSurvivor(2) };
     });
 
-    const getLiveTeam = (rank: number) => {
-        if (!eliminatorsComplete) return `Rank ${rank} Winner`;
-        return liveSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank} Winner`;
-    };
+    // ── Pass 4: Qualifier 2 ────────────────────────────────────────────────
+    const q1 = afterPass3.find(f => f.stage === "Qualifier 1") ?? null;
+    const q1ls = q1 ? getLiveState(q1, liveStates) : null;
+    const q1Winner: string = q1?.winner || q1ls?.winner || "";
 
-    // Second pass: Resolve Q1
-    for (let i = 0; i < resolvedFixtures.length; i++) {
-        const f = resolvedFixtures[i];
-        if (f.stage.startsWith("Qualifier 1")) {
-            resolvedFixtures[i] = { ...f, team1: getLiveTeam(1), team2: getLiveTeam(2) };
-        }
-    }
+    // Derive Q1 Loser (only if Q1 has real team names and a recorded winner)
+    const q1Loser: string = (() => {
+        if (!q1 || !q1Winner) return "Q1 Loser";
+        if (isPlaceholder(q1.team1) || isPlaceholder(q1.team2)) return "Q1 Loser";
+        return n(q1Winner) === n(q1.team1) ? q1.team2 : q1.team1;
+    })();
 
-    // Third pass: Resolve Q2 and Final
-    for (let i = 0; i < resolvedFixtures.length; i++) {
-        const f = resolvedFixtures[i];
+    const afterPass4 = afterPass3.map(f => {
+        if (f.stage !== "Qualifier 2") return f;
+        return { ...f, team1: q1Loser, team2: getSurvivor(3) };
+    });
 
-        if (f.stage.startsWith("Qualifier 2")) {
-            const q1f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 1"));
-            const cleanId = q1f ? String(q1f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
-            const liveMatch = q1f ? (liveStates[cleanId] || liveStates[String(q1f.matchNo).trim()] || liveStates[q1f.matchNo]) : null;
-            const q1Winner = q1f?.winner || liveMatch?.winner;
-            
-            const normalize = (s: string) => String(s || "").trim().toLowerCase();
-            const nWin = normalize(q1Winner || "");
-            const nT1 = normalize(q1f?.team1 || "");
+    // ── Pass 5: Final ──────────────────────────────────────────────────────
+    const q2 = afterPass4.find(f => f.stage === "Qualifier 2") ?? null;
+    const q2ls = q2 ? getLiveState(q2, liveStates) : null;
 
-            const q1Loser = q1Winner && q1f?.team1 && q1f?.team2 && !isPlaceholder(q1f.team1) && !isPlaceholder(q1f.team2)
-                ? (nWin === nT1 ? q1f.team2 : q1f.team1)
-                : "Q1 Loser";
-            resolvedFixtures[i] = { ...f, team1: q1Loser, team2: getLiveTeam(3) };
-        } else if (f.stage.startsWith("Final")) {
-            const q1f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 1"));
-            const q2f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 2"));
-            const q1CleanId = q1f ? String(q1f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
-            const q2CleanId = q2f ? String(q2f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
-            const q1LiveMatch = q1f ? (liveStates[q1CleanId] || liveStates[q1f.matchNo]) : null;
-            const q2LiveMatch = q2f ? (liveStates[q2CleanId] || liveStates[q2f.matchNo]) : null;
-            const q1w = q1f?.winner || q1LiveMatch?.winner || "Q1 Winner";
-            const q2w = q2f?.winner || q2LiveMatch?.winner || "Q2 Winner";
-            
-            resolvedFixtures[i] = { ...f, team1: q1w, team2: q2w };
-        }
-    }
+    const finalT1: string = q1?.winner || q1ls?.winner || "Q1 Winner";
+    const finalT2: string = q2?.winner || q2ls?.winner || "Q2 Winner";
 
-    return resolvedFixtures;
+    return afterPass4.map(f => {
+        if (f.stage !== "Final") return f;
+        return { ...f, team1: finalT1, team2: finalT2 };
+    });
 }
 
 // Data fetching has been migrated to src/lib/data.ts to prevent Prisma leaking into client bundles.
