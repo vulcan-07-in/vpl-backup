@@ -418,16 +418,19 @@ export function computePlayoffRankings(
 ): PlayoffRank[] {
     const baseSeeds = computeBaseSeeds(resolvedFixtures, teams, liveStates);
 
-    // All completed eliminator fixtures with a real winner
-    const completedEliminators = resolvedFixtures.filter(f =>
-        f.stage.startsWith("Eliminator") &&
-        !f.isFunMatch &&
-        f.winner &&
-        f.winner !== "TIE" &&
-        f.winner !== "ABANDONED" &&
-        !isPlaceholder(f.team1) &&
-        !isPlaceholder(f.team2)
-    );
+    // All completed eliminator fixtures with a real winner.
+    // IMPORTANT: resolvedFixtures already has real team names in team1/team2 (from Pass 1).
+    // Also check liveStates for winner in case sync_result hasn't been called yet.
+    const completedEliminators = resolvedFixtures.filter(f => {
+        if (!f.stage.startsWith("Eliminator") || f.isFunMatch) return false;
+        // team1/team2 must be real names (not placeholders like "Rank X", "TBD")
+        if (isPlaceholder(f.team1) || isPlaceholder(f.team2)) return false;
+        // Accept winner from DB field OR from liveState
+        const ls = getLiveState(f, liveStates);
+        const winner = f.winner || ls?.winner || "";
+        if (!winner || winner === "TIE" || winner === "ABANDONED") return false;
+        return true;
+    });
 
     if (completedEliminators.length === 0) {
         // No eliminators finished yet — base seeds are the playoff rankings
@@ -441,7 +444,10 @@ export function computePlayoffRankings(
     }
 
     for (const elim of completedEliminators) {
-        const winNorm = n(elim.winner);
+        // Use winner from DB or liveState (whichever is available)
+        const ls = getLiveState(elim, liveStates);
+        const winner = elim.winner || ls?.winner || "";
+        const winNorm = n(winner);
         const t1Norm  = n(elim.team1);
         const t2Norm  = n(elim.team2);
 
