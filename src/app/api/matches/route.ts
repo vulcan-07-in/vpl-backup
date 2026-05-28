@@ -46,6 +46,7 @@ export async function POST(request: Request) {
             revalidatePath("/matches");
             revalidatePath("/points");
             revalidatePath("/stats");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
@@ -149,6 +150,7 @@ export async function POST(request: Request) {
 
             revalidatePath("/matches");
             revalidatePath("/points");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
@@ -228,6 +230,7 @@ export async function POST(request: Request) {
             
             revalidatePath("/matches");
             revalidatePath("/points");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
@@ -250,6 +253,7 @@ export async function POST(request: Request) {
             revalidatePath("/matches");
             revalidatePath("/points");
             revalidatePath("/stats");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
@@ -263,6 +267,7 @@ export async function POST(request: Request) {
             revalidatePath("/matches");
             revalidatePath("/points");
             revalidatePath("/stats");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
@@ -474,6 +479,7 @@ export async function POST(request: Request) {
             }
 
             revalidatePath("/matches");
+            revalidatePath("/playoffs");
             revalidatePath("/");
             return NextResponse.json({ ok: true, generated: inserts.length });
         }
