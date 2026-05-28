@@ -498,7 +498,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                                     {/* Main Event Text */}
                                     <motion.h2 
-                                        className={`relative z-10 text-7xl md:text-[12rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] ${
+                                        className={`relative z-10 text-[18vw] md:text-[12vw] lg:text-[10rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] ${
                                             animationEvent.type === 'W' || animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-500 via-red-600 to-red-900' 
                                             : 'bg-gradient-to-b from-white via-zinc-200 to-zinc-500'
                                         }`}
