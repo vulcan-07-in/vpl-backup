@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins, BarChart3, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Tab = "hub" | "matches" | "broadcast" | "mvp" | "teams" | "squads" | "logs";
+type Tab = "hub" | "matches" | "organize" | "broadcast" | "mvp" | "teams" | "squads" | "logs";
 
 export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     const [authenticated, setAuthenticated] = useState(false);
@@ -25,6 +25,14 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
     
     const [tab, setTab] = useState<Tab>("hub");
     const [stats, setStats] = useState({ registered: 0, approved: 0, captains: 0 });
+
+    const getLocalDatetimeLocal = (isoString?: string) => {
+        if (!isoString) return "";
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return "";
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
 
     // Match State
     const [matches, setMatches] = useState<any[]>([]);
@@ -196,7 +204,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                         <p className="text-zinc-500 mt-2 tracking-wide text-sm">Varchasva Premier League Season 2</p>
                     </div>
                     <div className="flex gap-4 flex-wrap">
-                        {['hub', 'matches', 'broadcast', 'mvp', 'teams', 'squads', 'logs'].map(t => (
+                        {['hub', 'matches', 'organize', 'broadcast', 'mvp', 'teams', 'squads', 'logs'].map(t => (
                             <button
                                 key={t}
                                 onClick={() => setTab(t as Tab)}
@@ -300,7 +308,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                 )}
 
                 {tab === "matches" && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="max-w-2xl mx-auto">
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-black tracking-widest flex items-center gap-2"><CalendarDays className="text-amber-500"/> Schedule Match</h2>
@@ -366,78 +374,96 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                             </form>
                         </div>
 
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 h-[600px] overflow-y-auto custom-scrollbar">
-                            <h2 className="text-xl font-black tracking-widest mb-6 flex items-center gap-2"><RotateCw className="text-amber-500"/> Scheduled Matches & Toss</h2>
-                            <div className="space-y-4">
-                                {matches.map((m, i) => (
-                                    <div key={m.id} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group">
-                                        <div>
-                                            <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
-                                            <p className="font-bold">{m.team1Name || initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {m.team2Name || initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
-                                            <p className="text-xs text-zinc-500 mt-1">
-                                                {m.scheduledTime ? new Date(m.scheduledTime).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : "Time TBD"} 
-                                                <span className="mx-2">•</span> 
-                                                {m.status}
-                                            </p>
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            {m.status === 'SCHEDULED' && !m.tossWinnerId && (
-                                                <button onClick={() => setTossMatch(m)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-xs font-bold">LOG TOSS</button>
-                                            )}
-                                            {m.status !== 'COMPLETED' && m.status !== 'ABANDONED' && (
-                                                <button onClick={() => handleAction("/api/matches", { action: "abandon_match", matchNo: m.matchNo }, fetchMatches)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded text-xs font-bold">ABANDON</button>
-                                            )}
-                                            {m.status === 'COMPLETED' && (
-                                                <button onClick={() => handleAction("/api/matches", { action: "clear_winner", matchNo: m.matchNo }, fetchMatches)} className="text-orange-400 hover:bg-orange-500/10 px-3 py-1 rounded text-xs font-bold border border-orange-500/30">RESET</button>
-                                            )}
-                                            {m.status !== 'COMPLETED' && (
-                                                <button onClick={() => handleAction("/api/matches", { action: "autoplay_match", matchNo: m.matchNo }, fetchMatches, true)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1 rounded text-xs font-bold border border-blue-500/30">AUTOPLAY</button>
-                                            )}
-                                            <button 
-                                                onClick={() => {
-                                                    setEditingMatch({
-                                                        id: m.id,
-                                                        matchNo: m.matchNo,
-                                                        stage: m.stage,
-                                                        group: m.group || "",
-                                                        team1Id: m.team1Id,
-                                                        team2Id: m.team2Id,
-                                                        scheduledTime: m.scheduledTime ? new Date(m.scheduledTime).toISOString().slice(0, 16) : "",
-                                                        isFunMatch: m.isFunMatch || false,
-                                                        customTeam1Name: "",
-                                                        customTeam2Name: ""
-                                                    });
-                                                    setEditModal({ isOpen: true, match: m });
-                                                }} 
-                                                className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 px-3 py-1 rounded text-xs font-bold border border-amber-500/30"
-                                            >
-                                                EDIT
-                                            </button>
-                                            <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
-                                        </div>
-                                        <div className="flex flex-col gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2">
-                                            {i > 0 && (
-                                                <button 
-                                                    onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i-1].matchNo }, fetchMatches, true)}
-                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
-                                                    title="Move Up"
-                                                >
-                                                    ↑
-                                                </button>
-                                            )}
-                                            {i < matches.length - 1 && (
-                                                <button 
-                                                    onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i+1].matchNo }, fetchMatches, true)}
-                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
-                                                    title="Move Down"
-                                                >
-                                                    ↓
-                                                </button>
-                                            )}
-                                        </div>
+                        {tossMatch && (
+                            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                                <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-96">
+                                    <h3 className="text-lg font-bold mb-4">Log Toss: Match {tossMatch.matchNo}</h3>
+                                    <div className="space-y-4">
+                                        <button onClick={() => handleAction("/api/matches", { action: "update_toss", matchNo: tossMatch.matchNo, tossWinnerId: tossMatch.team1Id, tossDecision: "BAT" }, () => { fetchMatches(); setTossMatch(null); })} className="w-full bg-zinc-800 p-3 rounded">Team 1 Bat</button>
+                                        <button onClick={() => handleAction("/api/matches", { action: "update_toss", matchNo: tossMatch.matchNo, tossWinnerId: tossMatch.team1Id, tossDecision: "BOWL" }, () => { fetchMatches(); setTossMatch(null); })} className="w-full bg-zinc-800 p-3 rounded">Team 1 Bowl</button>
+                                        <hr className="border-zinc-800" />
+                                        <button onClick={() => handleAction("/api/matches", { action: "update_toss", matchNo: tossMatch.matchNo, tossWinnerId: tossMatch.team2Id, tossDecision: "BAT" }, () => { fetchMatches(); setTossMatch(null); })} className="w-full bg-zinc-800 p-3 rounded">Team 2 Bat</button>
+                                        <button onClick={() => handleAction("/api/matches", { action: "update_toss", matchNo: tossMatch.matchNo, tossWinnerId: tossMatch.team2Id, tossDecision: "BOWL" }, () => { fetchMatches(); setTossMatch(null); })} className="w-full bg-zinc-800 p-3 rounded">Team 2 Bowl</button>
+                                        <button onClick={() => setTossMatch(null)} className="w-full text-zinc-500 pt-4">Cancel</button>
                                     </div>
-                                ))}
+                                </div>
                             </div>
+                        )}
+                    </div>
+                )}
+
+                {tab === "organize" && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                        <h2 className="text-xl font-black tracking-widest mb-6 flex items-center gap-2"><RotateCw className="text-amber-500"/> Scheduled Matches & Toss</h2>
+                        <div className="space-y-4">
+                            {matches.map((m, i) => (
+                                <div key={m.id} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group">
+                                    <div>
+                                        <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
+                                        <p className="font-bold">{m.team1Name || initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {m.team2Name || initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            {m.scheduledTime ? new Date(m.scheduledTime).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : "Time TBD"} 
+                                            <span className="mx-2">•</span> 
+                                            {m.status}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {m.status === 'SCHEDULED' && !m.tossWinnerId && (
+                                            <button onClick={() => setTossMatch(m)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-xs font-bold">LOG TOSS</button>
+                                        )}
+                                        {m.status !== 'COMPLETED' && m.status !== 'ABANDONED' && (
+                                            <button onClick={() => handleAction("/api/matches", { action: "abandon_match", matchNo: m.matchNo }, fetchMatches)} className="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded text-xs font-bold">ABANDON</button>
+                                        )}
+                                        {m.status === 'COMPLETED' && (
+                                            <button onClick={() => handleAction("/api/matches", { action: "clear_winner", matchNo: m.matchNo }, fetchMatches)} className="text-orange-400 hover:bg-orange-500/10 px-3 py-1 rounded text-xs font-bold border border-orange-500/30">RESET</button>
+                                        )}
+                                        {m.status !== 'COMPLETED' && (
+                                            <button onClick={() => handleAction("/api/matches", { action: "autoplay_match", matchNo: m.matchNo }, fetchMatches, true)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1 rounded text-xs font-bold border border-blue-500/30">AUTOPLAY</button>
+                                        )}
+                                        <button 
+                                            onClick={() => {
+                                                setEditingMatch({
+                                                    id: m.id,
+                                                    matchNo: m.matchNo,
+                                                    stage: m.stage,
+                                                    group: m.group || "",
+                                                    team1Id: m.team1Id,
+                                                    team2Id: m.team2Id,
+                                                    scheduledTime: getLocalDatetimeLocal(m.scheduledTime),
+                                                    isFunMatch: m.isFunMatch || false,
+                                                    customTeam1Name: "",
+                                                    customTeam2Name: ""
+                                                });
+                                                setEditModal({ isOpen: true, match: m });
+                                            }} 
+                                            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 px-3 py-1 rounded text-xs font-bold border border-amber-500/30"
+                                        >
+                                            EDIT
+                                        </button>
+                                        <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
+                                    </div>
+                                    <div className="flex flex-col gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2">
+                                        {i > 0 && (
+                                            <button 
+                                                onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i-1].matchNo }, fetchMatches, true)}
+                                                className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
+                                                title="Move Up"
+                                            >
+                                                ↑
+                                            </button>
+                                        )}
+                                        {i < matches.length - 1 && (
+                                            <button 
+                                                onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i+1].matchNo }, fetchMatches, true)}
+                                                className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
+                                                title="Move Down"
+                                            >
+                                                ↓
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {tossMatch && (

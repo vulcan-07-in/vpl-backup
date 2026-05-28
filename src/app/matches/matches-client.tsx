@@ -217,8 +217,12 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                                 FINISHED
                             </div>
                         ) : (
-                            <div className="text-zinc-600 font-bold uppercase tracking-widest text-[9px]">
-                                SCHEDULED
+                            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.03] border border-white/[0.05] text-zinc-400 font-bold tracking-widest text-[9px] uppercase">
+                                <Clock className="w-3 h-3 text-zinc-500" />
+                                {fixture.scheduledTime 
+                                    ? new Date(fixture.scheduledTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) 
+                                    : "SCHEDULED"
+                                }
                             </div>
                         )}
                     </div>
