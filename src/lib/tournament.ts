@@ -444,11 +444,14 @@ export function computePlayoffRankings(
                 actT2 = baseSeeds.find(s => s.rank === r)?.team || actT2;
             }
 
-            if (actT1 === seed.team || actT2 === seed.team) {
+            const normalize = (s: string) => String(s || "").trim().toLowerCase();
+            const seedTeam = normalize(seed.team);
+
+            if (normalize(actT1) === seedTeam || normalize(actT2) === seedTeam) {
                 extraPlayed += 1;
-                if (e.winner === seed.team) {
+                if (normalize(e.winner) === seedTeam) {
                     extraPoints += 2;
-                } else if (e.winner) {
+                } else if (e.winner && e.winner !== "TIE" && e.winner !== "ABANDONED") {
                     isEliminated = true;
                 }
             }

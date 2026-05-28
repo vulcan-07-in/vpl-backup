@@ -96,17 +96,18 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                 </header>
 
                 {/* MVP Section */}
-                {mvpPlayer && (
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="mb-20 relative group flex flex-col gap-8"
-                    >
-                        {/* Glow effect */}
-                        <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 rounded-[3rem] blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-700" />
-                        
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-20 relative group flex flex-col gap-8"
+                >
+                    {/* MVP Banner (Only show when published/Final over) */}
+                    {mvpState.published && mvpPlayer && (
                         <div className="relative bg-black/60 backdrop-blur-3xl border border-amber-500/40 rounded-[2.5rem] overflow-hidden p-8 md:p-14 shadow-[0_0_50px_rgba(245,158,11,0.2)]">
-                            <div className="flex flex-col lg:flex-row gap-12 items-center">
+                            {/* Glow effect */}
+                            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 rounded-[3rem] blur-2xl opacity-30 pointer-events-none" />
+                            
+                            <div className="relative flex flex-col lg:flex-row gap-12 items-center z-10">
                                 {/* Left: MVP Badge */}
                                 <div className="shrink-0 relative">
                                     <div className="w-40 h-40 md:w-56 md:h-56 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 p-1 shadow-[0_0_40px_rgba(245,158,11,0.5)]">
@@ -150,6 +151,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                 </div>
                             </div>
                         </div>
+                    )}
 
                         {/* Top 10 MVP Leaderboard */}
                         {mvpLeaderboard.length > 1 && (
@@ -180,8 +182,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                 </div>
                             </div>
                         )}
-                    </motion.div>
-                )}
+                </motion.div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {categories.map((cat) => (
