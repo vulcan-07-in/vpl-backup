@@ -231,13 +231,13 @@ export default function PlayoffsClient({
         return status === "COMPLETED" || status === "ABANDONED" || f.winner;
     });
 
-    const ranks = hasGroupC
-        ? computePlayoffRankings(fixtures, teams, liveStates)
-        : [];
-
     const resolvedFixtures = hasGroupC
         ? resolveS2Playoffs(fixtures, teams, liveStates)
         : fixtures;
+
+    const ranks = hasGroupC
+        ? computePlayoffRankings(resolvedFixtures, teams, liveStates)
+        : [];
         
     const noPlayoffs = !hasGroupC;
 

@@ -433,21 +433,10 @@ export function computePlayoffRankings(
         let extraPlayed = 0;
         
         eliminators.forEach(e => {
-            let actT1 = e.team1;
-            let actT2 = e.team2;
-            if (actT1.startsWith("Rank ")) {
-                const r = parseInt(actT1.replace("Rank ", ""));
-                actT1 = baseSeeds.find(s => s.rank === r)?.team || actT1;
-            }
-            if (actT2.startsWith("Rank ")) {
-                const r = parseInt(actT2.replace("Rank ", ""));
-                actT2 = baseSeeds.find(s => s.rank === r)?.team || actT2;
-            }
-
             const normalize = (s: string) => String(s || "").trim().toLowerCase();
             const seedTeam = normalize(seed.team);
 
-            if (normalize(actT1) === seedTeam || normalize(actT2) === seedTeam) {
+            if (normalize(e.team1) === seedTeam || normalize(e.team2) === seedTeam) {
                 extraPlayed += 1;
                 if (normalize(e.winner) === seedTeam) {
                     extraPoints += 2;
@@ -459,20 +448,10 @@ export function computePlayoffRankings(
         fixtures.forEach(e => {
             if (e.isFunMatch) return;
             if (e.stage.startsWith("Eliminator") || e.stage.startsWith("Qualifier 2") || e.stage.startsWith("Final")) {
-                let actT1 = e.team1;
-                let actT2 = e.team2;
-                if (actT1.startsWith("Rank ")) {
-                    const r = parseInt(actT1.replace("Rank ", ""));
-                    actT1 = baseSeeds.find(s => s.rank === r)?.team || actT1;
-                }
-                if (actT2.startsWith("Rank ")) {
-                    const r = parseInt(actT2.replace("Rank ", ""));
-                    actT2 = baseSeeds.find(s => s.rank === r)?.team || actT2;
-                }
                 const normalize = (s: string) => String(s || "").trim().toLowerCase();
                 const seedTeam = normalize(seed.team);
 
-                if (normalize(actT1) === seedTeam || normalize(actT2) === seedTeam) {
+                if (normalize(e.team1) === seedTeam || normalize(e.team2) === seedTeam) {
                     if (e.winner && e.winner !== "TIE" && e.winner !== "ABANDONED") {
                         if (normalize(e.winner) !== seedTeam) {
                             isEliminated = true;
@@ -562,7 +541,6 @@ export function resolveS2Playoffs(
     liveStates: Record<string, LiveMatchState> = {}
 ): Fixture[] {
     const baseSeeds = computeBaseSeeds(fixtures, teams, liveStates);
-    const liveSeeds = computePlayoffRankings(fixtures, teams, liveStates);
     
     const groupMatches = fixtures.filter(f => ["A", "B", "C"].includes(f.group) && !f.isFunMatch);
     
@@ -576,19 +554,6 @@ export function resolveS2Playoffs(
     const getBaseTeam = (rank: number) => {
         if (!isGroupStageComplete) return `Rank ${rank}`;
         return baseSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`;
-    };
-
-    const eliminators = fixtures.filter(f => f.stage.startsWith("Eliminator") && !f.isFunMatch);
-    const eliminatorsComplete = eliminators.length > 0 && eliminators.every(f => {
-        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-        const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
-        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
-        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
-    });
-
-    const getLiveTeam = (rank: number) => {
-        if (!eliminatorsComplete) return `Rank ${rank} Winner`;
-        return liveSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank} Winner`;
     };
 
     const isPlaceholder = (name: string) => {
@@ -605,9 +570,11 @@ export function resolveS2Playoffs(
 
     const resolvedFixtures = [...fixtures];
     
-    // First pass: Resolve Eliminators and Q1
+    // First pass: Resolve Eliminators only
     for (let i = 0; i < resolvedFixtures.length; i++) {
         const f = resolvedFixtures[i];
+        if (!f.stage.startsWith("Eliminator")) continue;
+        
         const hasManualTeam1 = !isPlaceholder(f.team1);
         const hasManualTeam2 = !isPlaceholder(f.team2);
 
@@ -617,7 +584,31 @@ export function resolveS2Playoffs(
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(2), team2: hasManualTeam2 ? f.team2 : getBaseTeam(5) };
         } else if (f.stage.startsWith("Eliminator 3")) {
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(3), team2: hasManualTeam2 ? f.team2 : getBaseTeam(4) };
-        } else if (f.stage.startsWith("Qualifier 1")) {
+        }
+    }
+
+    // Now that Eliminators have real team names instead of "TBD" or "Rank X", compute liveSeeds.
+    const liveSeeds = computePlayoffRankings(resolvedFixtures, teams, liveStates);
+
+    const eliminators = resolvedFixtures.filter(f => f.stage.startsWith("Eliminator") && !f.isFunMatch);
+    const eliminatorsComplete = eliminators.length > 0 && eliminators.every(f => {
+        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
+        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
+        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
+    });
+
+    const getLiveTeam = (rank: number) => {
+        if (!eliminatorsComplete) return `Rank ${rank} Winner`;
+        return liveSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank} Winner`;
+    };
+
+    // Second pass: Resolve Q1
+    for (let i = 0; i < resolvedFixtures.length; i++) {
+        const f = resolvedFixtures[i];
+        if (f.stage.startsWith("Qualifier 1")) {
+            const hasManualTeam1 = !isPlaceholder(f.team1);
+            const hasManualTeam2 = !isPlaceholder(f.team2);
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getLiveTeam(1), team2: hasManualTeam2 ? f.team2 : getLiveTeam(2) };
         }
     }
