@@ -341,7 +341,14 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                     </button>
                                 </div>
                             </div>
-                            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleAction("/api/matches", { action: "create_match", ...newMatch }, fetchMatches); }}>
+                            <form className="space-y-4" onSubmit={(e) => { 
+                                e.preventDefault(); 
+                                handleAction("/api/matches", { 
+                                    action: "create_match", 
+                                    ...newMatch, 
+                                    scheduledTime: newMatch.scheduledTime ? new Date(newMatch.scheduledTime).toISOString() : "" 
+                                }, fetchMatches); 
+                            }}>
                                 <div className="grid grid-cols-2 gap-4">
                                     <input type="text" placeholder="Match No (e.g. 1)" value={newMatch.matchNo} onChange={e => setNewMatch({...newMatch, matchNo: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required />
                                     <input type="text" placeholder="Stage (e.g. Group A)" value={newMatch.stage} onChange={e => setNewMatch({...newMatch, stage: e.target.value})} className="bg-black border border-zinc-800 rounded-xl p-3" required />

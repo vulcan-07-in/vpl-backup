@@ -201,7 +201,7 @@ export async function fetchFixtures(season: number = 1): Promise<Fixture[]> {
       tossWinner: m.tossWinnerId ? idToName.get(m.tossWinnerId) ?? "" : "",
       tossDecision: m.tossDecision ?? "",
       isFunMatch: m.isFunMatch ?? false,
-      scheduledTime: m.scheduledTime ? new Date(m.scheduledTime).toISOString() : undefined,
+      scheduledTime: m.scheduledTime ? (m.scheduledTime.endsWith('Z') || m.scheduledTime.includes('+') ? m.scheduledTime : m.scheduledTime + 'Z') : undefined,
       sortOrder: parseInt(m.matchNo.replace(/[^0-9]/g, "")) || 0,
     }));
 
