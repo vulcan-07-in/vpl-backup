@@ -1,11 +1,16 @@
-import { fetchFixtures, fetchTeams } from "@/lib/data";
+import { fetchFixtures, fetchTeams, fetchAllLiveStates } from "@/lib/data";
+import { resolveS2Playoffs } from "@/lib/tournament";
 import MatchReportClient from "./match-report-client";
 import { Metadata } from "next";
 
 export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: Promise<{ matchId: string }> }): Promise<Metadata> {
-    const fixtures = await fetchFixtures(2);
+    const rawFixtures = await fetchFixtures(2);
+    const teams = await fetchTeams(2);
+    const liveStates = await fetchAllLiveStates();
+    const fixtures = resolveS2Playoffs(rawFixtures, teams, liveStates);
+    
     const resolvedParams = await params;
 
     const cleanId = (id: string) => decodeURIComponent(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
@@ -22,8 +27,11 @@ export async function generateMetadata({ params }: { params: Promise<{ matchId: 
 }
 
 export default async function MatchReportPage({ params }: { params: Promise<{ matchId: string }> }) {
-    const fixtures = await fetchFixtures(2);
+    const rawFixtures = await fetchFixtures(2);
     const teams = await fetchTeams(2);
+    const liveStates = await fetchAllLiveStates();
+    const fixtures = resolveS2Playoffs(rawFixtures, teams, liveStates);
+
     const resolvedParams = await params;
 
     const cleanId = (id: string) => decodeURIComponent(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
