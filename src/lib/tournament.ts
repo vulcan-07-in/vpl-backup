@@ -418,6 +418,15 @@ export function computeBaseSeeds(
  * against the RESOLVED fixture team names (elim.team1 / elim.team2 from Pass 1), and
  * if they don't match, we re-derive the winner from innings scores.
  */
+/** Public alias — resolves the winner of any playoff fixture (eliminator, qualifier, final)
+ * against the current liveStates, handling stale TBD teamNames. */
+export function resolveFixtureWinner(
+    fixture: Fixture,
+    liveStates: Record<string, LiveMatchState>
+): string {
+    return resolveElimWinner(fixture, liveStates);
+}
+
 function resolveElimWinner(
     elim: Fixture,
     liveStates: Record<string, LiveMatchState>
@@ -662,9 +671,19 @@ export function resolveS2Playoffs(
     const finalT1: string = q1Winner || "Q1 Winner";
     const finalT2: string = q2Winner || "Q2 Winner";
 
-    return afterPass4.map(f => {
-        if (f.stage !== "Final") return f;
-        return { ...f, team1: finalT1, team2: finalT2 };
+    // Stamp real winners onto every playoff fixture so consumers (UI, match tiles)
+    // always see the correct winner without needing to call resolveFixtureWinner themselves.
+    const withRealTeams = afterPass4.map(f => {
+        if (f.stage === "Final") return { ...f, team1: finalT1, team2: finalT2 };
+        return f;
+    });
+
+    return withRealTeams.map(f => {
+        if (!["Eliminator 1","Eliminator 2","Eliminator 3","Qualifier 1","Qualifier 2","Final"].includes(f.stage)) return f;
+        if (f.winner && !isPlaceholder(f.winner)) return f; // DB winner already good
+        const resolvedWinner = resolveElimWinner(f, liveStates);
+        if (!resolvedWinner) return f;
+        return { ...f, winner: resolvedWinner };
     });
 }
 
