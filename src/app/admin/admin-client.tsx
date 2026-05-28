@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Users, Gavel, FileSpreadsheet, MonitorPlay, Lock, ShieldAlert, ArrowRight, Activity, CalendarDays, Radio, Trophy, TerminalSquare, RotateCw, Coins, BarChart3, Trash2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
 
 type Tab = "hub" | "matches" | "organize" | "broadcast" | "mvp" | "teams" | "squads" | "logs";
 
@@ -394,20 +394,33 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
 
                 {tab === "organize" && (
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                        <h2 className="text-xl font-black tracking-widest mb-6 flex items-center gap-2"><RotateCw className="text-amber-500"/> Scheduled Matches & Toss</h2>
-                        <div className="space-y-4">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-black tracking-widest flex items-center gap-2"><RotateCw className="text-amber-500"/> Organize & Schedule</h2>
+                            <button onClick={() => handleAction("/api/matches", { action: "bulk_update_matches", orderedMatches: matches }, fetchMatches)} className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 rounded-lg text-sm font-black tracking-widest transition-all">SAVE CHANGES</button>
+                        </div>
+                        <Reorder.Group axis="y" values={matches} onReorder={setMatches} className="space-y-4">
                             {matches.map((m, i) => (
-                                <div key={m.id} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group">
-                                    <div>
-                                        <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
-                                        <p className="font-bold">{m.team1Name || initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {m.team2Name || initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
-                                        <p className="text-xs text-zinc-500 mt-1">
-                                            {m.scheduledTime ? new Date(m.scheduledTime).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : "Time TBD"} 
-                                            <span className="mx-2">•</span> 
-                                            {m.status}
-                                        </p>
+                                <Reorder.Item key={m.id} value={m} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group cursor-grab active:cursor-grabbing">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-sm text-amber-500">{m.matchNo} - {m.stage}</p>
+                                            <span className="text-xs text-zinc-500">• {m.status}</span>
+                                        </div>
+                                        <p className="font-bold text-lg">{m.team1Name || initialTeams.find(t=>t.id===m.team1Id)?.shortName || 'TBD'} vs {m.team2Name || initialTeams.find(t=>t.id===m.team2Id)?.shortName || 'TBD'}</p>
+                                        <div className="mt-2" onPointerDown={(e) => e.stopPropagation()}>
+                                            <input 
+                                                type="datetime-local" 
+                                                value={getLocalDatetimeLocal(m.scheduledTime)}
+                                                onChange={(e) => {
+                                                    const newMatches = [...matches];
+                                                    newMatches[i].scheduledTime = e.target.value ? new Date(e.target.value).toISOString() : null;
+                                                    setMatches(newMatches);
+                                                }}
+                                                className="bg-zinc-800 border border-zinc-700 rounded p-1.5 text-xs text-zinc-300 w-56 focus:border-amber-500 outline-none"
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
                                         {m.status === 'SCHEDULED' && !m.tossWinnerId && (
                                             <button onClick={() => setTossMatch(m)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-xs font-bold">LOG TOSS</button>
                                         )}
@@ -438,33 +451,13 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             }} 
                                             className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 px-3 py-1 rounded text-xs font-bold border border-amber-500/30"
                                         >
-                                            EDIT
+                                            EDIT MATCH
                                         </button>
                                         <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
                                     </div>
-                                    <div className="flex flex-col gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2">
-                                        {i > 0 && (
-                                            <button 
-                                                onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i-1].matchNo }, fetchMatches, true)}
-                                                className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
-                                                title="Move Up"
-                                            >
-                                                ↑
-                                            </button>
-                                        )}
-                                        {i < matches.length - 1 && (
-                                            <button 
-                                                onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i+1].matchNo }, fetchMatches, true)}
-                                                className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
-                                                title="Move Down"
-                                            >
-                                                ↓
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                </Reorder.Item>
                             ))}
-                        </div>
+                        </Reorder.Group>
 
                         {tossMatch && (
                             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">

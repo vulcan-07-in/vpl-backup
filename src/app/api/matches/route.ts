@@ -347,32 +347,41 @@ export async function POST(request: Request) {
             return NextResponse.json({ ok: true, liveState: state ? JSON.parse(state) : null });
         }
 
-        if (payload.action === "swap_sequence") {
-            const { match1, match2 } = payload;
-            if (!match1 || !match2) throw new Error("Missing match numbers");
+        if (payload.action === "bulk_update_matches") {
+            const { orderedMatches } = payload;
+            if (!orderedMatches || !Array.isArray(orderedMatches)) throw new Error("Missing orderedMatches");
 
-            // Fetch both matches
-            const { data: m1Data } = await supabase.from("Match").select("id, team1Id, team2Id, group, isFunMatch").eq("matchNo", match1).single();
-            const { data: m2Data } = await supabase.from("Match").select("id, team1Id, team2Id, group, isFunMatch").eq("matchNo", match2).single();
+            // Fetch current matches in correct order
+            const { data: dbMatches, error: fetchErr } = await supabase.from("Match").select("id, matchNo, scheduledTime").order("createdAt", { ascending: true });
+            if (fetchErr) throw new Error(fetchErr.message);
 
-            if (!m1Data || !m2Data) throw new Error("Could not find matches to swap");
+            const sorted = (dbMatches || []).sort((a: any, b: any) => {
+                if (a.scheduledTime && b.scheduledTime) {
+                    const timeA = new Date(a.scheduledTime).getTime();
+                    const timeB = new Date(b.scheduledTime).getTime();
+                    if (timeA !== timeB) return timeA - timeB;
+                }
+                const numA = parseInt(a.matchNo.replace(/[^0-9]/g, "")) || 999;
+                const numB = parseInt(b.matchNo.replace(/[^0-9]/g, "")) || 999;
+                if (numA !== numB) return numA - numB;
+                return a.matchNo.localeCompare(b.matchNo);
+            });
 
-            // Swap their teams and groups (contents)
-            const { error: err1 } = await supabase.from("Match").update({ 
-                team1Id: m2Data.team1Id, 
-                team2Id: m2Data.team2Id, 
-                group: m2Data.group,
-                isFunMatch: m2Data.isFunMatch
-            }).eq("id", m1Data.id);
-            if (err1) throw new Error(err1.message);
+            // Map dragged items into the sorted slots
+            for (let i = 0; i < sorted.length && i < orderedMatches.length; i++) {
+                const slotId = sorted[i].id;
+                const draggedItem = orderedMatches[i];
 
-            const { error: err2 } = await supabase.from("Match").update({ 
-                team1Id: m1Data.team1Id, 
-                team2Id: m1Data.team2Id, 
-                group: m1Data.group,
-                isFunMatch: m1Data.isFunMatch
-            }).eq("id", m2Data.id);
-            if (err2) throw new Error(err2.message);
+                const { error: updErr } = await supabase.from("Match").update({
+                    team1Id: draggedItem.team1Id,
+                    team2Id: draggedItem.team2Id,
+                    group: draggedItem.group,
+                    isFunMatch: draggedItem.isFunMatch,
+                    scheduledTime: draggedItem.scheduledTime ? new Date(draggedItem.scheduledTime).toISOString() : null
+                }).eq("id", slotId);
+
+                if (updErr) throw new Error(updErr.message);
+            }
 
             revalidatePath("/matches");
             revalidatePath("/");
