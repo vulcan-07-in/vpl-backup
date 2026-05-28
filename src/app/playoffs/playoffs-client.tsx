@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import {
     computePlayoffRankings,
+    computeBaseSeeds,
     resolveS2Playoffs,
     type Fixture,
     type Team,
@@ -16,7 +17,7 @@ const ELIMINATOR_MATCHUPS = [
     { label: "Eliminator 3", ranks: [3, 4] },
 ];
 
-function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: PlayoffRank[], isGroupStageComplete: boolean }) {
+function PlayoffRankingSection({ ranks, baseSeeds, isGroupStageComplete }: { ranks: PlayoffRank[], baseSeeds: PlayoffRank[], isGroupStageComplete: boolean }) {
     if (ranks.length === 0) return null;
 
     return (
@@ -102,8 +103,8 @@ function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: Playoff
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {ELIMINATOR_MATCHUPS.map(({ label, ranks: [s1, s2] }) => {
-                    const t1 = ranks.find(s => s.rank === s1);
-                    const t2 = ranks.find(s => s.rank === s2);
+                    const t1 = baseSeeds.find(s => s.rank === s1);
+                    const t2 = baseSeeds.find(s => s.rank === s2);
                     return (
                         <div key={label} className="p-5 rounded-2xl bg-gradient-to-br from-zinc-900 to-black border border-white/10 hover:border-amber-500/30 transition-colors shadow-lg">
                             <p className="text-[9px] tracking-[0.35em] text-amber-500/70 mb-4 uppercase font-bold">{label}</p>
@@ -235,6 +236,10 @@ export default function PlayoffsClient({
         ? resolveS2Playoffs(fixtures, teams, liveStates)
         : fixtures;
 
+    const baseSeeds = hasGroupC
+        ? computeBaseSeeds(fixtures, teams, liveStates)
+        : [];
+
     const ranks = hasGroupC
         ? computePlayoffRankings(resolvedFixtures, teams, liveStates)
         : [];
@@ -269,7 +274,7 @@ export default function PlayoffsClient({
                 ) : (
                     <div className="space-y-12">
                         {ranks.length > 0 && (
-                            <PlayoffRankingSection ranks={ranks} isGroupStageComplete={isGroupStageComplete} />
+                            <PlayoffRankingSection ranks={ranks} baseSeeds={baseSeeds} isGroupStageComplete={isGroupStageComplete} />
                         )}
 
                         <PlayoffInfographic fixtures={resolvedFixtures} ranks={ranks} isGroupStageComplete={isGroupStageComplete} liveStates={liveStates} />
