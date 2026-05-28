@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import Redis from "ioredis";
 import { validateAdminRequest } from "@/lib/auth";
-
-const redis = new Redis(process.env.REDIS_URL || "");
+import { redis } from "@/lib/redis";
 
 export async function POST(req: Request) {
     if (!(await validateAdminRequest())) {

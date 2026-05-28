@@ -5,6 +5,7 @@ import { fetchFixtures, fetchSquads, fetchTeams, fetchAllLiveStates } from "@/li
 import { resolveS2Playoffs } from "@/lib/tournament";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
+import { redis } from "@/lib/redis";
 
 // GET — return S2 fixtures from Supabase
 export async function GET() {
@@ -141,7 +142,6 @@ export async function POST(request: Request) {
             
             // Redis cleanup
             try {
-                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
                 const matchId = String(payload.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
                 await redis.del(`s2:live_match_${matchId}`);
             } catch (e) {
@@ -193,7 +193,6 @@ export async function POST(request: Request) {
             // If the match number changed, rename keys in Redis if they exist
             if (payload.oldMatchNo && payload.oldMatchNo !== matchNo) {
                 try {
-                    const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
                     const oldMatchId = String(payload.oldMatchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
                     const newMatchId = String(matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
                     const stateStr = await redis.get(`s2:live_match_${oldMatchId}`);
@@ -214,16 +213,21 @@ export async function POST(request: Request) {
         }
 
         if (payload.action === "delete_all") {
+            // 1. Null out liveState before deleting to prevent stale data if matchNos are reused
+            await supabase.from("Match").update({ liveState: null }).neq("id", "0");
+
+            // 2. Delete all matches
             const { error } = await supabase.from("Match").delete().neq("id", "0");
             if (error) throw new Error(error.message);
             
-            // Clear all Redis keys to ensure stats are wiped
+            // 3. Clear all Redis keys to ensure stats are wiped
             try {
-                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
                 const keys = await redis.keys("s2:live_match_*");
                 if (keys.length > 0) {
                     await redis.del(...keys);
                 }
+                // 4. Clear active broadcast so /live doesn't reference a deleted match
+                await redis.del("s2:active_live_match_id");
             } catch (e) {
                 console.error("Redis delete_all error", e);
             }
@@ -231,6 +235,7 @@ export async function POST(request: Request) {
             revalidatePath("/matches");
             revalidatePath("/points");
             revalidatePath("/playoffs");
+            revalidatePath("/stats");
             revalidatePath("/");
             return NextResponse.json({ ok: true });
         }
@@ -243,7 +248,6 @@ export async function POST(request: Request) {
             if (error) throw new Error(error.message);
             
             try {
-                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
                 const matchId = String(payload.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
                 await redis.del(`s2:live_match_${matchId}`);
             } catch (e) {
@@ -284,7 +288,6 @@ export async function POST(request: Request) {
             if (error) throw new Error(error.message);
 
             // 2. Update Redis
-            const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
             const matchId = String(payload.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
             await redis.set(`s2:live_match_${matchId}`, JSON.stringify(payload.liveState));
 
@@ -307,7 +310,6 @@ export async function POST(request: Request) {
 
             // 2. Update LiveState if it exists
             const matchId = String(matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-            const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
             const stateStr = await redis.get(`s2:live_match_${matchId}`);
             
             if (stateStr) {
@@ -333,7 +335,6 @@ export async function POST(request: Request) {
             if (!payload.matchNo) throw new Error("Missing matchNo");
             
             const matchId = String(payload.matchNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-            const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
             let state = await redis.get(`s2:live_match_${matchId}`);
             
             if (!state) {
@@ -463,7 +464,6 @@ export async function POST(request: Request) {
 
             // 2. Clean matching Redis keys to ensure fresh scorer state
             try {
-                const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
                 for (const mNo of generatedMatchNos) {
                     const matchId = String(mNo).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
                     await redis.del(`s2:live_match_${matchId}`);
@@ -501,7 +501,7 @@ export async function POST(request: Request) {
             if (teamsErr) throw new Error(teamsErr.message);
             const teamMap = new Map(teams.map((t: any) => [t.id, t.name]));
 
-            const redis = new (require("ioredis").default)(process.env.REDIS_URL || "");
+
             const now = new Date().toISOString();
 
             // Try to resolve dynamic playoff names if they are TBD

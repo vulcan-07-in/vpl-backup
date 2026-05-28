@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { validateAdminRequest } from "@/lib/auth";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamLogosKey } from "@/lib/redis-keys";
 
 export const runtime = 'nodejs';
@@ -40,7 +40,6 @@ export async function POST(req: Request) {
             .from('team-logos')
             .getPublicUrl(path);
 
-        const redis = new Redis(process.env.REDIS_URL || "");
         await redis.hset(teamLogosKey(), teamId, publicUrl);
 
         return NextResponse.json({ ok: true, url: publicUrl });

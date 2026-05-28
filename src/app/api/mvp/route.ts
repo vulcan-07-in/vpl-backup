@@ -1,8 +1,6 @@
-import Redis from 'ioredis';
 import { NextResponse } from 'next/server';
 import { validateAdminRequest } from '@/lib/auth';
-
-const redis = new Redis(process.env.REDIS_URL || '');
+import { redis } from '@/lib/redis';
 const MVP_KEY = 's2:vpl_mvp_state_v1';
 
 export async function GET() {

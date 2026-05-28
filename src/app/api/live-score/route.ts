@@ -1,11 +1,9 @@
-import Redis from 'ioredis';
 import { NextResponse } from 'next/server';
 import { LiveMatchState } from '@/lib/tournament';
 import { validateAdminRequest } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
-
-const redis = new Redis(process.env.REDIS_URL || '');
+import { redis } from '@/lib/redis';
 
 // S2 Redis key prefix
 const liveKey = (matchId: string) => `s2:live_match_${matchId}`;

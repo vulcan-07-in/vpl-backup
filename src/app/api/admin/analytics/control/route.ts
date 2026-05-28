@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import Redis from "ioredis";
 import { validateAdminRequest } from "@/lib/auth";
+import { redis } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
-
-const redis = new Redis(process.env.REDIS_URL || "");
 
 async function deletePattern(pattern: string) {
     let cursor = "0";

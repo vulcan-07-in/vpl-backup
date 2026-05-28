@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import ViewerClient from "./viewer-client";
 import { Metadata } from "next";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamPursesKey, teamLogosKey } from "@/lib/redis-keys";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 
@@ -19,7 +19,6 @@ export default async function AuctionViewerPage() {
         .order("name", { ascending: true });
 
     // Fetch purses and logos from Redis
-    const redis = new Redis(process.env.REDIS_URL || "");
     const [pursesHash, logosHash, tierPricesStr, auctionStartTimeStr] = await Promise.all([
         redis.hgetall(teamPursesKey()),
         redis.hgetall(teamLogosKey()),

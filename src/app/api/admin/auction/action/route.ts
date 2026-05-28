@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { getBasePrice, AUCTION_CONSTANTS, calculateMaxBid, getBidIncrement } from "@/lib/auction";
 import { validateAdminRequest } from "@/lib/auth";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamPursesKey } from "@/lib/redis-keys";
-
-// Module-level Redis singleton — reused across requests to avoid cold-connect latency on every bid
-const redis = new Redis(process.env.REDIS_URL || "");
 
 export async function POST(req: Request) {
     if (!(await validateAdminRequest())) {

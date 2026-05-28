@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { validateAdminRequest } from "@/lib/auth";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamPursesKey } from "@/lib/redis-keys";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 
@@ -17,7 +17,6 @@ export async function GET() {
 
         if (error) throw new Error(error.message);
 
-        const redis = new Redis(process.env.REDIS_URL || "");
         const pursesHash = await redis.hgetall(teamPursesKey());
         
         const purses: Record<string, number> = {};
@@ -47,7 +46,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid data" }, { status: 400 });
         }
 
-        const redis = new Redis(process.env.REDIS_URL || "");
         await redis.hset(teamPursesKey(), teamId, purse);
 
         return NextResponse.json({ status: "SUCCESS" });

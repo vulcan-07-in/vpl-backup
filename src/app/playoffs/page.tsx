@@ -2,6 +2,9 @@ import { fetchFixtures, fetchTeams, fetchAllLiveStates } from "@/lib/data";
 import PlayoffsClient from "./playoffs-client";
 import { Metadata } from "next";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
     title: "Playoffs | Varchasva Premier League",
     description: "Knockout stage bracket and seedings for the VPL Season 2.",

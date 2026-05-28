@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamPursesKey } from "@/lib/redis-keys";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 
 async function syncPurses() {
-    const redis = new Redis(process.env.REDIS_URL || "");
     const { data: allTeams } = await supabase.from('Team').select('id, name, purse');
     if (!allTeams) return;
 

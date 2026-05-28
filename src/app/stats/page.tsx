@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import StatsClient from "./stats-client";
 import { fetchTeams, fetchAllLiveStates } from "@/lib/data";
 import { calculateAllPlayerStats } from "@/lib/mvp";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,10 +21,8 @@ export default async function StatsPage() {
     // Read MVP state directly from Redis (not via API route, which fails SSR on Vercel)
     let mvpState = { player: null as string | null, published: false };
     try {
-        const redis = new Redis(process.env.REDIS_URL || '');
         const data = await redis.get('s2:vpl_mvp_state_v1');
         if (data) mvpState = JSON.parse(data);
-        await redis.quit();
     } catch (e) {
         console.error("Failed to fetch MVP state for stats page", e);
     }

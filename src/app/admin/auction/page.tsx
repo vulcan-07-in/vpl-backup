@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import AuctioneerClient from "./auctioneer-client";
 import { Metadata } from "next";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamPursesKey, teamLogosKey, teamPaddlesKey } from "@/lib/redis-keys";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
 
@@ -34,7 +34,6 @@ export default async function AdminAuctionPage() {
         .order("name", { ascending: true });
 
     // 3. Fetch purses, logos, and paddles from Redis
-    const redis = new Redis(process.env.REDIS_URL || "");
     const [pursesHash, logosHash, paddlesHash] = await Promise.all([
         redis.hgetall(teamPursesKey()),
         redis.hgetall(teamLogosKey()),

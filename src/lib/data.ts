@@ -2,12 +2,8 @@ import { unstable_noStore as noStore } from "next/cache";
 import prisma from "./prisma";
 import { Team, Fixture, LiveMatchState } from "./tournament";
 import { supabase } from "./supabase";
-import Redis from "ioredis";
+import { redis } from "./redis";
 import { teamLogosKey, teamPaddlesKey } from "./redis-keys";
-
-const globalForRedis = global as unknown as { redis: Redis };
-const redis = globalForRedis.redis || new Redis(process.env.REDIS_URL || "");
-if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
 
 // Helper to map raw DB rows to internal types
 const mapTeam = (row: any, logoUrl?: string, paddleNumber?: number): Team => ({

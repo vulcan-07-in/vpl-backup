@@ -1,6 +1,6 @@
 import { fetchFixtures, fetchTeams } from "@/lib/data";
 import HomeClient from "./home-client";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 
 export const revalidate = 60;
 
@@ -24,7 +24,6 @@ export default async function Home() {
   }
 
   // Fetch auction timer from Redis
-  const redis = new Redis(process.env.REDIS_URL || "");
   const [startTimeStr, endTimeStr] = await Promise.all([
     redis.get("vpl_auction_start_time"),
     redis.get("vpl_auction_end_time"),

@@ -3,7 +3,7 @@ import { validateAdminRequest } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { AUCTION_CONSTANTS } from "@/lib/auction";
-import Redis from "ioredis";
+import { redis } from "@/lib/redis";
 import { teamPursesKey, teamLogosKey, teamPaddlesKey } from "@/lib/redis-keys";
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,6 @@ export async function GET() {
         supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT_SET'
     }, { status: 500 });
 
-    const redis = new Redis(process.env.REDIS_URL || "");
     const pursesHash = await redis.hgetall(teamPursesKey());
     const logosHash = await redis.hgetall(teamLogosKey());
     const paddlesHash = await redis.hgetall(teamPaddlesKey());
@@ -66,7 +65,7 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { action } = body;
-        const redis = new Redis(process.env.REDIS_URL || "");
+
 
         if (action === "create") {
             const { name, shortName, color, groupId, purse, captainAccountId } = body;
