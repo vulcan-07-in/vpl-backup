@@ -581,15 +581,12 @@ export function resolveS2Playoffs(
         const f = resolvedFixtures[i];
         if (!f.stage.startsWith("Eliminator")) continue;
         
-        const hasManualTeam1 = !isPlaceholder(f.team1);
-        const hasManualTeam2 = !isPlaceholder(f.team2);
-
         if (f.stage.startsWith("Eliminator 1")) {
-            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(1), team2: hasManualTeam2 ? f.team2 : getBaseTeam(6) };
+            resolvedFixtures[i] = { ...f, team1: getBaseTeam(1), team2: getBaseTeam(6) };
         } else if (f.stage.startsWith("Eliminator 2")) {
-            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(2), team2: hasManualTeam2 ? f.team2 : getBaseTeam(5) };
+            resolvedFixtures[i] = { ...f, team1: getBaseTeam(2), team2: getBaseTeam(5) };
         } else if (f.stage.startsWith("Eliminator 3")) {
-            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(3), team2: hasManualTeam2 ? f.team2 : getBaseTeam(4) };
+            resolvedFixtures[i] = { ...f, team1: getBaseTeam(3), team2: getBaseTeam(4) };
         }
     }
 
@@ -613,17 +610,13 @@ export function resolveS2Playoffs(
     for (let i = 0; i < resolvedFixtures.length; i++) {
         const f = resolvedFixtures[i];
         if (f.stage.startsWith("Qualifier 1")) {
-            const hasManualTeam1 = !isPlaceholder(f.team1);
-            const hasManualTeam2 = !isPlaceholder(f.team2);
-            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getLiveTeam(1), team2: hasManualTeam2 ? f.team2 : getLiveTeam(2) };
+            resolvedFixtures[i] = { ...f, team1: getLiveTeam(1), team2: getLiveTeam(2) };
         }
     }
 
     // Third pass: Resolve Q2 and Final
     for (let i = 0; i < resolvedFixtures.length; i++) {
         const f = resolvedFixtures[i];
-        const hasManualTeam1 = !isPlaceholder(f.team1);
-        const hasManualTeam2 = !isPlaceholder(f.team2);
 
         if (f.stage.startsWith("Qualifier 2")) {
             const q1f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 1"));
@@ -631,10 +624,14 @@ export function resolveS2Playoffs(
             const liveMatch = q1f ? (liveStates[cleanId] || liveStates[String(q1f.matchNo).trim()] || liveStates[q1f.matchNo]) : null;
             const q1Winner = q1f?.winner || liveMatch?.winner;
             
+            const normalize = (s: string) => String(s || "").trim().toLowerCase();
+            const nWin = normalize(q1Winner || "");
+            const nT1 = normalize(q1f?.team1 || "");
+
             const q1Loser = q1Winner && q1f?.team1 && q1f?.team2 && !isPlaceholder(q1f.team1) && !isPlaceholder(q1f.team2)
-                ? (q1Winner === q1f.team1 ? q1f.team2 : q1f.team1)
+                ? (nWin === nT1 ? q1f.team2 : q1f.team1)
                 : "Q1 Loser";
-            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : q1Loser, team2: hasManualTeam2 ? f.team2 : getLiveTeam(3) };
+            resolvedFixtures[i] = { ...f, team1: q1Loser, team2: getLiveTeam(3) };
         } else if (f.stage.startsWith("Final")) {
             const q1f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 1"));
             const q2f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 2"));
@@ -645,7 +642,7 @@ export function resolveS2Playoffs(
             const q1w = q1f?.winner || q1LiveMatch?.winner || "Q1 Winner";
             const q2w = q2f?.winner || q2LiveMatch?.winner || "Q2 Winner";
             
-            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : q1w, team2: hasManualTeam2 ? f.team2 : q2w };
+            resolvedFixtures[i] = { ...f, team1: q1w, team2: q2w };
         }
     }
 
