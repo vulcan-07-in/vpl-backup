@@ -411,6 +411,65 @@ export function computeBaseSeeds(
  *  - Sort: survivors first (by pts desc → NRR desc), then eliminated teams.
  *  - Re-number ranks 1–6.
  */
+/** Derive the actual winner of a completed eliminator, handling stale liveState.winner.
+ * When the scorer schedules a playoff match before group stage resolves team names,
+ * liveState.innings.teamName = "TBD". Later scoring uses that stale TBD as innings1/2
+ * teamName, so liveState.winner = "TBD". We fix this by cross-checking liveState.winner
+ * against the RESOLVED fixture team names (elim.team1 / elim.team2 from Pass 1), and
+ * if they don't match, we re-derive the winner from innings scores.
+ */
+function resolveElimWinner(
+    elim: Fixture,
+    liveStates: Record<string, LiveMatchState>
+): string {
+    // DB winner is always authoritative when it's a real team name
+    if (elim.winner && !isPlaceholder(elim.winner) && elim.winner !== "TIE" && elim.winner !== "ABANDONED") {
+        return elim.winner;
+    }
+
+    const ls = getLiveState(elim, liveStates);
+    if (!ls || ls.status !== "COMPLETED") return "";
+
+    // If liveState.winner is a real name that matches one of the RESOLVED team names, use it.
+    const lsWinnerNorm = n(ls.winner ?? "");
+    if (lsWinnerNorm && !isPlaceholder(ls.winner ?? "") && ls.winner !== "TIE") {
+        if (n(elim.team1) === lsWinnerNorm || n(elim.team2) === lsWinnerNorm) {
+            return ls.winner!;
+        }
+    }
+
+    // liveState.winner is stale/TBD/mismatched: re-derive from run totals.
+    // Map innings team names to resolved fixture teams using substring matching.
+    const normT1 = n(elim.team1);
+    const normT2 = n(elim.team2);
+    const inn1Name = n(ls.innings1?.teamName ?? "");
+
+    const overlaps = (a: string, b: string) =>
+        a && b && (a === b || a.includes(b) || b.includes(a));
+
+    const inn1isT1 = overlaps(inn1Name, normT1);
+
+    const inn1 = ls.innings1;
+    const inn2 = ls.innings2;
+    if (!inn1 || !inn2) return "";
+
+    // Determine which innings won based on scores
+    const maxWickets = ls.customPlayers ?? 8;
+    const target = inn1.runs + 1;
+    let winningInnings: 1 | 2 | null = null;
+    if (inn2.runs >= target) winningInnings = 2;
+    else if (inn2.overs >= ls.matchOvers || inn2.wickets >= maxWickets) winningInnings = 1;
+
+    if (winningInnings === null) return "";
+
+    // Map winning innings back to a resolved team name
+    if (winningInnings === 1) {
+        return inn1isT1 ? elim.team1 : elim.team2;
+    } else {
+        return inn1isT1 ? elim.team2 : elim.team1;
+    }
+}
+
 export function computePlayoffRankings(
     resolvedFixtures: Fixture[],
     teams: Team[],
@@ -418,45 +477,35 @@ export function computePlayoffRankings(
 ): PlayoffRank[] {
     const baseSeeds = computeBaseSeeds(resolvedFixtures, teams, liveStates);
 
-    // All completed eliminator fixtures with a real winner.
-    // IMPORTANT: resolvedFixtures already has real team names in team1/team2 (from Pass 1).
-    // Also check liveStates for winner in case sync_result hasn't been called yet.
+    // All completed eliminator fixtures with a resolvable winner.
+    // IMPORTANT: resolvedFixtures has real team names in team1/team2 (from Pass 1).
+    // resolveElimWinner() handles stale liveState.winner (TBD from early scheduling).
     const completedEliminators = resolvedFixtures.filter(f => {
         if (!f.stage.startsWith("Eliminator") || f.isFunMatch) return false;
-        // team1/team2 must be real names (not placeholders like "Rank X", "TBD")
         if (isPlaceholder(f.team1) || isPlaceholder(f.team2)) return false;
-        // Accept winner from DB field OR from liveState
-        const ls = getLiveState(f, liveStates);
-        const winner = f.winner || ls?.winner || "";
-        if (!winner || winner === "TIE" || winner === "ABANDONED") return false;
-        return true;
+        const winner = resolveElimWinner(f, liveStates);
+        return !!winner && winner !== "TIE" && winner !== "ABANDONED";
     });
 
     if (completedEliminators.length === 0) {
-        // No eliminators finished yet — base seeds are the playoff rankings
         return baseSeeds;
     }
 
-    // Track outcomes per team
     const outcomes = new Map<string, { bonusPoints: number; eliminated: boolean }>();
     for (const seed of baseSeeds) {
         outcomes.set(n(seed.team), { bonusPoints: 0, eliminated: false });
     }
 
     for (const elim of completedEliminators) {
-        // Use winner from DB or liveState (whichever is available)
-        const ls = getLiveState(elim, liveStates);
-        const winner = elim.winner || ls?.winner || "";
+        const winner  = resolveElimWinner(elim, liveStates);
         const winNorm = n(winner);
         const t1Norm  = n(elim.team1);
         const t2Norm  = n(elim.team2);
 
-        // Winner gets +2 bonus points
         if (outcomes.has(winNorm)) {
             outcomes.get(winNorm)!.bonusPoints += 2;
         }
 
-        // The OTHER participant is the loser → eliminated
         const loserNorm = winNorm === t1Norm ? t2Norm : t1Norm;
         if (outcomes.has(loserNorm)) {
             outcomes.get(loserNorm)!.eliminated = true;
@@ -472,7 +521,6 @@ export function computePlayoffRankings(
         };
     });
 
-    // Survivors first (sorted by pts → NRR), then eliminated (sorted by original rank)
     updated.sort((a, b) => {
         if (a.isEliminated !== b.isEliminated) return a.isEliminated ? 1 : -1;
         return b.points - a.points || b.nrr - a.nrr;
@@ -480,6 +528,7 @@ export function computePlayoffRankings(
 
     return updated.map((s, i) => ({ ...s, rank: i + 1 }));
 }
+
 
 // ─── S1 Knockout Resolution (back-compat) ────────────────────────────────────
 

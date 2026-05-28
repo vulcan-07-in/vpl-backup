@@ -685,34 +685,25 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
     const syncMatchResultToSheet = async (finalState: LiveMatchState) => {
         if (!finalState.winner || !finalState.matchId) return;
+        // Skip TIE/TBD placeholders — no single winner to persist
+        if (finalState.winner === "TIE" || finalState.winner === "TBD") return;
 
         try {
-            // 1. Get current fixtures
-            const res = await fetch("/api/matches");
-            if (!res.ok) return;
-            const fixtures: Fixture[] = await res.json();
-
-            // 2. Update the specific fixture
-            const updatedFixtures = fixtures.map(f => {
-                if (f.matchNo === finalState.matchId) {
-                    return { ...f, winner: finalState.winner };
-                }
-                return f;
-            });
-
-            // 3. POST back to sync with Google Sheets
+            // Persist winnerId to the DB via sync_result so f.winner is always reliable
             await fetch("/api/matches", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(updatedFixtures)
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "sync_result",
+                    matchNo: finalState.matchId,
+                    winner: finalState.winner,
+                }),
             });
-            console.log("Match result synced to Google Sheets");
         } catch (e) {
-            console.error("Failed to sync match result to sheet", e);
+            console.error("Failed to sync match result to DB", e);
         }
     };
+
 
     const pushUpdate = async (newState: LiveMatchState, actionDesc?: string) => {
         newState.lastSyncedAt = Date.now();
