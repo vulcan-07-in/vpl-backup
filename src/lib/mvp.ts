@@ -132,33 +132,26 @@ function createEmptyStats(name: string, team: string): PlayerStats {
 function calculateMVP(s: PlayerStats): number {
     let pts = 0;
 
+    // Standardized T20 Fantasy Points System
     // Batting
-    pts += s.runs * 1.0;
-    pts += s.fours * 1.0;
-    pts += s.sixes * 2.0;
-    if (s.runs >= 25) pts += 10;
-    if (s.runs >= 50) pts += 20;
-    if (s.balls >= 6) {
-        const sr = (s.runs / s.balls) * 100;
-        pts += (sr / 10);
-    }
+    pts += s.runs;
+    pts += s.fours * 1;
+    pts += s.sixes * 2;
+    if (s.runs >= 100) pts += 16;
+    else if (s.runs >= 50) pts += 8;
+    else if (s.runs >= 30) pts += 4;
 
     // Bowling
     pts += s.wickets * 25;
-    pts += s.dotBalls * 2;
-    pts += s.maidens * 15;
-    if (s.ballsBowled >= 6) {
-        const econ = (s.runsConceded / (s.ballsBowled / 6));
-        pts += Math.max(0, (12 - econ)) * 5;
-    }
+    pts += s.maidens * 8;
+    if (s.wickets >= 5) pts += 16;
+    else if (s.wickets >= 4) pts += 8;
+    else if (s.wickets >= 3) pts += 4;
 
     // Fielding
-    pts += s.catches * 10;
+    pts += s.catches * 8;
     pts += s.stumpings * 12;
-    pts += s.runOuts * 15;
-
-    // Success
-    pts += s.matchesWon * 10;
+    pts += s.runOuts * 12;
 
     return Math.round(pts * 10) / 10;
 }

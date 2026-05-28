@@ -14,6 +14,7 @@ interface NavLink {
 
 const links: NavLink[] = [
     { href: "/", label: "HOME" },
+    { href: "/live", label: "LIVE MATCH" },
     { href: "/matches", label: "MATCHES" },
     { href: "/points", label: "STANDINGS" },
     { href: "/playoffs", label: "PLAYOFFS" },

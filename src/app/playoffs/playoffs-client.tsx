@@ -57,13 +57,15 @@ function PlayoffRankingSection({ ranks, isGroupStageComplete }: { ranks: Playoff
                                                 <span className={`text-lg font-bold tabular-nums ${idx < 6 ? 'text-white' : 'text-zinc-600'}`} style={{ fontFamily: "var(--font-mono)" }}>
                                                     {s.rank}
                                                 </span>
-                                                {isQualified && idx < 6 && (
+                                                {s.isEliminated ? (
+                                                    <span className="px-1.5 py-0.5 rounded-sm bg-red-500/10 text-red-500 text-[8px] font-bold tracking-widest border border-red-500/20">ELIMINATED</span>
+                                                ) : isQualified && idx < 6 && (
                                                     <span className="px-1.5 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-500 text-[8px] font-bold tracking-widest border border-emerald-500/20">Q</span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`font-bold tracking-wide ${idx < 6 ? 'text-zinc-200' : 'text-zinc-600'}`} style={{ fontFamily: "var(--font-heading)" }}>
+                                            <span className={`font-bold tracking-wide ${s.isEliminated ? 'text-zinc-600 line-through' : idx < 6 ? 'text-zinc-200' : 'text-zinc-600'}`} style={{ fontFamily: "var(--font-heading)" }}>
                                                 {s.team || "TBD"}
                                             </span>
                                         </td>

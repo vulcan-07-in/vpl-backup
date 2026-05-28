@@ -15,11 +15,39 @@ const NAV_ITEMS = [
 
 export default function HomeClient({ champion, auctionStartTime, auctionEndTime }: { champion: { name: string; color: string } | null, auctionStartTime: string, auctionEndTime: string }) {
 
+    const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const checkLive = async () => {
+            try {
+                const res = await fetch("/api/active-match");
+                if (res.ok) {
+                    const data = await res.json();
+                    setActiveMatchId(data.activeMatchId);
+                }
+            } catch (e) {}
+        };
+        
+        checkLive();
+        const interval = setInterval(checkLive, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 pt-24 md:pt-32">
+        <main className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 pt-24 md:pt-32 pb-24">
             {/* Ambient glow */}
             <div className="absolute w-[500px] h-[500px] rounded-full bg-amber-500 opacity-5 blur-[80px] pointer-events-none" />
+
+            {/* Floating Live Match Button */}
+            {activeMatchId && (
+                <Link href={`/live?matchId=${encodeURIComponent(activeMatchId)}`} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center">
+                    <div className="relative group flex items-center gap-2 bg-red-600/90 hover:bg-red-500 backdrop-blur-xl border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] hover:shadow-[0_0_40px_rgba(239,68,68,0.5)] px-6 py-3 rounded-full transition-all duration-300">
+                        <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30 opacity-75"></span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+                        <span className="text-white font-black tracking-widest text-sm uppercase whitespace-nowrap">Watch Live</span>
+                    </div>
+                </Link>
+            )}
 
             {/* Hero */}
             <div className="relative z-10 flex flex-col items-center gap-6 text-center w-full max-w-sm">

@@ -225,59 +225,61 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                 </div>
 
                 {/* Teams Vertical Stack */}
-                <div className="flex flex-col gap-2 relative z-10 w-full mt-3">
+                {/* Teams VS Stack */}
+                <div className="flex items-center justify-between relative z-10 w-full mt-6 mb-3 px-2">
                     {/* Team 1 */}
-                    <div className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] transition-opacity ${isCompleted && !win1 ? "opacity-50 grayscale-[50%]" : "bg-white/[0.04]"}`}>
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border shadow-xl"
-                                style={{ backgroundColor: `${c1}15`, borderColor: `${c1}40`, color: c1, boxShadow: `0 0 15px ${c1}10` }}>
-                                {sn1}
-                            </div>
-                            <span className={`text-lg sm:text-2xl font-bold truncate tracking-wide ${win1 ? 'text-white' : 'text-zinc-200'}`} style={{ fontFamily: "var(--font-display)" }}>
-                                {fixture.team1}
-                            </span>
-                            {win1 && <Trophy size={18} className="text-amber-400 shrink-0 ml-1 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" />}
+                    <div className={`flex flex-col items-center gap-3 flex-1 min-w-0 ${isCompleted && !win1 ? "opacity-50 grayscale-[50%]" : ""}`}>
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center font-black tracking-tighter text-2xl sm:text-3xl border-2 shadow-2xl relative"
+                            style={{ backgroundColor: `${c1}15`, borderColor: `${c1}40`, color: c1, boxShadow: `0 0 25px ${c1}20` }}>
+                            {sn1}
+                            {win1 && <Trophy size={16} className="absolute -top-1 -right-1 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]" />}
                         </div>
+                        <span className={`text-sm sm:text-base font-bold text-center tracking-wider truncate w-full px-1 ${win1 ? 'text-white' : 'text-zinc-300'}`} style={{ fontFamily: "var(--font-display)" }}>
+                            {fixture.team1}
+                        </span>
                         {t1Score && (isCompleted || isLive || isInningsBreak) ? (
-                            <div className="text-right shrink-0 ml-4">
-                                <div className="text-xl sm:text-2xl font-bold text-white tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
-                                    {t1Score.runs}<span className="text-sm sm:text-base text-zinc-500">/{t1Score.wickets}</span>
+                            <div className="text-center">
+                                <div className="text-lg sm:text-xl font-black text-white tracking-widest leading-none" style={{ fontFamily: "var(--font-mono)" }}>
+                                    {t1Score.runs}<span className="text-xs sm:text-sm text-zinc-500">/{t1Score.wickets}</span>
                                 </div>
-                                <div className="text-[9px] sm:text-[10px] text-zinc-500 tracking-widest mt-0.5 uppercase" style={{ fontFamily: "var(--font-body)" }}>
+                                <div className="text-[9px] sm:text-[10px] text-zinc-500 tracking-widest mt-1 uppercase font-bold">
                                     {t1Score.overs.toFixed(1)} OVS
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-right shrink-0 ml-4">
-                                <div className="text-xl sm:text-2xl font-bold text-zinc-800 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>-</div>
+                            <div className="text-center mt-1">
+                                <div className="text-lg sm:text-xl font-bold text-zinc-800 tracking-widest leading-none" style={{ fontFamily: "var(--font-mono)" }}>-</div>
                             </div>
                         )}
                     </div>
 
+                    {/* VS divider */}
+                    <div className="flex flex-col items-center px-3 shrink-0 mt-[-30px]">
+                        <span className="text-[10px] font-black text-zinc-500 tracking-widest uppercase italic bg-zinc-900/80 px-2 py-1 rounded-full border border-zinc-800/80 shadow-lg">VS</span>
+                    </div>
+
                     {/* Team 2 */}
-                    <div className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] transition-opacity ${isCompleted && !win2 ? "opacity-50 grayscale-[50%]" : "bg-white/[0.04]"}`}>
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center font-black tracking-tighter text-sm sm:text-base border shadow-xl"
-                                style={{ backgroundColor: `${c2}15`, borderColor: `${c2}40`, color: c2, boxShadow: `0 0 15px ${c2}10` }}>
-                                {sn2}
-                            </div>
-                            <span className={`text-lg sm:text-2xl font-bold truncate tracking-wide ${win2 ? 'text-white' : 'text-zinc-200'}`} style={{ fontFamily: "var(--font-display)" }}>
-                                {fixture.team2}
-                            </span>
-                            {win2 && <Trophy size={18} className="text-amber-400 shrink-0 ml-1 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" />}
+                    <div className={`flex flex-col items-center gap-3 flex-1 min-w-0 ${isCompleted && !win2 ? "opacity-50 grayscale-[50%]" : ""}`}>
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center font-black tracking-tighter text-2xl sm:text-3xl border-2 shadow-2xl relative"
+                            style={{ backgroundColor: `${c2}15`, borderColor: `${c2}40`, color: c2, boxShadow: `0 0 25px ${c2}20` }}>
+                            {sn2}
+                            {win2 && <Trophy size={16} className="absolute -top-1 -left-1 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]" />}
                         </div>
+                        <span className={`text-sm sm:text-base font-bold text-center tracking-wider truncate w-full px-1 ${win2 ? 'text-white' : 'text-zinc-300'}`} style={{ fontFamily: "var(--font-display)" }}>
+                            {fixture.team2}
+                        </span>
                         {t2Score && (isCompleted || isLive || isInningsBreak) ? (
-                            <div className="text-right shrink-0 ml-4">
-                                <div className="text-xl sm:text-2xl font-bold text-white tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>
-                                    {t2Score.runs}<span className="text-sm sm:text-base text-zinc-500">/{t2Score.wickets}</span>
+                            <div className="text-center">
+                                <div className="text-lg sm:text-xl font-black text-white tracking-widest leading-none" style={{ fontFamily: "var(--font-mono)" }}>
+                                    {t2Score.runs}<span className="text-xs sm:text-sm text-zinc-500">/{t2Score.wickets}</span>
                                 </div>
-                                <div className="text-[9px] sm:text-[10px] text-zinc-500 tracking-widest mt-0.5 uppercase" style={{ fontFamily: "var(--font-body)" }}>
+                                <div className="text-[9px] sm:text-[10px] text-zinc-500 tracking-widest mt-1 uppercase font-bold">
                                     {t2Score.overs.toFixed(1)} OVS
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-right shrink-0 ml-4">
-                                <div className="text-xl sm:text-2xl font-bold text-zinc-800 tracking-widest" style={{ fontFamily: "var(--font-mono)" }}>-</div>
+                            <div className="text-center mt-1">
+                                <div className="text-lg sm:text-xl font-bold text-zinc-800 tracking-widest leading-none" style={{ fontFamily: "var(--font-mono)" }}>-</div>
                             </div>
                         )}
                     </div>

@@ -556,60 +556,56 @@ export function resolveS2Playoffs(
         );
     };
 
-    return fixtures.map(f => {
+    const resolvedFixtures = [...fixtures];
+    
+    // First pass: Resolve Eliminators and Q1
+    for (let i = 0; i < resolvedFixtures.length; i++) {
+        const f = resolvedFixtures[i];
         const hasManualTeam1 = !isPlaceholder(f.team1);
         const hasManualTeam2 = !isPlaceholder(f.team2);
 
-        switch (f.stage) {
-            case "Eliminator 1":
-                return { 
-                    ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getBaseTeam(1), 
-                    team2: hasManualTeam2 ? f.team2 : getBaseTeam(6) 
-                };
-            case "Eliminator 2":
-                return { 
-                    ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getBaseTeam(2), 
-                    team2: hasManualTeam2 ? f.team2 : getBaseTeam(5) 
-                };
-            case "Eliminator 3":
-                return { 
-                    ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getBaseTeam(3), 
-                    team2: hasManualTeam2 ? f.team2 : getBaseTeam(4) 
-                };
-            case "Qualifier 1": {
-                return { 
-                    ...f, 
-                    team1: hasManualTeam1 ? f.team1 : getLiveTeam(1), 
-                    team2: hasManualTeam2 ? f.team2 : getLiveTeam(2) 
-                };
-            }
-            case "Qualifier 2": {
-                const q1f = fixtures.find(x => x.stage === "Qualifier 1");
-                const q1Loser = q1f?.winner && q1f.team1 && q1f.team2 && q1f.team1 !== "TBD" && q1f.team2 !== "TBD"
-                    ? (q1f.winner === q1f.team1 ? q1f.team2 : q1f.team1)
-                    : "Q1 Loser";
-                return { 
-                    ...f, 
-                    team1: hasManualTeam1 ? f.team1 : q1Loser, 
-                    team2: hasManualTeam2 ? f.team2 : getLiveTeam(3) 
-                };
-            }
-            case "Final": {
-                const q1w = fixtures.find(f => f.stage === "Qualifier 1")?.winner ?? "";
-                const q2w = fixtures.find(f => f.stage === "Qualifier 2")?.winner ?? "";
-                return { 
-                    ...f, 
-                    team1: hasManualTeam1 ? f.team1 : (q1w || "Q1 Winner"), 
-                    team2: hasManualTeam2 ? f.team2 : (q2w || "Q2 Winner") 
-                };
-            }
-            default:
-                return f;
+        if (f.stage === "Eliminator 1") {
+            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(1), team2: hasManualTeam2 ? f.team2 : getBaseTeam(6) };
+        } else if (f.stage === "Eliminator 2") {
+            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(2), team2: hasManualTeam2 ? f.team2 : getBaseTeam(5) };
+        } else if (f.stage === "Eliminator 3") {
+            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(3), team2: hasManualTeam2 ? f.team2 : getBaseTeam(4) };
+        } else if (f.stage === "Qualifier 1") {
+            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getLiveTeam(1), team2: hasManualTeam2 ? f.team2 : getLiveTeam(2) };
         }
-    });
+    }
+
+    // Second pass: Resolve Q2 and Final using resolved Q1
+    for (let i = 0; i < resolvedFixtures.length; i++) {
+        const f = resolvedFixtures[i];
+        const hasManualTeam1 = !isPlaceholder(f.team1);
+        const hasManualTeam2 = !isPlaceholder(f.team2);
+
+        if (f.stage === "Qualifier 2") {
+            const q1f = resolvedFixtures.find(x => x.stage === "Qualifier 1");
+            const cleanId = q1f ? String(q1f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
+            const liveMatch = q1f ? (liveStates[cleanId] || liveStates[String(q1f.matchNo).trim()] || liveStates[q1f.matchNo]) : null;
+            const q1Winner = q1f?.winner || liveMatch?.winner;
+            
+            const q1Loser = q1Winner && q1f?.team1 && q1f?.team2 && !isPlaceholder(q1f.team1) && !isPlaceholder(q1f.team2)
+                ? (q1Winner === q1f.team1 ? q1f.team2 : q1f.team1)
+                : "Q1 Loser";
+            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : q1Loser, team2: hasManualTeam2 ? f.team2 : getLiveTeam(3) };
+        } else if (f.stage === "Final") {
+            const q1f = resolvedFixtures.find(x => x.stage === "Qualifier 1");
+            const q2f = resolvedFixtures.find(x => x.stage === "Qualifier 2");
+            const q1CleanId = q1f ? String(q1f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
+            const q2CleanId = q2f ? String(q2f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
+            const q1LiveMatch = q1f ? (liveStates[q1CleanId] || liveStates[q1f.matchNo]) : null;
+            const q2LiveMatch = q2f ? (liveStates[q2CleanId] || liveStates[q2f.matchNo]) : null;
+            const q1w = q1f?.winner || q1LiveMatch?.winner || "Q1 Winner";
+            const q2w = q2f?.winner || q2LiveMatch?.winner || "Q2 Winner";
+            
+            resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : q1w, team2: hasManualTeam2 ? f.team2 : q2w };
+        }
+    }
+
+    return resolvedFixtures;
 }
 
 // Data fetching has been migrated to src/lib/data.ts to prevent Prisma leaking into client bundles.

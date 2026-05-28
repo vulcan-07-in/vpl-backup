@@ -415,11 +415,11 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             </button>
                                             <button onClick={() => handleAction("/api/matches", { action: "delete_match", matchNo: m.matchNo }, fetchMatches)} className="text-zinc-500 hover:bg-zinc-800 px-3 py-1 rounded text-xs font-bold border border-zinc-800 mt-1">DELETE</button>
                                         </div>
-                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
+                                        <div className="flex flex-col gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2">
                                             {i > 0 && (
                                                 <button 
                                                     onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i-1].matchNo }, fetchMatches, true)}
-                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white p-1 rounded"
+                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
                                                     title="Move Up"
                                                 >
                                                     ↑
@@ -428,7 +428,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             {i < matches.length - 1 && (
                                                 <button 
                                                     onClick={() => handleAction("/api/matches", { action: "swap_sequence", match1: m.matchNo, match2: matches[i+1].matchNo }, fetchMatches, true)}
-                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white p-1 rounded"
+                                                    className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-lg active:scale-95 transition-transform"
                                                     title="Move Down"
                                                 >
                                                     ↓

@@ -64,14 +64,20 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
     ];
 
     const mvpPlayer = useMemo(() => {
-        if (!mvpState.published || !mvpState.player) return null;
-        const player = initialStats.find(p => p.name === mvpState.player);
-        if (!player) return null;
+        if (!initialStats || initialStats.length === 0) return null;
+        
+        // Find player with the highest MVP Points
+        const sorted = [...initialStats].sort((a, b) => (b as any).mvpPoints - (a as any).mvpPoints);
+        const topPlayer = sorted[0];
+        
+        // If no one has scored points yet, don't show the MVP section
+        if (!topPlayer || (topPlayer as any).mvpPoints === 0) return null;
+
         return {
-            ...player,
-            achievements: getAchievements(player as any)
+            ...topPlayer,
+            achievements: getAchievements(topPlayer as any)
         };
-    }, [mvpState, initialStats]);
+    }, [initialStats]);
 
     return (
         <main className="min-h-screen pt-24 pb-20 px-4 md:px-8 relative overflow-hidden bg-black">
@@ -151,15 +157,16 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                     </motion.div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {categories.map((cat) => (
                         <motion.div 
                             key={cat.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col hover:border-amber-500/30 hover:bg-white/[0.04] transition-all duration-500 group"
+                            className="relative bg-zinc-900/40 backdrop-blur-3xl border border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col hover:border-amber-500/50 hover:bg-zinc-900/60 hover:shadow-[0_0_40px_rgba(245,158,11,0.1)] transition-all duration-500 group"
                         >
-                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-black/60 relative z-10">
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30 group-hover:scale-110 transition-transform duration-500">
                                         <cat.icon className="w-6 h-6 text-amber-400" />
@@ -208,7 +215,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             {cat.data.length > 5 && (
                                 <button
                                     onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)}
-                                    className="p-5 w-full bg-black/40 hover:bg-amber-500/10 text-zinc-400 hover:text-amber-400 transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-white/10"
+                                    className="p-5 w-full bg-black/60 hover:bg-amber-500 text-zinc-400 hover:text-black transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-zinc-800 relative z-10"
                                 >
                                     {expandedCategory === cat.id ? (
                                         <>SHOW LESS <ChevronUp className="w-4 h-4" /></>

@@ -156,10 +156,11 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
     // Wicket Workflow States
     const [wicketPlayerOut, setWicketPlayerOut] = useState<string | null>(null);
     const [wicketType, setWicketType] = useState<BallEvent["wicketType"] | null>(null);
-    const [wicketExtraRuns, setWicketExtraRuns] = useState(0);
-    const [wicketStrikeSwapped, setWicketStrikeSwapped] = useState(false);
-    const [wicketFielder, setWicketFielder] = useState("");
+    const [wicketExtraRuns, setWicketExtraRuns] = useState<number>(0);
+    const [wicketStrikeSwapped, setWicketStrikeSwapped] = useState<boolean>(false);
+    const [wicketFielder, setWicketFielder] = useState<string>("");
     const [wicketNewBatsman, setWicketNewBatsman] = useState<string | null>(null);
+    const [wicketIsNoBall, setWicketIsNoBall] = useState<boolean>(false);
 
     // Scheduling States
     const [scheduledTime, setScheduledTime] = useState("");
@@ -984,7 +985,8 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             nonStriker: currentInn.nonStrikerRef || "",
             bowler: currentInn.currentBowlerRef,
             runs: extraRuns,
-            extras: 0,
+            extras: wicketIsNoBall ? 1 : 0,
+            extraType: wicketIsNoBall ? "NB" : undefined,
             isWicket: true,
             wicketType: wicketType,
             playerOut: wicketPlayerOut,
@@ -1025,6 +1027,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         setWicketType(null);
         setWicketExtraRuns(0);
         setWicketStrikeSwapped(false);
+        setWicketIsNoBall(false);
         setWicketNewBatsman(null);
         setActiveScreen("LIVE_SCORING");
         setIsScoringLocked(false);
@@ -1098,6 +1101,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
         setWicketStrikeSwapped(false);
         setWicketFielder(""); // H5: Reset fielder to prevent stale name
         setWicketNewBatsman(null);
+        setWicketIsNoBall(false);
         setActiveScreen("WICKET_MODAL");
     };
 
@@ -1863,23 +1867,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
 
                                 <div className="grid grid-cols-3 gap-2 h-full">
                                     {[0, 1, 2, 3, 4, 6].map(run => (
-                                        <button key={run} onClick={() => handleRun(run)} className={`rounded-xl font-bold transition-all active:scale-95 text-lg md:text-2xl ${run >= 4 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700'}`}>{run}</button>
+                                        <button key={run} onClick={() => handleRun(run)} className={`rounded-xl font-bold transition-all active:scale-95 min-h-[55px] text-lg md:text-2xl ${run >= 4 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'bg-zinc-800 hover:bg-zinc-700'}`}>{run}</button>
                                     ))}
                                     <div className="col-span-3 grid grid-cols-4 gap-2">
                                         <button 
                                             onClick={() => handleExtra("WD")} 
-                                            className="w-full bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center py-2 md:py-3"
+                                            className="w-full bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center min-h-[50px] py-2 md:py-3"
                                         >
                                             WIDE
                                         </button>
                                         <button 
                                             onClick={() => handleExtra("NB")} 
-                                            className="w-full bg-blue-600/20 text-blue-300 border border-blue-500/40 rounded-xl text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center py-2 md:py-3"
+                                            className="w-full bg-blue-600/20 text-blue-300 border border-blue-500/40 rounded-xl text-[9px] font-bold uppercase transition-all flex flex-col items-center justify-center min-h-[50px] py-2 md:py-3"
                                         >
                                             NO BALL
                                         </button>
-                                        <button onClick={handleDeadBall} className="bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-xl text-[9px] font-bold uppercase transition-all">DB</button>
-                                        <button onClick={handleWicket} className="bg-red-500 text-white rounded-xl text-[9px] font-bold uppercase transition-all shadow-lg shadow-red-500/20">Out</button>
+                                        <button onClick={handleDeadBall} className="bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-xl text-[9px] font-bold uppercase transition-all min-h-[50px]">DB</button>
+                                        <button onClick={handleWicket} className="bg-red-500 text-white rounded-xl text-[9px] font-bold uppercase transition-all shadow-lg shadow-red-500/20 min-h-[50px]">Out</button>
                                     </div>
 
                                     <button onClick={handleSwapStrike} className="col-span-2 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] uppercase font-bold transition-all py-2">Swap</button>
@@ -2247,7 +2251,24 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                             </div>
 
                             {/* New Options for Runs during Wicket (e.g. Run Out) */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="text-left">
+                                    <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">DELIVERY?</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setWicketIsNoBall(false)}
+                                            className={`flex-1 p-3 rounded-lg border font-bold transition-colors ${!wicketIsNoBall ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-black border-zinc-800 text-zinc-500'}`}
+                                        >
+                                            LEGAL
+                                        </button>
+                                        <button
+                                            onClick={() => setWicketIsNoBall(true)}
+                                            className={`flex-1 p-3 rounded-lg border font-bold transition-colors ${wicketIsNoBall ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-black border-zinc-800 text-zinc-500'}`}
+                                        >
+                                            NB
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="text-left">
                                     <label className="text-[10px] font-bold tracking-widest text-zinc-500 mb-2 block">ANY RUNS?</label>
                                     <div className="flex gap-2">

@@ -503,12 +503,12 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                                     {/* Main Event Text */}
                                     <motion.h2 
-                                        className={`relative z-10 text-5xl md:text-8xl font-black italic text-transparent bg-clip-text leading-none tracking-tight uppercase ${
-                                            animationEvent.type === 'W' ? 'bg-white' 
-                                            : animationEvent.type === 'FIFTY' || animationEvent.type === 'HUNDRED' ? 'bg-gradient-to-b from-amber-300 to-amber-600'
-                                            : animationEvent.type === 'TEAM100' ? 'bg-gradient-to-b from-white to-amber-400'
-                                            : animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-300 to-red-600'
-                                            : 'bg-gradient-to-b from-white to-amber-200'
+                                        className={`relative z-10 text-7xl md:text-[10rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-2xl ${
+                                            animationEvent.type === 'W' ? 'bg-gradient-to-b from-red-500 to-red-800' 
+                                            : animationEvent.type === 'FIFTY' || animationEvent.type === 'HUNDRED' ? 'bg-gradient-to-b from-white to-zinc-400'
+                                            : animationEvent.type === 'TEAM100' ? 'bg-gradient-to-b from-white to-zinc-400'
+                                            : animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-500 to-red-700'
+                                            : 'bg-gradient-to-b from-white to-zinc-300'
                                         }`}
                                         style={{ fontFamily: "var(--font-display)" }}
                                         animate={{ scale: [1, 1.05, 1] }}
