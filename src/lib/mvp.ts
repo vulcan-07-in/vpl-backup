@@ -34,7 +34,7 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
             }
             const b = statsMap[ball.striker];
             if (ball.extraType !== "WD" && ball.extraType !== "SWAP" && ball.extraType !== "DB") {
-                b.runs += ball.runs;
+                b.runs += (ball.runs || 0);
                 b.balls += 1; // ICC: Both legal deliveries AND no-balls count as balls faced
                 if (ball.runs === 4) b.fours += 1;
                 if (ball.runs === 6) b.sixes += 1;
@@ -52,7 +52,7 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
                 }
             }
             if (ball.extraType !== "DB" && ball.extraType !== "SWAP") {
-                bw.runsConceded += (ball.runs + ball.extras);
+                bw.runsConceded += ((ball.runs || 0) + (ball.extras || 0));
             }
             if (ball.isWicket && ball.wicketType !== "RUNOUT" && ball.wicketType !== "RETIRED_HURT") {
                 bw.wickets += 1;
@@ -101,10 +101,10 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
         const bowlerOvers: Record<string, Record<number, number>> = {}; // bowler -> overIndex -> runs
         match.timeline.forEach(ball => {
             if (ball.extraType === "WD" || ball.extraType === "NB") return;
-            const overIdx = Math.floor(ball.over);
+            const overIdx = Math.floor(ball.over || 0);
             if (!bowlerOvers[ball.bowler]) bowlerOvers[ball.bowler] = {};
             if (bowlerOvers[ball.bowler][overIdx] === undefined) bowlerOvers[ball.bowler][overIdx] = 0;
-            bowlerOvers[ball.bowler][overIdx] += (ball.runs + ball.extras);
+            bowlerOvers[ball.bowler][overIdx] += ((ball.runs || 0) + (ball.extras || 0));
         });
         
         Object.entries(bowlerOvers).forEach(([bowler, overs]) => {

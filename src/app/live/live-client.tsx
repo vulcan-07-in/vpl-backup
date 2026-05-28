@@ -466,53 +466,45 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                                 {/* Abstract Shapes/Particles Move (Minimal for phone performance) */}
                                 <div className="absolute inset-0 overflow-hidden">
-                                    {[...Array(3)].map((_, i) => (
+                                    {[...Array(6)].map((_, i) => (
                                         <motion.div
                                             key={i}
                                             initial={{ 
-                                                x: Math.random() * 100 - 50 + "vw",
-                                                y: Math.random() * 100 - 50 + "vh",
-                                                scale: 0,
-                                                rotate: Math.random() * 360
+                                                x: "50vw", y: "50vh", scale: 0, opacity: 0
                                             }}
                                             animate={{ 
-                                                x: [null, (Math.random() * 100 - 50) + "vw"],
-                                                y: [null, (Math.random() * 100 - 50) + "vh"],
-                                                scale: [0, 1.5, 0],
-                                                opacity: [0, 0.3, 0]
+                                                x: `${Math.random() * 100}vw`,
+                                                y: `${Math.random() * 100}vh`,
+                                                scale: [0, Math.random() * 2 + 1, 0],
+                                                opacity: [0, 0.4, 0],
+                                                rotate: Math.random() * 360
                                             }}
-                                            transition={{ duration: 3, ease: "easeOut" }}
-                                            className="absolute w-24 h-24 border-2 border-white/10 rounded-full"
+                                            transition={{ duration: 1.5, ease: "easeOut" }}
+                                            className={`absolute w-16 h-16 md:w-32 md:h-32 rounded-full border ${i % 2 === 0 ? 'border-white/40 bg-white/5 blur-md' : 'border-white/10'}`}
                                         />
                                     ))}
                                 </div>
 
                                 {/* Elegant Premium Center Content */}
                                 <motion.div
-                                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                    initial={{ scale: 0.8, opacity: 0, y: 30 }}
                                     animate={{ scale: 1, opacity: 1, y: 0 }}
                                     exit={{ scale: 0.95, opacity: 0, y: -20 }}
                                     transition={{ type: "spring", damping: 20, stiffness: 100 }}
-                                    className="relative flex flex-col items-center justify-center z-10 mx-4 w-full max-w-3xl text-center"
+                                    className="relative flex flex-col items-center justify-center z-10 mx-4 w-full max-w-4xl text-center"
                                 >
-                                    {/* Subtle radial glow — no blur, no scale transform, GPU-friendly */}
-                                    <div className="absolute inset-0 rounded-full bg-white/10 pointer-events-none" />
-
-                                    {/* Top Accent Line */}
-                                    <div className={`w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent mb-8 opacity-50`} />
+                                    {/* Subtle radial glow */}
+                                    <div className="absolute inset-0 rounded-[100%] bg-white/5 pointer-events-none blur-[100px]" />
 
                                     {/* Main Event Text */}
                                     <motion.h2 
-                                        className={`relative z-10 text-7xl md:text-[10rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-2xl ${
-                                            animationEvent.type === 'W' ? 'bg-gradient-to-b from-red-500 to-red-800' 
-                                            : animationEvent.type === 'FIFTY' || animationEvent.type === 'HUNDRED' ? 'bg-gradient-to-b from-white to-zinc-400'
-                                            : animationEvent.type === 'TEAM100' ? 'bg-gradient-to-b from-white to-zinc-400'
-                                            : animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-500 to-red-700'
-                                            : 'bg-gradient-to-b from-white to-zinc-300'
+                                        className={`relative z-10 text-7xl md:text-[12rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] ${
+                                            animationEvent.type === 'W' || animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-500 via-red-600 to-red-900' 
+                                            : 'bg-gradient-to-b from-white via-zinc-200 to-zinc-500'
                                         }`}
                                         style={{ fontFamily: "var(--font-display)" }}
-                                        animate={{ scale: [1, 1.05, 1] }}
-                                        transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
+                                        animate={{ scale: [1, 1.02, 1] }}
+                                        transition={{ duration: 0.5, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
                                     >
                                         {animationEvent.type === 'W' ? 'WICKET!' 
                                          : animationEvent.type === '6' ? 'SIX!' 
@@ -524,38 +516,30 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                          : ''}
                                     </motion.h2>
 
-                                    {/* Extra info for milestones */}
-                                    {animationEvent.extra && (
-                                        <motion.p
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.3 }}
-                                            className="relative z-10 mt-3 text-lg md:text-2xl font-black text-amber-400 tracking-[0.5em] uppercase"
-                                        >
-                                            {animationEvent.extra}
-                                        </motion.p>
-                                    )}
-
                                     {/* Separator */}
-                                    <div className="relative z-10 flex items-center justify-center my-6 gap-4 opacity-70">
-                                        <div className="h-px w-24 bg-gradient-to-r from-transparent to-white" />
-                                        <div className={`w-2 h-2 rounded-full rotate-45 ${animationEvent.type === 'W' || animationEvent.type === 'HATTRICK' ? 'bg-white' : 'bg-amber-400'}`} />
-                                        <div className="h-px w-24 bg-gradient-to-l from-transparent to-white" />
+                                    <div className="relative z-10 flex items-center justify-center mt-6 mb-8 gap-6 opacity-80 w-full">
+                                        <div className="h-px flex-1 max-w-[200px] bg-gradient-to-r from-transparent to-white" />
+                                        <div className={`w-3 h-3 rotate-45 ${animationEvent.type === 'W' || animationEvent.type === 'HATTRICK' ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : 'bg-white shadow-[0_0_10px_#ffffff]'}`} />
+                                        <div className="h-px flex-1 max-w-[200px] bg-gradient-to-l from-transparent to-white" />
                                     </div>
 
                                     {/* Player Name */}
                                     <motion.div 
-                                        initial={{ opacity: 0, y: 10 }}
+                                        initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.2 }}
-                                        className="relative z-10"
+                                        className="relative z-10 flex flex-col items-center gap-2"
                                     >
-                                        <span className="block text-2xl md:text-5xl font-black text-white uppercase tracking-[0.3em]" style={{ fontFamily: "var(--font-heading)" }}>
+                                        <span className="block text-3xl md:text-6xl font-black text-white uppercase tracking-[0.2em]" style={{ fontFamily: "var(--font-heading)" }}>
                                             {animationEvent.player}
                                         </span>
+                                        {/* Extra info for milestones */}
+                                        {animationEvent.extra && (
+                                            <span className="block text-xl md:text-3xl font-bold text-zinc-400 tracking-[0.4em] uppercase mt-2">
+                                                {animationEvent.extra}
+                                            </span>
+                                        )}
                                     </motion.div>
-                                    
-                                    <div className={`mt-6 w-32 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-50`} />
                                 </motion.div>
                             </motion.div>
                         )}
@@ -566,17 +550,24 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                 {/* Sponsor bar — fixed at bottom during animation, visible above everything */}
                 {mounted && typeof document !== 'undefined' && animationEvent && createPortal(
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        className="fixed bottom-0 left-0 right-0 z-[10000] flex flex-col items-center py-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"
+                        exit={{ opacity: 0, y: 50 }}
+                        transition={{ delay: 0.1, type: "spring", damping: 25 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-6 px-8 py-4 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-none"
                     >
-                        <p className="text-[8px] md:text-[10px] text-zinc-500 font-bold tracking-[0.4em] uppercase mb-3">Powered By</p>
-                        <img
-                            src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
-                            className={`h-14 md:h-24 object-contain opacity-90 ${animationEvent.sponsorId === 1 ? 'rounded-full object-cover aspect-square bg-white p-0.5 border-2 border-amber-500/50' : ''}`}
-                            alt="Sponsor"
-                        />
+                        <div className="flex flex-col items-end">
+                            <p className="text-[9px] md:text-[11px] text-zinc-500 font-black tracking-[0.4em] uppercase">Powered By</p>
+                            <p className="text-xs md:text-sm text-white font-bold tracking-widest uppercase">{animationEvent.sponsorId === 1 ? 'Chitralaya' : 'Patil'}</p>
+                        </div>
+                        <div className="w-px h-10 bg-white/20" />
+                        <div className={`relative flex items-center justify-center shrink-0 ${animationEvent.sponsorId === 1 ? 'w-16 h-16 md:w-20 md:h-20 bg-white rounded-full p-1' : 'h-12 md:h-16'}`}>
+                            <img
+                                src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
+                                className={animationEvent.sponsorId === 1 ? "w-full h-full object-cover rounded-full" : "h-full object-contain"}
+                                alt="Sponsor"
+                            />
+                        </div>
                     </motion.div>,
                     document.body
                 )}

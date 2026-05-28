@@ -433,11 +433,22 @@ export function computePlayoffRankings(
         let extraPlayed = 0;
         
         eliminators.forEach(e => {
-            if (e.team1 === seed.team || e.team2 === seed.team) {
+            let actT1 = e.team1;
+            let actT2 = e.team2;
+            if (actT1.startsWith("Rank ")) {
+                const r = parseInt(actT1.replace("Rank ", ""));
+                actT1 = baseSeeds.find(s => s.rank === r)?.team || actT1;
+            }
+            if (actT2.startsWith("Rank ")) {
+                const r = parseInt(actT2.replace("Rank ", ""));
+                actT2 = baseSeeds.find(s => s.rank === r)?.team || actT2;
+            }
+
+            if (actT1 === seed.team || actT2 === seed.team) {
                 extraPlayed += 1;
                 if (e.winner === seed.team) {
                     extraPoints += 2;
-                } else {
+                } else if (e.winner) {
                     isEliminated = true;
                 }
             }
