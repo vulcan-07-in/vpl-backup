@@ -63,21 +63,17 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
         { id: "stumpings", title: "Most Stumpings", icon: Target, data: leaderboards.stumpings, unit: "St", sub: "Wicketkeepers" },
     ];
 
-    const mvpPlayer = useMemo(() => {
-        if (!initialStats || initialStats.length === 0) return null;
-        
-        // Find player with the highest MVP Points
-        const sorted = [...initialStats].sort((a, b) => (b as any).mvpPoints - (a as any).mvpPoints);
-        const topPlayer = sorted[0];
-        
-        // If no one has scored points yet, don't show the MVP section
-        if (!topPlayer || (topPlayer as any).mvpPoints === 0) return null;
-
-        return {
-            ...topPlayer,
-            achievements: getAchievements(topPlayer as any)
-        };
+    const mvpLeaderboard = useMemo(() => {
+        if (!initialStats || initialStats.length === 0) return [];
+        return [...initialStats]
+            .filter(p => (p as any).mvpPoints > 0)
+            .sort((a, b) => (b as any).mvpPoints - (a as any).mvpPoints);
     }, [initialStats]);
+
+    const mvpPlayer = mvpLeaderboard.length > 0 ? {
+        ...mvpLeaderboard[0],
+        achievements: getAchievements(mvpLeaderboard[0] as any)
+    } : null;
 
     return (
         <main className="min-h-screen pt-24 pb-20 px-4 md:px-8 relative overflow-hidden bg-black">
@@ -104,7 +100,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="mb-20 relative group"
+                        className="mb-20 relative group flex flex-col gap-8"
                     >
                         {/* Glow effect */}
                         <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 rounded-[3rem] blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-700" />
@@ -154,6 +150,36 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                 </div>
                             </div>
                         </div>
+
+                        {/* Top 10 MVP Leaderboard */}
+                        {mvpLeaderboard.length > 1 && (
+                            <div className="relative mt-2 bg-black/60 backdrop-blur-3xl border border-zinc-800 rounded-[2rem] overflow-hidden p-6 md:p-10 shadow-2xl">
+                                <h3 className="text-xl md:text-2xl font-black text-white mb-6 uppercase tracking-widest flex items-center gap-3">
+                                    <BarChart3 className="w-6 h-6 text-amber-500" /> MVP Leaderboard Top 10
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {mvpLeaderboard.slice(0, 10).map((p, idx) => (
+                                        <div key={p.name} className={`p-4 rounded-xl flex items-center justify-between border ${idx === 0 ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'} transition-all`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${idx === 0 ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)]' : idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+                                                    #{idx + 1}
+                                                </div>
+                                                <div>
+                                                    <p className={`font-bold uppercase tracking-tight ${idx === 0 ? 'text-amber-400' : 'text-white'}`}>{p.name}</p>
+                                                    <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">{p.team}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`text-xl font-black ${idx === 0 ? 'text-amber-500' : 'text-zinc-300'}`} style={{ fontFamily: "var(--font-display)" }}>
+                                                    {(p as any).mvpPoints?.toFixed(1) || "0.0"}
+                                                </p>
+                                                <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-[0.2em] mt-0.5">PTS</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
 
