@@ -451,8 +451,33 @@ export function computePlayoffRankings(
                 extraPlayed += 1;
                 if (normalize(e.winner) === seedTeam) {
                     extraPoints += 2;
-                } else if (e.winner && e.winner !== "TIE" && e.winner !== "ABANDONED") {
-                    isEliminated = true;
+                }
+            }
+        });
+
+        // Strikeoff teams which lost any knockout match where a loss means elimination
+        fixtures.forEach(e => {
+            if (e.isFunMatch) return;
+            if (e.stage.startsWith("Eliminator") || e.stage.startsWith("Qualifier 2") || e.stage.startsWith("Final")) {
+                let actT1 = e.team1;
+                let actT2 = e.team2;
+                if (actT1.startsWith("Rank ")) {
+                    const r = parseInt(actT1.replace("Rank ", ""));
+                    actT1 = baseSeeds.find(s => s.rank === r)?.team || actT1;
+                }
+                if (actT2.startsWith("Rank ")) {
+                    const r = parseInt(actT2.replace("Rank ", ""));
+                    actT2 = baseSeeds.find(s => s.rank === r)?.team || actT2;
+                }
+                const normalize = (s: string) => String(s || "").trim().toLowerCase();
+                const seedTeam = normalize(seed.team);
+
+                if (normalize(actT1) === seedTeam || normalize(actT2) === seedTeam) {
+                    if (e.winner && e.winner !== "TIE" && e.winner !== "ABANDONED") {
+                        if (normalize(e.winner) !== seedTeam) {
+                            isEliminated = true;
+                        }
+                    }
                 }
             }
         });
@@ -553,8 +578,16 @@ export function resolveS2Playoffs(
         return baseSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank}`;
     };
 
+    const eliminators = fixtures.filter(f => f.stage.startsWith("Eliminator") && !f.isFunMatch);
+    const eliminatorsComplete = eliminators.length > 0 && eliminators.every(f => {
+        const cleanId = String(f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        const liveMatch = liveStates[cleanId] || liveStates[String(f.matchNo).trim()] || liveStates[f.matchNo];
+        const status = liveMatch?.status || (f.winner ? "COMPLETED" : "SCHEDULED");
+        return status === "COMPLETED" || status === "ABANDONED" || f.winner;
+    });
+
     const getLiveTeam = (rank: number) => {
-        if (!isGroupStageComplete) return `Rank ${rank} Winner`;
+        if (!eliminatorsComplete) return `Rank ${rank} Winner`;
         return liveSeeds.find(s => s.rank === rank)?.team ?? `Rank ${rank} Winner`;
     };
 
@@ -578,13 +611,13 @@ export function resolveS2Playoffs(
         const hasManualTeam1 = !isPlaceholder(f.team1);
         const hasManualTeam2 = !isPlaceholder(f.team2);
 
-        if (f.stage === "Eliminator 1") {
+        if (f.stage.startsWith("Eliminator 1")) {
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(1), team2: hasManualTeam2 ? f.team2 : getBaseTeam(6) };
-        } else if (f.stage === "Eliminator 2") {
+        } else if (f.stage.startsWith("Eliminator 2")) {
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(2), team2: hasManualTeam2 ? f.team2 : getBaseTeam(5) };
-        } else if (f.stage === "Eliminator 3") {
+        } else if (f.stage.startsWith("Eliminator 3")) {
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getBaseTeam(3), team2: hasManualTeam2 ? f.team2 : getBaseTeam(4) };
-        } else if (f.stage === "Qualifier 1") {
+        } else if (f.stage.startsWith("Qualifier 1")) {
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : getLiveTeam(1), team2: hasManualTeam2 ? f.team2 : getLiveTeam(2) };
         }
     }
@@ -595,8 +628,8 @@ export function resolveS2Playoffs(
         const hasManualTeam1 = !isPlaceholder(f.team1);
         const hasManualTeam2 = !isPlaceholder(f.team2);
 
-        if (f.stage === "Qualifier 2") {
-            const q1f = resolvedFixtures.find(x => x.stage === "Qualifier 1");
+        if (f.stage.startsWith("Qualifier 2")) {
+            const q1f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 1"));
             const cleanId = q1f ? String(q1f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
             const liveMatch = q1f ? (liveStates[cleanId] || liveStates[String(q1f.matchNo).trim()] || liveStates[q1f.matchNo]) : null;
             const q1Winner = q1f?.winner || liveMatch?.winner;
@@ -605,9 +638,9 @@ export function resolveS2Playoffs(
                 ? (q1Winner === q1f.team1 ? q1f.team2 : q1f.team1)
                 : "Q1 Loser";
             resolvedFixtures[i] = { ...f, team1: hasManualTeam1 ? f.team1 : q1Loser, team2: hasManualTeam2 ? f.team2 : getLiveTeam(3) };
-        } else if (f.stage === "Final") {
-            const q1f = resolvedFixtures.find(x => x.stage === "Qualifier 1");
-            const q2f = resolvedFixtures.find(x => x.stage === "Qualifier 2");
+        } else if (f.stage.startsWith("Final")) {
+            const q1f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 1"));
+            const q2f = resolvedFixtures.find(x => x.stage.startsWith("Qualifier 2"));
             const q1CleanId = q1f ? String(q1f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
             const q2CleanId = q2f ? String(q2f.matchNo).trim().replace(/[^A-Za-z0-9]/g, '').toLowerCase() : "";
             const q1LiveMatch = q1f ? (liveStates[q1CleanId] || liveStates[q1f.matchNo]) : null;

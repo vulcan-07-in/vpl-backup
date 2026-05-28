@@ -197,7 +197,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                             #{fixture.matchNo}
                         </span>
                         <span className={`font-black uppercase tracking-[0.2em] ${isFeaturedKnockout ? 'text-amber-500' : 'text-zinc-600'}`}>
-                            {isKnockout ? fixture.stage : (fixture.group ? `GROUP ${fixture.group}` : 'PLAYOFF')}
+                            {(isKnockout || !fixture.group) ? fixture.stage : `GROUP ${fixture.group}`}
                         </span>
                     </div>
 
