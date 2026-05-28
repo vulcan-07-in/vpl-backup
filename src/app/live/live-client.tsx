@@ -454,7 +454,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                 exit={{ opacity: 0 }}
                                 className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none overflow-hidden"
                             >
-                                <div className="absolute inset-0 bg-black/90 backdrop-blur-lg" />
+                                <div className="absolute inset-0 bg-black/95" />
                                 
                                 {/* Flash Bang Effect */}
                                 <motion.div
@@ -466,7 +466,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                                 {/* Abstract Shapes/Particles Move (Minimal for phone performance) */}
                                 <div className="absolute inset-0 overflow-hidden">
-                                    {[...Array(6)].map((_, i) => (
+                                    {[...Array(3)].map((_, i) => (
                                         <motion.div
                                             key={i}
                                             initial={{ 
@@ -475,12 +475,13 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                                             animate={{ 
                                                 x: `${Math.random() * 100}vw`,
                                                 y: `${Math.random() * 100}vh`,
-                                                scale: [0, Math.random() * 2 + 1, 0],
-                                                opacity: [0, 0.4, 0],
+                                                scale: [0, Math.random() * 1.5 + 0.5, 0],
+                                                opacity: [0, 0.3, 0],
                                                 rotate: Math.random() * 360
                                             }}
                                             transition={{ duration: 1.5, ease: "easeOut" }}
-                                            className={`absolute w-16 h-16 md:w-32 md:h-32 rounded-full border ${i % 2 === 0 ? 'border-white/40 bg-white/5 blur-md' : 'border-white/10'}`}
+                                            className={`absolute w-16 h-16 md:w-32 md:h-32 rounded-full border border-white/10 ${i % 2 === 0 ? 'bg-white/5' : ''}`}
+                                            style={{ willChange: "transform, opacity" }}
                                         />
                                     ))}
                                 </div>
@@ -554,17 +555,12 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 50 }}
                         transition={{ delay: 0.1, type: "spring", damping: 25 }}
-                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-6 px-8 py-4 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-none"
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex items-center justify-center p-3 bg-black/90 border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-none"
                     >
-                        <div className="flex flex-col items-end">
-                            <p className="text-[9px] md:text-[11px] text-zinc-500 font-black tracking-[0.4em] uppercase">Powered By</p>
-                            <p className="text-xs md:text-sm text-white font-bold tracking-widest uppercase">{animationEvent.sponsorId === 1 ? 'Chitralaya' : 'Patil'}</p>
-                        </div>
-                        <div className="w-px h-10 bg-white/20" />
-                        <div className={`relative flex items-center justify-center shrink-0 ${animationEvent.sponsorId === 1 ? 'w-16 h-16 md:w-20 md:h-20 bg-white rounded-full p-1' : 'h-12 md:h-16'}`}>
+                        <div className={`relative flex items-center justify-center shrink-0 ${animationEvent.sponsorId === 1 ? 'w-24 h-24 md:w-32 md:h-32 bg-white rounded-2xl p-2' : 'h-20 md:h-28'}`}>
                             <img
                                 src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
-                                className={animationEvent.sponsorId === 1 ? "w-full h-full object-cover rounded-full" : "h-full object-contain"}
+                                className={animationEvent.sponsorId === 1 ? "w-full h-full object-cover rounded-xl" : "h-full object-contain"}
                                 alt="Sponsor"
                             />
                         </div>
