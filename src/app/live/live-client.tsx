@@ -397,6 +397,11 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
     return (
         <main className="min-h-screen pt-24 pb-16 px-4 md:pt-32">
+            {/* Preload sponsor logos to prevent delay during animations */}
+            <div className="hidden">
+                <img src="/sponsor-chitralaya.png" alt="preload" />
+                <img src="/sponsor-patil.png" alt="preload" />
+            </div>
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-3">
@@ -499,7 +504,7 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
 
                                     {/* Main Event Text */}
                                     <motion.h2 
-                                        className={`relative z-10 text-[18vw] md:text-[12vw] lg:text-[10rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] ${
+                                        className={`relative z-10 text-[18vw] md:text-[12vw] lg:text-[10rem] font-black italic text-transparent bg-clip-text leading-none tracking-tighter uppercase drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] pr-4 md:pr-8 ${
                                             animationEvent.type === 'W' || animationEvent.type === 'HATTRICK' ? 'bg-gradient-to-b from-red-500 via-red-600 to-red-900' 
                                             : 'bg-gradient-to-b from-white via-zinc-200 to-zinc-500'
                                         }`}
@@ -555,12 +560,12 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 50 }}
                         transition={{ delay: 0.1, type: "spring", damping: 25 }}
-                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex items-center justify-center p-3 bg-black/90 border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-none"
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex items-center justify-center p-3 bg-black/90 border border-white/10 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-none"
                     >
-                        <div className={`relative flex items-center justify-center shrink-0 ${animationEvent.sponsorId === 1 ? 'w-24 h-24 md:w-32 md:h-32 bg-white rounded-2xl p-2' : 'h-20 md:h-28'}`}>
+                        <div className={`relative flex items-center justify-center shrink-0 ${animationEvent.sponsorId === 1 ? 'w-24 h-24 md:w-32 md:h-32 bg-white rounded-full p-2' : 'h-20 md:h-28'}`}>
                             <img
                                 src={animationEvent.sponsorId === 1 ? "/sponsor-chitralaya.png" : "/sponsor-patil.png"}
-                                className={animationEvent.sponsorId === 1 ? "w-full h-full object-cover rounded-xl" : "h-full object-contain"}
+                                className={animationEvent.sponsorId === 1 ? "w-full h-full object-cover rounded-full" : "h-full object-contain rounded-full"}
                                 alt="Sponsor"
                             />
                         </div>
