@@ -281,7 +281,7 @@ export default function PlayersClient({ initialPlayers, teams, serverError }: { 
                                             </select>
                                         </div>
                                     )}
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-2 opacity-100 transition-opacity">
                                         <button
                                             onClick={() => updatePlayer(player.accountId, { isApproved: false })}
                                             className="flex-1 bg-zinc-800 text-zinc-400 py-1.5 rounded-lg text-[10px] font-bold hover:text-white"

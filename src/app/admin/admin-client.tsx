@@ -427,7 +427,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
+                                    <div className="flex flex-col gap-2 opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
                                         {m.status === 'SCHEDULED' && !m.tossWinnerId && (
                                             <button onClick={() => setTossMatch(m)} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-xs font-bold">LOG TOSS</button>
                                         )}
@@ -607,7 +607,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                 <p className="text-xs text-zinc-500">{t.shortName} | Group {t.groupId}</p>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex flex-col gap-1 opacity-100 transition-opacity">
                                             <button 
                                                 onClick={() => { setEditingTeamId(t.id); router.refresh(); }}
                                                 className="bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white px-2 py-1 text-[10px] rounded transition-colors font-bold tracking-wider"
@@ -654,7 +654,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                         const action = p.id.startsWith('CUST-') || (p.id.includes('-') && p.id.length > 20) ? "delete_player" : "remove_registered_player";
                                                         handleAction("/api/squads", { action, playerId: p.id, accountId: p.id }, fetchSquads);
                                                     }}
-                                                    className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                    className="text-red-500 opacity-100 transition-opacity p-1"
                                                     title="Remove Player"
                                                 ><Trash2 size={14} /></button>
                                             </div>

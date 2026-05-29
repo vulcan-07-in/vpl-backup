@@ -40,16 +40,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         return () => clearInterval(interval);
     }, [fixtures]);
 
-    // Derive group team lists from fixtures
-    const groupTeams: Record<"A" | "B" | "C", string[]> = { A: [], B: [], C: [] };
-    fixtures.forEach(f => {
-        if (f.group === "A" || f.group === "B" || f.group === "C") {
-            if (!groupTeams[f.group].includes(f.team1) && !f.team1.includes("Group") && !f.team1.includes("Pool")) groupTeams[f.group].push(f.team1);
-            if (!groupTeams[f.group].includes(f.team2) && !f.team2.includes("Group") && !f.team2.includes("Pool")) groupTeams[f.group].push(f.team2);
-        }
-    });
 
-    const hasGroupData = groupTeams.A.length > 0 || groupTeams.B.length > 0 || groupTeams.C.length > 0;
 
     const getLocalDateString = (isoString?: string) => {
         if (!isoString) return "TBD";
@@ -75,8 +66,11 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
         }
     };
 
+    const exhibitionMatches = fixtures.filter(f => f.isFunMatch);
+    const competitiveMatches = fixtures.filter(f => !f.isFunMatch);
+
     const uniqueDates = Array.from(new Set(
-        fixtures
+        competitiveMatches
             .map(f => getLocalDateString(f.scheduledTime))
             .filter(d => d !== "TBD")
     )).sort();
@@ -87,7 +81,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
     });
 
     const groupedFixtures: Record<string, Fixture[]> = {};
-    fixtures.forEach(f => {
+    competitiveMatches.forEach(f => {
         const dateKey = getLocalDateString(f.scheduledTime);
         if (!groupedFixtures[dateKey]) {
             groupedFixtures[dateKey] = [];
@@ -305,7 +299,7 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                 )}
 
                 {/* Click action indicator */}
-                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-zinc-600 group-hover:text-amber-500">
+                <div className="absolute bottom-4 right-4 opacity-100 transition-opacity duration-300 text-zinc-600 group-hover:text-amber-500">
                     <ChevronRight className="w-4 h-4" />
                 </div>
             </div>
@@ -364,38 +358,31 @@ export default function MatchesClient({ fixtures, teams }: { fixtures: Fixture[]
                         animate="show"
                         className="space-y-16"
                     >
-                        {/* High-tech Group Mini-Cards */}
-                        {hasGroupData && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
-                                {(["A", "B", "C"] as const).map(group => (
-                                    <motion.div 
-                                        variants={itemVariants} 
-                                        key={group} 
-                                        className="relative overflow-hidden rounded-3xl border border-white/[0.04] bg-zinc-950/20 hover:border-amber-500/10 p-5 backdrop-blur-xl shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                                    >
-                                        <div className="flex items-center justify-between border-b border-white/[0.04] pb-2 mb-4">
-                                            <p className="text-xs font-black tracking-widest text-amber-500 uppercase font-mono">
-                                                GROUP {group}
-                                            </p>
-                                            <span className="text-[9px] text-zinc-500 font-mono font-bold">{groupTeams[group].length} TEAMS</span>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {groupTeams[group].map((team, idx) => (
-                                                <div key={team} className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3 min-w-0">
-                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: colorOf(team), boxShadow: `0 0 8px ${colorOf(team)}` }} />
-                                                        <span className="text-sm text-zinc-300 font-medium truncate font-heading">
-                                                             {team}
-                                                         </span>
-                                                     </div>
-                                                     <span className="text-[9px] font-mono text-zinc-600 font-bold">#{idx + 1}</span>
-                                                 </div>
-                                             ))}
-                                         </div>
-                                     </motion.div>
-                                 ))}
-                             </div>
-                         )}
+
+
+                        {/* Exhibition Matches Section */}
+                        {exhibitionMatches.length > 0 && (
+                            <div className="space-y-8 mb-20">
+                                {/* Premium Day Divider Banner */}
+                                <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-amber-500/30 pb-5">
+                                    <div>
+                                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] tracking-widest text-amber-500 font-bold uppercase font-mono mb-2 shadow-sm">
+                                            🎪 FUN MATCHES
+                                        </span>
+                                        <h2 className="text-3xl sm:text-5xl text-white font-black leading-none tracking-tight font-display bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600">
+                                            Exhibition Matches
+                                        </h2>
+                                    </div>
+                                    <span className="text-xs text-amber-500/70 font-mono tracking-widest uppercase sm:pb-1 font-bold">
+                                        {exhibitionMatches.length} {exhibitionMatches.length === 1 ? "MATCH" : "MATCHES"}
+                                    </span>
+                                </motion.div>
+
+                                <div className="space-y-8">
+                                    {exhibitionMatches.map(fixture => renderFixture(fixture, false))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Chronological Day Sections */}
                         <div className="space-y-20">

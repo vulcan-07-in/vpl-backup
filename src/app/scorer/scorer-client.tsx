@@ -2036,7 +2036,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                         {ball.isWicket && <p className="text-[9px] text-red-400 font-bold uppercase mt-1">{ball.wicketType}: {ball.playerOut}</p>}
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                                <div className="flex gap-2 opacity-100 transition-all">
                                                     <button
                                                         onClick={() => setEditingBall(ball)}
                                                         className="p-2 text-zinc-700 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg"

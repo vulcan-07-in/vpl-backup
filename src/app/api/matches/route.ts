@@ -64,14 +64,26 @@ export async function POST(request: Request) {
                 const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
                 
                 if (!isUuid(team1Id)) {
-                    const newId = randomUUID();
-                    await supabase.from("Team").insert({ id: newId, name: team1Id, shortName: team1Id.substring(0, 3).toUpperCase(), groupId: null, purse: 0, image: "" });
-                    team1Id = newId;
+                    const { data: existing } = await supabase.from("Team").select("id").ilike("name", team1Id.trim()).single();
+                    if (existing) {
+                        team1Id = existing.id;
+                    } else {
+                        const newId = randomUUID();
+                        const { error } = await supabase.from("Team").insert({ id: newId, name: team1Id.trim(), shortName: team1Id.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                        if (error) throw new Error("Failed to create fun team 1: " + error.message);
+                        team1Id = newId;
+                    }
                 }
                 if (!isUuid(team2Id)) {
-                    const newId = randomUUID();
-                    await supabase.from("Team").insert({ id: newId, name: team2Id, shortName: team2Id.substring(0, 3).toUpperCase(), groupId: null, purse: 0, image: "" });
-                    team2Id = newId;
+                    const { data: existing } = await supabase.from("Team").select("id").ilike("name", team2Id.trim()).single();
+                    if (existing) {
+                        team2Id = existing.id;
+                    } else {
+                        const newId = randomUUID();
+                        const { error } = await supabase.from("Team").insert({ id: newId, name: team2Id.trim(), shortName: team2Id.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                        if (error) throw new Error("Failed to create fun team 2: " + error.message);
+                        team2Id = newId;
+                    }
                 }
             } else if (!group) {
                 const { data: team1Row } = await supabase.from("Team").select("groupId").eq("id", team1Id).single();
@@ -167,11 +179,25 @@ export async function POST(request: Request) {
             
             if (customTeam1Name && customTeam1Name.trim()) {
                 const { data: t1 } = await supabase.from("Team").select("id").ilike("name", customTeam1Name.trim()).single();
-                if (t1?.id) resolvedTeam1Id = t1.id;
+                if (t1?.id) {
+                    resolvedTeam1Id = t1.id;
+                } else if (isFunMatch) {
+                    const newId = randomUUID();
+                    const { error } = await supabase.from("Team").insert({ id: newId, name: customTeam1Name.trim(), shortName: customTeam1Name.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                    if (error) throw new Error("Failed to create fun team 1: " + error.message);
+                    resolvedTeam1Id = newId;
+                }
             }
             if (customTeam2Name && customTeam2Name.trim()) {
                 const { data: t2 } = await supabase.from("Team").select("id").ilike("name", customTeam2Name.trim()).single();
-                if (t2?.id) resolvedTeam2Id = t2.id;
+                if (t2?.id) {
+                    resolvedTeam2Id = t2.id;
+                } else if (isFunMatch) {
+                    const newId = randomUUID();
+                    const { error } = await supabase.from("Team").insert({ id: newId, name: customTeam2Name.trim(), shortName: customTeam2Name.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                    if (error) throw new Error("Failed to create fun team 2: " + error.message);
+                    resolvedTeam2Id = newId;
+                }
             }
 
             const { error } = await supabase
