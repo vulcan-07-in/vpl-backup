@@ -208,7 +208,7 @@ export async function POST(request: Request) {
                     group: group || null,
                     team1Id: resolvedTeam1Id,
                     team2Id: resolvedTeam2Id,
-                    scheduledTime: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+                    scheduledTime: scheduledTime || null,
                     isFunMatch: isFunMatch ?? false,
                     updatedAt: now,
                 })
@@ -380,7 +380,7 @@ export async function POST(request: Request) {
             for (const match of orderedMatches) {
                 if (!match.id) continue;
                 
-                const timeToSave = match.scheduledTime ? new Date(match.scheduledTime).toISOString() : null;
+                const timeToSave = match.scheduledTime || null;
                 
                 const { error: updErr } = await supabase.from("Match").update({
                     scheduledTime: timeToSave
@@ -463,7 +463,7 @@ export async function POST(request: Request) {
                     team2Id: team2Id,
                     status: "SCHEDULED",
                     isFunMatch: false,
-                    scheduledTime: scheduledDate.toISOString(),
+                    scheduledTime: scheduledDate.toISOString().split('.')[0],
                     createdAt: now,
                     updatedAt: now,
                 };

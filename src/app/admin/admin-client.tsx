@@ -346,7 +346,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                 handleAction("/api/matches", { 
                                     action: "create_match", 
                                     ...newMatch, 
-                                    scheduledTime: newMatch.scheduledTime ? new Date(newMatch.scheduledTime).toISOString() : "" 
+                                    scheduledTime: newMatch.scheduledTime || "" 
                                 }, fetchMatches); 
                             }}>
                                 <div className="grid grid-cols-2 gap-4">
@@ -431,7 +431,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                                                 value={getLocalDatetimeLocal(m.scheduledTime)}
                                                 onChange={(e) => {
                                                     const newMatches = [...matches];
-                                                    newMatches[i].scheduledTime = e.target.value ? new Date(e.target.value).toISOString() : null;
+                                                    newMatches[i].scheduledTime = e.target.value || null;
                                                     setMatches(newMatches);
                                                 }}
                                                 className="bg-zinc-800 border border-zinc-700 rounded p-1.5 text-xs text-zinc-300 w-56 focus:border-amber-500 outline-none"
