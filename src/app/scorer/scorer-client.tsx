@@ -62,15 +62,37 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             const savedScreen = localStorage.getItem("scorerScreen");
 
             if (savedAuth === "true") {
-                setIsAuthenticated(true);
-                if (savedScreen && savedScreen !== "AUTH") {
-                    setActiveScreen(savedScreen as ScorerScreen);
-                } else {
-                    setActiveScreen("SELECT_MATCH");
+                // CRITICAL: Verify the auth cookie is still valid with the server.
+                // Tablets/mobile browsers aggressively clear cookies, so localStorage
+                // saying "authenticated" means nothing if the cookie is gone.
+                try {
+                    const verifyRes = await fetch("/api/scorer-auth/verify");
+                    if (verifyRes.ok) {
+                        setIsAuthenticated(true);
+                        if (savedScreen && savedScreen !== "AUTH") {
+                            setActiveScreen(savedScreen as ScorerScreen);
+                        } else {
+                            setActiveScreen("SELECT_MATCH");
+                        }
+                    } else {
+                        // Cookie expired/cleared — force re-login
+                        console.warn("Auth cookie expired, forcing re-login");
+                        localStorage.removeItem("isScorerAuthenticated");
+                        setIsAuthenticated(false);
+                        setActiveScreen("AUTH");
+                    }
+                } catch (e) {
+                    // Network error — trust localStorage as fallback
+                    setIsAuthenticated(true);
+                    if (savedScreen && savedScreen !== "AUTH") {
+                        setActiveScreen(savedScreen as ScorerScreen);
+                    } else {
+                        setActiveScreen("SELECT_MATCH");
+                    }
                 }
             }
 
-            if (savedMatchId) {
+            if (savedMatchId && (savedAuth === "true")) {
                 const match = fixtures.find(f => f.matchNo === savedMatchId);
                 if (match) {
                     setSelectedMatch(match);
@@ -78,7 +100,7 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                     loadMatchData(savedMatchId);
                 } else {
                     // Safety: mismatch between saved session and current data
-                    if (savedAuth === "true") setActiveScreen("SELECT_MATCH");
+                    setActiveScreen("SELECT_MATCH");
                 }
             } else if (savedAuth === "true" && (savedScreen === "TOSS_SETUP" || savedScreen === "LIVE_SCORING" || savedScreen === "SCHEDULE_SETUP")) {
                 // Safety: no match selected but trying to enter a match screen
@@ -502,8 +524,33 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
             });
             if (res.ok) {
                 setIsAuthenticated(true);
-                setActiveScreen("SELECT_MATCH");
                 localStorage.setItem("isScorerAuthenticated", "true");
+                
+                // If we have an active match with live state, resume scoring directly
+                // This handles the case where auth expired mid-match (common on tablets)
+                if (selectedMatch && liveState) {
+                    setActiveScreen("LIVE_SCORING");
+                    // Immediately retry any pending sync now that we're re-authenticated
+                    const pendingKey = `vpl_pending_sync_${liveState.matchId}`;
+                    const pendingData = localStorage.getItem(pendingKey);
+                    if (pendingData) {
+                        try {
+                            const syncRes = await fetch("/api/live-score", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: pendingData
+                            });
+                            if (syncRes.ok) {
+                                localStorage.removeItem(pendingKey);
+                                setSyncStatus("SYNCED");
+                            }
+                        } catch (e) {
+                            console.error("Post-reauth sync failed, will retry in background", e);
+                        }
+                    }
+                } else {
+                    setActiveScreen("SELECT_MATCH");
+                }
             } else {
                 alert("Incorrect PIN.");
                 setPin("");
@@ -725,7 +772,23 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                 body: JSON.stringify(newState)
             });
 
-            if (!res.ok) throw new Error("Sync failed");
+            if (res.status === 401) {
+                // Auth cookie expired (common on tablets/mobile) — force re-auth
+                console.error("AUTH EXPIRED: Scorer cookie missing, forcing re-login");
+                setSyncStatus("ERROR");
+                // Save state for recovery after re-auth
+                if (matchId) {
+                    localStorage.setItem(`vpl_pending_sync_${matchId}`, JSON.stringify(newState));
+                }
+                alert("⚠️ Your session has expired. You will be asked to re-enter your PIN. Your scores are saved locally and will sync after login.");
+                // Force re-authentication but don't clear match data
+                setActiveScreen("AUTH");
+                setIsAuthenticated(false);
+                localStorage.removeItem("isScorerAuthenticated");
+                return;
+            }
+
+            if (!res.ok) throw new Error(`Sync failed: ${res.status}`);
 
             setSyncStatus("SYNCED");
 
@@ -1569,7 +1632,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 ) : syncStatus === "PENDING" ? (
                                     <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.4)]" title="Syncing..." />
                                 ) : (
-                                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping shadow-[0_0_8px_rgba(239,68,68,0.4)]" title="Offline - Saved locally" />
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 bg-red-500 rounded-full animate-ping shadow-[0_0_12px_rgba(239,68,68,0.6)]" />
+                                        <span className="text-[9px] font-black text-red-500 tracking-widest uppercase animate-pulse">NOT SYNCING</span>
+                                    </div>
                                 )}
                             </span>
                             <span className="text-zinc-500 text-[9px] font-mono uppercase">{liveState.status}</span>
