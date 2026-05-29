@@ -69,7 +69,7 @@ export async function POST(request: Request) {
                         team1Id = existing.id;
                     } else {
                         const newId = randomUUID();
-                        const { error } = await supabase.from("Team").insert({ id: newId, name: team1Id.trim(), shortName: team1Id.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                        const { error } = await supabase.from("Team").insert({ id: newId, name: team1Id.trim(), shortName: team1Id.trim().substring(0, 3).toUpperCase(), groupId: "-" });
                         if (error) throw new Error("Failed to create fun team 1: " + error.message);
                         team1Id = newId;
                     }
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
                         team2Id = existing.id;
                     } else {
                         const newId = randomUUID();
-                        const { error } = await supabase.from("Team").insert({ id: newId, name: team2Id.trim(), shortName: team2Id.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                        const { error } = await supabase.from("Team").insert({ id: newId, name: team2Id.trim(), shortName: team2Id.trim().substring(0, 3).toUpperCase(), groupId: "-" });
                         if (error) throw new Error("Failed to create fun team 2: " + error.message);
                         team2Id = newId;
                     }
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
                     resolvedTeam1Id = t1.id;
                 } else if (isFunMatch) {
                     const newId = randomUUID();
-                    const { error } = await supabase.from("Team").insert({ id: newId, name: customTeam1Name.trim(), shortName: customTeam1Name.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                    const { error } = await supabase.from("Team").insert({ id: newId, name: customTeam1Name.trim(), shortName: customTeam1Name.trim().substring(0, 3).toUpperCase(), groupId: "-" });
                     if (error) throw new Error("Failed to create fun team 1: " + error.message);
                     resolvedTeam1Id = newId;
                 }
@@ -194,7 +194,7 @@ export async function POST(request: Request) {
                     resolvedTeam2Id = t2.id;
                 } else if (isFunMatch) {
                     const newId = randomUUID();
-                    const { error } = await supabase.from("Team").insert({ id: newId, name: customTeam2Name.trim(), shortName: customTeam2Name.trim().substring(0, 3).toUpperCase(), groupId: "-", purse: 0 });
+                    const { error } = await supabase.from("Team").insert({ id: newId, name: customTeam2Name.trim(), shortName: customTeam2Name.trim().substring(0, 3).toUpperCase(), groupId: "-" });
                     if (error) throw new Error("Failed to create fun team 2: " + error.message);
                     resolvedTeam2Id = newId;
                 }
