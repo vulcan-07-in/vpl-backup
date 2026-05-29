@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { validateAdminRequest } from '@/lib/auth';
 import { redis } from '@/lib/redis';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const activeMatchId = await redis.get('s2:active_live_match_id');
-        return NextResponse.json({ activeMatchId }, {
-            headers: { 'Cache-Control': 's-maxage=15, stale-while-revalidate=20' }
+        return NextResponse.json({ activeMatchId: activeMatchId || null }, {
+            headers: { 'Cache-Control': 'no-store' }
         });
     } catch (error) {
         console.error('active-match GET Error:', error);
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
 
         const { activeMatchId } = await request.json();
 
-        if (activeMatchId === null) {
+        if (!activeMatchId) {
             await redis.del('s2:active_live_match_id');
         } else {
             await redis.set('s2:active_live_match_id', activeMatchId);
