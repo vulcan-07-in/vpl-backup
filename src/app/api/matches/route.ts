@@ -377,46 +377,14 @@ export async function POST(request: Request) {
             const { orderedMatches } = payload;
             if (!orderedMatches || !Array.isArray(orderedMatches)) throw new Error("Missing orderedMatches");
 
-            // Fetch current matches in correct order
-            const { data: dbMatches, error: fetchErr } = await supabase.from("Match").select("id, matchNo, scheduledTime").order("createdAt", { ascending: true });
-            if (fetchErr) throw new Error(fetchErr.message);
-
-            const sorted = (dbMatches || []).sort((a: any, b: any) => {
-                if (a.scheduledTime && b.scheduledTime) {
-                    const timeA = new Date(a.scheduledTime).getTime();
-                    const timeB = new Date(b.scheduledTime).getTime();
-                    if (timeA !== timeB) return timeA - timeB;
-                }
-                const numA = parseInt(a.matchNo.replace(/[^0-9]/g, "")) || 999;
-                const numB = parseInt(b.matchNo.replace(/[^0-9]/g, "")) || 999;
-                if (numA !== numB) return numA - numB;
-                return a.matchNo.localeCompare(b.matchNo);
-            });
-
-            // Map dragged items into the sorted slots
-            for (let i = 0; i < sorted.length && i < orderedMatches.length; i++) {
-                const slot = sorted[i];
-                const draggedItem = orderedMatches[i];
-
-                // Find the original DB row for the dragged item to check if its time was edited inline
-                const originalItem = sorted.find(m => m.id === draggedItem.id);
+            for (const match of orderedMatches) {
+                if (!match.id) continue;
                 
-                let originalTimeStr = originalItem?.scheduledTime ? new Date(originalItem.scheduledTime).toISOString() : null;
-                let draggedTimeStr = draggedItem.scheduledTime ? new Date(draggedItem.scheduledTime).toISOString() : null;
+                const timeToSave = match.scheduledTime ? new Date(match.scheduledTime).toISOString() : null;
                 
-                const wasTimeEdited = originalTimeStr !== draggedTimeStr;
-
-                // If the time was edited, apply the new time to the slot. 
-                // If it wasn't edited, keep the slot's original time (this allows teams to swap time slots when dragged)
-                const timeToSave = wasTimeEdited ? draggedTimeStr : slot.scheduledTime;
-
                 const { error: updErr } = await supabase.from("Match").update({
-                    team1Id: draggedItem.team1Id,
-                    team2Id: draggedItem.team2Id,
-                    group: draggedItem.group,
-                    isFunMatch: draggedItem.isFunMatch,
                     scheduledTime: timeToSave
-                }).eq("id", slot.id);
+                }).eq("id", match.id);
 
                 if (updErr) throw new Error(updErr.message);
             }

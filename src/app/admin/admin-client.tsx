@@ -405,7 +405,18 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                             <h2 className="text-xl font-black tracking-widest flex items-center gap-2"><RotateCw className="text-amber-500"/> Organize & Schedule</h2>
                             <button onClick={() => handleAction("/api/matches", { action: "bulk_update_matches", orderedMatches: matches }, fetchMatches)} className="bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 rounded-lg text-sm font-black tracking-widest transition-all">SAVE CHANGES</button>
                         </div>
-                        <Reorder.Group axis="y" values={matches} onReorder={setMatches} className="space-y-4">
+                        <p className="text-zinc-500 text-sm mb-4">Drag matches to automatically swap their time slots, or manually edit the times below. Changes are only saved when you click SAVE CHANGES.</p>
+                        <Reorder.Group axis="y" values={matches} onReorder={(newOrder) => {
+                            // Extract existing times in strict chronological order
+                            const chronologicalTimes = matches.map(m => m.scheduledTime);
+                            
+                            // Apply times strictly to the new visual order so the UI updates instantly
+                            const updated = newOrder.map((m, i) => ({
+                                ...m,
+                                scheduledTime: chronologicalTimes[i]
+                            }));
+                            setMatches(updated);
+                        }} className="space-y-4">
                             {matches.map((m, i) => (
                                 <Reorder.Item key={m.id} value={m} className="bg-black border border-zinc-800 p-4 rounded-xl flex justify-between items-center group cursor-grab active:cursor-grabbing">
                                     <div className="flex-1">

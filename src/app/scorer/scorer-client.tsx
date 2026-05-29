@@ -1849,7 +1849,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                             >
                                                 <option value="">CHANGE</option>
                                                 <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
-                                                {getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName)
+                                                {Array.from(new Set([
+                                                    ...getSquadForTeam(p.isBowler ? fieldingInningsData.teamName : currentInningsData.teamName),
+                                                    ...Object.keys(p.isBowler ? fieldingInningsData.bowlers : currentInningsData.batsmen)
+                                                ]))
                                                     .filter(name => {
                                                         if (name === p.ref) return true;
                                                         if (p.isBowler) return true;
@@ -1909,7 +1912,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                                 >
                                                     <option value="">NEXT BOWLER</option>
                                                     <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
-                                                    {getSquadForTeam(fieldingInningsData.teamName).map(p => (
+                                                    {Array.from(new Set([
+                                                        ...getSquadForTeam(fieldingInningsData.teamName),
+                                                        ...Object.keys(fieldingInningsData.bowlers)
+                                                    ])).map(p => (
                                                         <option key={p} value={p}>{p}</option>
                                                     ))}
                                                 </select>
@@ -2414,7 +2420,10 @@ export default function ScorerClient({ fixtures, teams, squads }: { fixtures: Fi
                                 >
                                     <option value="" disabled>Select Player...</option>
                                     <option value="MANUAL_ENTRY" className="text-amber-400 font-bold">+ MANUAL ENTRY</option>
-                                    {getSquadForTeam(inn.teamName)
+                                    {Array.from(new Set([
+                                        ...getSquadForTeam(inn.teamName),
+                                        ...Object.keys(inn.batsmen)
+                                    ]))
                                         .filter(p => !inn.batsmen[p] || (!inn.batsmen[p].isOut && p !== inn.strikerRef && p !== inn.nonStrikerRef))
                                         .map(p => (
                                             <option key={p} value={p}>{p}</option>
