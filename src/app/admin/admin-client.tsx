@@ -498,7 +498,7 @@ export default function AdminClient({ initialTeams }: { initialTeams: any[] }) {
                             >
                                 <option value="">--- NO MATCH LIVE ---</option>
                                 {matches.map((m: any) => (
-                                    <option key={m.id} value={m.id}>Match {m.matchNo}: {initialTeams.find(t=>t.id===m.team1Id)?.shortName} vs {initialTeams.find(t=>t.id===m.team2Id)?.shortName}</option>
+                                    <option key={m.id} value={m.matchNo}>Match {m.matchNo}: {initialTeams.find(t=>t.id===m.team1Id)?.shortName} vs {initialTeams.find(t=>t.id===m.team2Id)?.shortName}</option>
                                 ))}
                             </select>
                             

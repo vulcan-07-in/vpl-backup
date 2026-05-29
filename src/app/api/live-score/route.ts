@@ -5,9 +5,13 @@ import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 import { redis } from '@/lib/redis';
 
+export const dynamic = 'force-dynamic';
+
+const cleanId = (id: string) => String(id).replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+
 // S2 Redis key prefix
-const liveKey = (matchId: string) => `s2:live_match_${matchId}`;
-const completedKey = (matchId: string) => `s2:completed_match_${matchId}`;
+const liveKey = (matchId: string) => `s2:live_match_${cleanId(matchId)}`;
+const completedKey = (matchId: string) => `s2:completed_match_${cleanId(matchId)}`;
 
 // GET — fetch current live match state
 export async function GET(request: Request) {
@@ -19,7 +23,18 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Fetch live state and isFunMatch directly from Supabase
+        // 1. Try Redis first (fastest, most accurate live state)
+        const redisData = await redis.get(liveKey(matchId));
+        if (redisData) {
+            const state = JSON.parse(redisData) as LiveMatchState;
+            return NextResponse.json(state, {
+                headers: {
+                    'Cache-Control': 'no-store', // Disable caching for real-time updates
+                },
+            });
+        }
+
+        // 2. Fallback to Supabase
         const { data: match, error } = await supabase
             .from('Match')
             .select('liveState, isFunMatch')
@@ -37,9 +52,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json(matchState, {
             headers: {
-                // Edge cache: serve stale for up to 3s (matches client poll interval)
-                // All 300 concurrent viewers share ONE upstream Redis read per 3s
-                'Cache-Control': 's-maxage=1, stale-while-revalidate=2',
+                'Cache-Control': 'no-store', // Disable caching for real-time updates
             },
         });
     } catch (error) {
