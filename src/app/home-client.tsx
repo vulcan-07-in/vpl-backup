@@ -75,7 +75,7 @@ export default function HomeClient({ champion, auctionStartTime, auctionEndTime 
                     transition={{ delay: 0.2, duration: 0.6 }}
                     className="flex flex-col gap-2"
                 >
-                    <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-gold-gradient leading-none">
+                    <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter text-gold-gradient leading-none pr-4">
                         Varchasva
                     </h1>
                     <p className="text-sm md:text-base uppercase tracking-[0.4em] text-zinc-500 font-medium">

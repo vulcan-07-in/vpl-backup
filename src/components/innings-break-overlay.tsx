@@ -58,7 +58,7 @@ export const InningsBreakOverlay = React.memo(function InningsBreakOverlay({
                 <motion.h2
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="text-7xl md:text-9xl text-white font-black italic tracking-tighter leading-none"
+                    className="text-7xl md:text-9xl text-white font-black italic tracking-tighter leading-none pr-4"
                     style={{ fontFamily: "var(--font-display)" }}
                 >
                     INNINGS 1 <br /> OVER

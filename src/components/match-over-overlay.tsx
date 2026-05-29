@@ -71,7 +71,7 @@ export const MatchOverOverlay = React.memo(function MatchOverOverlay({
                 <motion.h1
                     initial={{ y: 50, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="text-7xl md:text-9xl font-black text-white italic tracking-tighter leading-none mb-8"
+                    className="text-7xl md:text-9xl font-black text-white italic tracking-tighter leading-none mb-8 pr-4"
                     style={{ fontFamily: "var(--font-display)" }}
                 >
                     MATCH <br /> OVER

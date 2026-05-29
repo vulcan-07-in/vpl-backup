@@ -276,12 +276,12 @@ export default function LiveViewerClient({ fixtures, teams, initialMatchId }: { 
                 <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16 mb-12">
                     <div className="flex flex-col items-center gap-4">
                         <div className="w-20 h-20 rounded-3xl shadow-2xl border-4 border-white/5" style={{ backgroundColor: colorOf(liveMatch.innings1.teamName) }} />
-                        <h2 className="text-4xl font-black text-white uppercase italic" style={{ fontFamily: "var(--font-display)" }}>{liveMatch.innings1.teamName}</h2>
+                        <h2 className="text-4xl font-black text-white uppercase italic pr-2" style={{ fontFamily: "var(--font-display)" }}>{liveMatch.innings1.teamName}</h2>
                     </div>
-                    <div className="text-zinc-800 text-4xl font-black italic tracking-tighter">VS</div>
+                    <div className="text-zinc-800 text-4xl font-black italic tracking-tighter pr-2">VS</div>
                     <div className="flex flex-col items-center gap-4">
                         <div className="w-20 h-20 rounded-3xl shadow-2xl border-4 border-white/5" style={{ backgroundColor: colorOf(liveMatch.innings2.teamName) }} />
-                        <h2 className="text-4xl font-black text-white uppercase italic" style={{ fontFamily: "var(--font-display)" }}>{liveMatch.innings2.teamName}</h2>
+                        <h2 className="text-4xl font-black text-white uppercase italic pr-2" style={{ fontFamily: "var(--font-display)" }}>{liveMatch.innings2.teamName}</h2>
                     </div>
                 </div>
 

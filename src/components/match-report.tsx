@@ -45,7 +45,7 @@ export function MatchReport({ state, teams }: MatchReportProps) {
                     <Trophy className="w-6 h-6 text-amber-500" />
                     <span className="text-[10px] tracking-[0.5em] text-zinc-500 font-bold uppercase">Match Official Report</span>
                 </div>
-                <h1 className="text-4xl font-bold text-white tracking-widest uppercase italic" style={{ fontFamily: "var(--font-heading)" }}>
+                <h1 className="text-4xl font-bold text-white tracking-widest uppercase italic pr-2" style={{ fontFamily: "var(--font-heading)" }}>
                     {inn1.teamName} <span className="text-zinc-700 not-italic mx-2">VS</span> {inn2.teamName}
                 </h1>
                 <p className="text-amber-500 text-sm font-bold tracking-widest uppercase py-2 px-4 bg-amber-500/10 rounded-full inline-block mt-4">
