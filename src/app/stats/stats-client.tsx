@@ -21,6 +21,8 @@ export interface PlayerStats {
     catches?: number;
     stumpings?: number;
     runOuts?: number;
+    totalDismissals?: number;
+    gender?: string;
 }
 
 export default function StatsClient({ teams, initialStats, initialMvpState }: { teams: Team[], initialStats: PlayerStats[], initialMvpState: { player: string | null, published: boolean } }) {
@@ -30,6 +32,8 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
     const aggregatedStats = initialStats;
 
     const leaderboards = useMemo(() => {
+        const femalePlayers = aggregatedStats.filter(p => p.gender === "Female");
+
         return {
             runs: [...aggregatedStats]
                 .filter(p => p.balls >= 15)
@@ -43,12 +47,22 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
             economy: [...aggregatedStats]
                 .filter(p => p.ballsBowled >= 6) // 1 over minimum
                 .sort((a, b) => a.economy - b.economy),
-            catches: [...aggregatedStats]
-                .filter(p => (p.catches || 0) > 0)
-                .sort((a, b) => (b.catches || 0) - (a.catches || 0)),
-            stumpings: [...aggregatedStats]
-                .filter(p => (p.stumpings || 0) > 0)
-                .sort((a, b) => (b.stumpings || 0) - (a.stumpings || 0)),
+            sixes: [...aggregatedStats]
+                .filter(p => p.sixes > 0)
+                .sort((a, b) => b.sixes - a.sixes || a.balls - b.balls),
+            boundaries: [...aggregatedStats]
+                .filter(p => (p.fours + p.sixes) > 0)
+                .sort((a, b) => (b.fours + b.sixes) - (a.fours + a.sixes) || a.balls - b.balls),
+            fielding: [...aggregatedStats]
+                .map(p => ({ ...p, totalDismissals: (p.catches || 0) + (p.stumpings || 0) + (p.runOuts || 0) }))
+                .filter(p => (p.totalDismissals || 0) > 0)
+                .sort((a, b) => (b.totalDismissals || 0) - (a.totalDismissals || 0)),
+            femaleRuns: [...femalePlayers]
+                .filter(p => p.balls > 0) // No strict minimum for female batsmanship
+                .sort((a, b) => b.runs - a.runs || a.balls - b.balls),
+            femaleWickets: [...femalePlayers]
+                .filter(p => p.ballsBowled > 0)
+                .sort((a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded),
         };
     }, [aggregatedStats]);
 
@@ -59,8 +73,11 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
         { id: "strikeRate", title: "Best Strike Rate", icon: Zap, data: leaderboards.strikeRate, unit: "SR", sub: "Min 15 balls" },
         { id: "wickets", title: "Most Wickets", icon: Target, data: leaderboards.wickets, unit: "Wkts", sub: "Min 1 over" },
         { id: "economy", title: "Best Economy", icon: BarChart3, data: leaderboards.economy, unit: "Econ", sub: "Min 1 over" },
-        { id: "catches", title: "Most Catches", icon: Trophy, data: leaderboards.catches, unit: "C", sub: "Fielders & Keepers" },
-        { id: "stumpings", title: "Most Stumpings", icon: Target, data: leaderboards.stumpings, unit: "St", sub: "Wicketkeepers" },
+        { id: "sixes", title: "Maximum Sixes", icon: Zap, data: leaderboards.sixes, unit: "6s", sub: "Most 6s Hit" },
+        { id: "boundaries", title: "Most Boundaries", icon: Trophy, data: leaderboards.boundaries, unit: "4s & 6s", sub: "Fours and Sixes" },
+        { id: "fielding", title: "Best Fielder", icon: Target, data: leaderboards.fielding, unit: "D", sub: "C, St & RO" },
+        { id: "femaleRuns", title: "Female Best Batsman", icon: Trophy, data: leaderboards.femaleRuns, unit: "Runs", sub: "Most Runs" },
+        { id: "femaleWickets", title: "Female Best Bowler", icon: Target, data: leaderboards.femaleWickets, unit: "Wkts", sub: "Most Wickets" },
     ];
 
     const mvpLeaderboard = useMemo(() => {
@@ -155,7 +172,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
 
                         {/* Top 10 MVP Leaderboard */}
                         {mvpLeaderboard.length > 1 && (
-                            <div className="relative mt-2 bg-black/60 backdrop-blur-3xl border border-zinc-800 rounded-[2rem] overflow-hidden p-6 md:p-10 shadow-2xl">
+                            <div className="relative mt-2 bg-white/[0.02] backdrop-blur-3xl border border-white/5 rounded-[2rem] overflow-hidden p-6 md:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
                                 <h3 className="text-xl md:text-2xl font-black text-white mb-6 uppercase tracking-widest flex items-center gap-3">
                                     <BarChart3 className="w-6 h-6 text-amber-500" /> MVP Leaderboard Top 10
                                 </h3>
@@ -190,10 +207,10 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             key={cat.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="relative bg-zinc-900/40 backdrop-blur-3xl border border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col hover:border-amber-500/50 hover:bg-zinc-900/60 hover:shadow-[0_0_40px_rgba(245,158,11,0.1)] transition-all duration-500 group"
+                            className="relative bg-white/[0.02] backdrop-blur-3xl border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col hover:border-amber-500/30 hover:bg-white/[0.04] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 group"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-black/60 relative z-10">
+                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.01] relative z-10">
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30 group-hover:scale-110 transition-transform duration-500">
                                         <cat.icon className="w-6 h-6 text-amber-400" />
@@ -212,7 +229,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                     <div className="flex flex-col gap-1">
                                         {/* U2 FIX: Default 5, expanded shows top 10 */}
                                         {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => (
-                                            <div key={player.name} className={`p-4 flex items-center justify-between rounded-xl hover:bg-white/5 transition-all ${idx === 0 ? 'bg-amber-500/10 border border-amber-500/20 shadow-[inset_0_0_20px_rgba(245,158,11,0.1)]' : idx < 3 ? 'bg-white/[0.02]' : ''}`}>
+                                            <div key={player.name} className={`p-4 flex items-center justify-between rounded-2xl hover:bg-white/5 transition-all ${idx === 0 ? 'bg-amber-500/15 border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.15)]' : idx < 3 ? 'bg-white/[0.03] border border-white/5' : 'border border-transparent'}`}>
                                                 <div className="flex items-center gap-5">
                                                     <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-black ${idx === 0 ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.6)]' : idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-white/5 text-zinc-400 border border-white/10'}`}>
                                                         {idx + 1}
@@ -224,12 +241,14 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                                 </div>
                                                 <div className="text-right">
                                                     <p className={`text-2xl font-black tabular-nums leading-none ${idx === 0 ? 'text-amber-400' : 'text-white'}`} style={{ fontFamily: "var(--font-display)" }}>
-                                                        {cat.id === "runs" ? player.runs : 
+                                                        {cat.id === "runs" || cat.id === "femaleRuns" ? player.runs : 
                                                          cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
-                                                         cat.id === "wickets" ? player.wickets :
+                                                         cat.id === "wickets" || cat.id === "femaleWickets" ? player.wickets :
                                                          cat.id === "economy" ? player.economy.toFixed(2) :
-                                                         cat.id === "catches" ? player.catches :
-                                                         player.stumpings}
+                                                         cat.id === "sixes" ? player.sixes :
+                                                         cat.id === "boundaries" ? ((player.fours || 0) + (player.sixes || 0)) :
+                                                         cat.id === "fielding" ? player.totalDismissals :
+                                                         0}
                                                     </p>
                                                     <p className="text-[9px] text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">{cat.unit}</p>
                                                 </div>
@@ -242,7 +261,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             {cat.data.length > 5 && (
                                 <button
                                     onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)}
-                                    className="p-5 w-full bg-black/60 hover:bg-amber-500 text-zinc-400 hover:text-black transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-zinc-800 relative z-10"
+                                    className="p-5 w-full bg-white/[0.01] hover:bg-amber-500 text-zinc-400 hover:text-black transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-white/5 relative z-10"
                                 >
                                     {expandedCategory === cat.id ? (
                                         <>SHOW LESS <ChevronUp className="w-4 h-4" /></>

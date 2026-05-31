@@ -29,7 +29,7 @@ export async function GET(request: Request) {
             const state = JSON.parse(redisData) as LiveMatchState;
             return NextResponse.json(state, {
                 headers: {
-                    'Cache-Control': 'no-store', // Disable caching for real-time updates
+                    'Cache-Control': 's-maxage=2, stale-while-revalidate=1', // Cache at edge for 2s to absorb high concurrent loads
                 },
             });
         }
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json(matchState, {
             headers: {
-                'Cache-Control': 'no-store', // Disable caching for real-time updates
+                'Cache-Control': 's-maxage=2, stale-while-revalidate=1', // Cache at edge for 2s to absorb high concurrent loads
             },
         });
     } catch (error) {

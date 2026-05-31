@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import StatsClient from "./stats-client";
-import { fetchTeams, fetchAllLiveStates } from "@/lib/data";
+import { fetchTeams, fetchAllLiveStates, fetchPlayerGenders } from "@/lib/data";
 import { calculateAllPlayerStats } from "@/lib/mvp";
 import { redis } from "@/lib/redis";
 
@@ -10,12 +10,14 @@ export const revalidate = 0;
 export default async function StatsPage() {
     const teams = await fetchTeams(2);
     const liveStates = await fetchAllLiveStates();
+    const genderMap = await fetchPlayerGenders();
     
     const rawStats = calculateAllPlayerStats(liveStates);
     const formattedStats = rawStats.map(s => ({
         ...s,
         strikeRate: s.balls > 0 ? (s.runs / s.balls) * 100 : 0,
-        economy: s.ballsBowled > 0 ? (s.runsConceded / (s.ballsBowled / 6)) : 0
+        economy: s.ballsBowled > 0 ? (s.runsConceded / (s.ballsBowled / 6)) : 0,
+        gender: genderMap[s.name] || "Male"
     }));
     
     // Read MVP state directly from Redis (not via API route, which fails SSR on Vercel)

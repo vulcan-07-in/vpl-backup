@@ -34,6 +34,32 @@ export async function fetchTeamLogos(): Promise<Record<string, string>> {
 }
 
 /**
+ * Fetch player genders from registrations
+ */
+export async function fetchPlayerGenders(): Promise<Record<string, string>> {
+  noStore();
+  const { data: registrations, error: regErr } = await supabase
+    .from("vpl_registrations")
+    .select(`
+      gender,
+      varchasva_accounts (
+        name
+      )
+    `)
+    .eq("season", 2);
+
+  if (regErr) return {};
+
+  const map: Record<string, string> = {};
+  (registrations as any[] || []).forEach(reg => {
+    if (reg.varchasva_accounts?.name) {
+      map[reg.varchasva_accounts.name] = reg.gender || "Male";
+    }
+  });
+  return map;
+}
+
+/**
  * Fetch teams – works for both seasons.
  * Pass `season: 2` to use Supabase, otherwise Prisma (Season 1).
  */
