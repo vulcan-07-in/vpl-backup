@@ -19,6 +19,20 @@ export interface PlayerStats {
     mvpPoints: number;
 }
 
+const ALIASES: Record<string, string> = {
+    "Raj Mangire": "Shreeraj Mangire",
+    "shreya": "Shreya More",
+};
+
+function getPlayerName(name: string): string {
+    if (!name) return name;
+    const lowerName = name.trim().toLowerCase();
+    for (const [alias, realName] of Object.entries(ALIASES)) {
+        if (lowerName === alias.toLowerCase()) return realName;
+    }
+    return name.trim();
+}
+
 export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchState>): PlayerStats[] {
     const statsMap: Record<string, PlayerStats> = {};
 
@@ -28,11 +42,14 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
         const winner = match.winner;
 
         match.timeline.forEach(ball => {
+            const striker = getPlayerName(ball.striker);
+            const bowler = getPlayerName(ball.bowler);
+            
             // Batsman Stats
-            if (!statsMap[ball.striker]) {
-                statsMap[ball.striker] = createEmptyStats(ball.striker, ball.innings === 1 ? match.innings1.teamName : match.innings2.teamName);
+            if (!statsMap[striker]) {
+                statsMap[striker] = createEmptyStats(striker, ball.innings === 1 ? match.innings1.teamName : match.innings2.teamName);
             }
-            const b = statsMap[ball.striker];
+            const b = statsMap[striker];
             if (ball.extraType !== "WD" && ball.extraType !== "SWAP" && ball.extraType !== "DB") {
                 b.runs += (ball.runs || 0);
                 b.balls += 1; // ICC: Both legal deliveries AND no-balls count as balls faced
@@ -41,10 +58,10 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
             }
 
             // Bowler Stats
-            if (!statsMap[ball.bowler]) {
-                statsMap[ball.bowler] = createEmptyStats(ball.bowler, ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName);
+            if (!statsMap[bowler]) {
+                statsMap[bowler] = createEmptyStats(bowler, ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName);
             }
-            const bw = statsMap[ball.bowler];
+            const bw = statsMap[bowler];
             if (!ball.extraType || (ball.extraType !== "WD" && ball.extraType !== "NB" && ball.extraType !== "DB" && ball.extraType !== "SWAP")) {
                 bw.ballsBowled += 1;
                 if (ball.runs === 0 && (!ball.extras || ball.extras === 0)) {
@@ -61,20 +78,22 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
             // Fielding Stats
             if (ball.isWicket) {
                 if (ball.caughtBy) {
-                    if (!statsMap[ball.caughtBy]) {
-                        statsMap[ball.caughtBy] = createEmptyStats(ball.caughtBy, ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName);
+                    const caughtBy = getPlayerName(ball.caughtBy);
+                    if (!statsMap[caughtBy]) {
+                        statsMap[caughtBy] = createEmptyStats(caughtBy, ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName);
                     }
                     if (ball.wicketType === "STUMPED") {
-                        statsMap[ball.caughtBy].stumpings += 1;
+                        statsMap[caughtBy].stumpings += 1;
                     } else {
-                        statsMap[ball.caughtBy].catches += 1;
+                        statsMap[caughtBy].catches += 1;
                     }
                 }
                 if (ball.runOutBy) {
-                    if (!statsMap[ball.runOutBy]) {
-                        statsMap[ball.runOutBy] = createEmptyStats(ball.runOutBy, ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName);
+                    const runOutBy = getPlayerName(ball.runOutBy);
+                    if (!statsMap[runOutBy]) {
+                        statsMap[runOutBy] = createEmptyStats(runOutBy, ball.innings === 1 ? match.innings2.teamName : match.innings1.teamName);
                     }
-                    statsMap[ball.runOutBy].runOuts += 1;
+                    statsMap[runOutBy].runOuts += 1;
                 }
             }
         });
@@ -88,8 +107,8 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
             const loseInnings = match.innings1.teamName === winner ? match.innings2 : match.innings1;
             
             // Winners are batsmen from winning team and bowlers from winning team (who bowled to losing team)
-            Object.keys(winInnings.batsmen).forEach(name => winners.add(name));
-            Object.keys(loseInnings.bowlers).forEach(name => winners.add(name));
+            Object.keys(winInnings.batsmen).forEach(name => winners.add(getPlayerName(name)));
+            Object.keys(loseInnings.bowlers).forEach(name => winners.add(getPlayerName(name)));
             
             winners.forEach(name => {
                 if (statsMap[name]) statsMap[name].matchesWon += 1;
@@ -101,10 +120,11 @@ export function calculateAllPlayerStats(liveStates: Record<string, LiveMatchStat
         const bowlerOvers: Record<string, Record<number, number>> = {}; // bowler -> overIndex -> runs
         match.timeline.forEach(ball => {
             if (ball.extraType === "WD" || ball.extraType === "NB") return;
+            const bowler = getPlayerName(ball.bowler);
             const overIdx = Math.floor(ball.over || 0);
-            if (!bowlerOvers[ball.bowler]) bowlerOvers[ball.bowler] = {};
-            if (bowlerOvers[ball.bowler][overIdx] === undefined) bowlerOvers[ball.bowler][overIdx] = 0;
-            bowlerOvers[ball.bowler][overIdx] += ((ball.runs || 0) + (ball.extras || 0));
+            if (!bowlerOvers[bowler]) bowlerOvers[bowler] = {};
+            if (bowlerOvers[bowler][overIdx] === undefined) bowlerOvers[bowler][overIdx] = 0;
+            bowlerOvers[bowler][overIdx] += ((ball.runs || 0) + (ball.extras || 0));
         });
         
         Object.entries(bowlerOvers).forEach(([bowler, overs]) => {
@@ -154,6 +174,34 @@ function calculateMVP(s: PlayerStats): number {
     pts += s.runOuts * 12;
 
     return Math.round(pts * 10) / 10;
+}
+
+export function calculateMVPBreakdown(s: PlayerStats) {
+    const breakdown = [];
+
+    // Batting
+    if (s.runs > 0) breakdown.push({ label: 'Runs', points: s.runs });
+    if (s.fours > 0) breakdown.push({ label: 'Fours Bonus', points: s.fours * 1 });
+    if (s.sixes > 0) breakdown.push({ label: 'Sixes Bonus', points: s.sixes * 2 });
+    if (s.runs >= 100) breakdown.push({ label: 'Century Bonus', points: 16 });
+    else if (s.runs >= 50) breakdown.push({ label: 'Half Century Bonus', points: 8 });
+    else if (s.runs >= 30) breakdown.push({ label: '30+ Runs Bonus', points: 4 });
+
+    // Bowling
+    if (s.wickets > 0) breakdown.push({ label: 'Wickets', points: s.wickets * 25 });
+    if (s.maidens > 0) breakdown.push({ label: 'Maidens', points: s.maidens * 8 });
+    if (s.wickets >= 5) breakdown.push({ label: '5-Wicket Haul', points: 16 });
+    else if (s.wickets >= 4) breakdown.push({ label: '4-Wicket Haul', points: 8 });
+    else if (s.wickets >= 3) breakdown.push({ label: '3-Wicket Haul', points: 4 });
+
+    // Fielding
+    if (s.catches > 0) breakdown.push({ label: 'Catches', points: s.catches * 8 });
+    if (s.stumpings > 0) breakdown.push({ label: 'Stumpings', points: s.stumpings * 12 });
+    if (s.runOuts > 0) breakdown.push({ label: 'Run Outs', points: s.runOuts * 12 });
+
+    const total = breakdown.reduce((sum, item) => sum + item.points, 0);
+
+    return { breakdown, total: Math.round(total * 10) / 10 };
 }
 
 export function getAchievements(s: PlayerStats): string[] {

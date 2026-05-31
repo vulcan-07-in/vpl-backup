@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Zap, Target, BarChart3, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { type LiveMatchState, type Team } from "@/lib/tournament";
-import { calculateAllPlayerStats, getAchievements, type PlayerStats as MVPStats } from "@/lib/mvp";
+import { calculateAllPlayerStats, getAchievements, calculateMVPBreakdown, type PlayerStats as MVPStats } from "@/lib/mvp";
 
 export interface PlayerStats {
     name: string;
@@ -28,6 +28,7 @@ export interface PlayerStats {
 export default function StatsClient({ teams, initialStats, initialMvpState }: { teams: Team[], initialStats: PlayerStats[], initialMvpState: { player: string | null, published: boolean } }) {
     const [mvpState] = useState(initialMvpState);
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+    const [selectedMvpPlayer, setSelectedMvpPlayer] = useState<PlayerStats | null>(null);
 
     const aggregatedStats = initialStats;
 
@@ -120,7 +121,10 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                 >
                     {/* MVP Banner (Only show when published/Final over) */}
                     {mvpState.published && mvpPlayer && (
-                        <div className="relative bg-black/60 backdrop-blur-3xl border border-amber-500/40 rounded-[2.5rem] overflow-hidden p-8 md:p-14 shadow-[0_0_50px_rgba(245,158,11,0.2)]">
+                        <div 
+                            onClick={() => setSelectedMvpPlayer(mvpPlayer as any)}
+                            className="cursor-pointer relative bg-gradient-to-br from-black/80 to-black/40 backdrop-blur-3xl border border-amber-500/40 border-t-amber-400/60 rounded-[2.5rem] overflow-hidden p-8 md:p-14 shadow-[0_8px_32px_rgba(245,158,11,0.15),inset_0_1px_2px_rgba(245,158,11,0.3)] hover:border-amber-500/80 hover:shadow-[0_0_60px_rgba(245,158,11,0.3),inset_0_1px_2px_rgba(245,158,11,0.5)] transition-all"
+                        >
                             {/* Glow effect */}
                             <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-600 rounded-[3rem] blur-2xl opacity-30 pointer-events-none" />
                             
@@ -172,13 +176,13 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
 
                         {/* Top 10 MVP Leaderboard */}
                         {mvpLeaderboard.length > 1 && (
-                            <div className="relative mt-2 bg-white/[0.02] backdrop-blur-3xl border border-white/5 rounded-[2rem] overflow-hidden p-6 md:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                            <div className="relative mt-2 bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-3xl border border-white/10 border-t-white/20 rounded-[2.5rem] overflow-hidden p-6 md:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.1)]">
                                 <h3 className="text-xl md:text-2xl font-black text-white mb-6 uppercase tracking-widest flex items-center gap-3">
                                     <BarChart3 className="w-6 h-6 text-amber-500" /> MVP Leaderboard Top 10
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {mvpLeaderboard.slice(0, 10).map((p, idx) => (
-                                        <div key={p.name} className={`p-4 rounded-xl flex items-center justify-between border ${idx === 0 ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'} transition-all`}>
+                                        <div key={p.name} onClick={() => setSelectedMvpPlayer(p as any)} className={`cursor-pointer p-4 rounded-2xl flex items-center justify-between border ${idx === 0 ? 'bg-amber-500/15 border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.2),inset_0_1px_2px_rgba(255,255,255,0.1)]' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'} transition-all`}>
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${idx === 0 ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)]' : idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
                                                     #{idx + 1}
@@ -207,10 +211,10 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             key={cat.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="relative bg-white/[0.02] backdrop-blur-3xl border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col hover:border-amber-500/30 hover:bg-white/[0.04] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 group"
+                            className="relative bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-3xl border border-white/10 border-t-white/20 rounded-[2.5rem] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.1)] flex flex-col hover:border-amber-500/40 hover:bg-white/[0.06] hover:shadow-[0_0_40px_rgba(245,158,11,0.2),inset_0_1px_2px_rgba(255,255,255,0.15)] transition-all duration-500 group"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.01] relative z-10">
+                            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/[0.02] relative z-10">
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30 group-hover:scale-110 transition-transform duration-500">
                                         <cat.icon className="w-6 h-6 text-amber-400" />
@@ -229,7 +233,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                     <div className="flex flex-col gap-1">
                                         {/* U2 FIX: Default 5, expanded shows top 10 */}
                                         {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => (
-                                            <div key={player.name} className={`p-4 flex items-center justify-between rounded-2xl hover:bg-white/5 transition-all ${idx === 0 ? 'bg-amber-500/15 border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.15)]' : idx < 3 ? 'bg-white/[0.03] border border-white/5' : 'border border-transparent'}`}>
+                                            <div key={player.name} className={`p-4 flex items-center justify-between rounded-2xl hover:bg-white/5 transition-all ${idx === 0 ? 'bg-amber-500/15 border border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.2),inset_0_1px_2px_rgba(255,255,255,0.1)]' : idx < 3 ? 'bg-white/[0.04] border border-white/10' : 'border border-transparent hover:border-white/5'}`}>
                                                 <div className="flex items-center gap-5">
                                                     <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-black ${idx === 0 ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.6)]' : idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-white/5 text-zinc-400 border border-white/10'}`}>
                                                         {idx + 1}
@@ -261,7 +265,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             {cat.data.length > 5 && (
                                 <button
                                     onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)}
-                                    className="p-5 w-full bg-white/[0.01] hover:bg-amber-500 text-zinc-400 hover:text-black transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-white/5 relative z-10"
+                                    className="p-5 w-full bg-white/[0.02] hover:bg-amber-500 text-zinc-400 hover:text-black transition-all text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 border-t border-white/10 relative z-10"
                                 >
                                     {expandedCategory === cat.id ? (
                                         <>SHOW LESS <ChevronUp className="w-4 h-4" /></>
@@ -274,6 +278,52 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                     ))}
                 </div>
             </div>
+
+            {/* MVP Breakdown Modal */}
+            <AnimatePresence>
+                {selectedMvpPlayer && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" 
+                        onClick={() => setSelectedMvpPlayer(null)}
+                    >
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="w-full max-w-sm bg-zinc-900/90 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-6 shadow-[0_0_50px_rgba(245,158,11,0.15)] relative overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+                            <button onClick={() => setSelectedMvpPlayer(null)} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all">✕</button>
+                            
+                            <h3 className="text-2xl font-black text-white mb-1 uppercase pr-8" style={{ fontFamily: "var(--font-display)" }}>{selectedMvpPlayer.name}</h3>
+                            <p className="text-[10px] text-amber-500 font-bold tracking-[0.3em] uppercase mb-6 flex items-center gap-2">
+                                <Trophy className="w-3 h-3" /> {selectedMvpPlayer.team}
+                            </p>
+                            
+                            <div className="space-y-1 mb-6 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {calculateMVPBreakdown(selectedMvpPlayer).breakdown.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center py-2.5 border-b border-white/5 last:border-0">
+                                        <span className="text-zinc-400 text-xs font-bold tracking-widest uppercase">{item.label}</span>
+                                        <span className="text-amber-400 font-black tabular-nums text-sm">+{item.points}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="pt-5 border-t border-amber-500/20 flex justify-between items-end">
+                                <span className="text-zinc-500 font-black tracking-[0.2em] text-[10px] uppercase pb-1">Total Points</span>
+                                <span className="text-4xl font-black text-amber-500 tabular-nums leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                                    {calculateMVPBreakdown(selectedMvpPlayer).total.toFixed(1)}
+                                </span>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </main>
     );
 }
