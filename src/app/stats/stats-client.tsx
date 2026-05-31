@@ -23,6 +23,10 @@ export interface PlayerStats {
     runOuts?: number;
     totalDismissals?: number;
     gender?: string;
+    dotBalls?: number;
+    maidens?: number;
+    matchesWon?: number;
+    mvpPoints?: number;
 }
 
 export default function StatsClient({ teams, initialStats, initialMvpState }: { teams: Team[], initialStats: PlayerStats[], initialMvpState: { player: string | null, published: boolean } }) {
@@ -232,32 +236,59 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                                 ) : (
                                     <div className="flex flex-col gap-1">
                                         {/* U2 FIX: Default 5, expanded shows top 10 */}
-                                        {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => (
-                                            <div key={player.name} className={`p-4 flex items-center justify-between rounded-2xl hover:bg-white/5 transition-all ${idx === 0 ? 'bg-amber-500/15 border border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.2),inset_0_1px_2px_rgba(255,255,255,0.1)]' : idx < 3 ? 'bg-white/[0.04] border border-white/10' : 'border border-transparent hover:border-white/5'}`}>
-                                                <div className="flex items-center gap-5">
-                                                    <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-black ${idx === 0 ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.6)]' : idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-white/5 text-zinc-400 border border-white/10'}`}>
-                                                        {idx + 1}
+                                        {cat.data.slice(0, expandedCategory === cat.id ? 10 : 5).map((player, idx) => {
+                                            const val = cat.id === "runs" || cat.id === "femaleRuns" ? player.runs : 
+                                                        cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
+                                                        cat.id === "wickets" || cat.id === "femaleWickets" ? player.wickets :
+                                                        cat.id === "economy" ? player.economy.toFixed(2) :
+                                                        cat.id === "sixes" ? player.sixes :
+                                                        cat.id === "boundaries" ? ((player.fours || 0) + (player.sixes || 0)) :
+                                                        cat.id === "fielding" ? player.totalDismissals :
+                                                        0;
+                                            
+                                            if (idx === 0) {
+                                                return (
+                                                    <div key={player.name} className="relative overflow-hidden p-6 mb-3 rounded-3xl bg-gradient-to-br from-amber-500/20 to-amber-900/5 border border-amber-500/30 shadow-[0_8px_32px_rgba(245,158,11,0.15),inset_0_1px_2px_rgba(255,255,255,0.1)] flex flex-col gap-3 group/top">
+                                                        <div className="absolute -right-4 -bottom-6 text-[120px] font-black text-amber-500/5 leading-none transition-transform duration-500 group-hover/top:scale-110">1</div>
+                                                        <div className="relative z-10 flex items-center gap-5">
+                                                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 shadow-[0_0_20px_rgba(245,158,11,0.5)] flex items-center justify-center text-black">
+                                                                <Trophy className="w-7 h-7" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className="text-xl md:text-2xl font-black text-amber-400 uppercase tracking-tight leading-none drop-shadow-md">{player.name}</p>
+                                                                <p className="text-[10px] text-amber-500/80 font-bold uppercase tracking-widest mt-1.5">{player.team}</p>
+                                                            </div>
+                                                            <div className="text-right flex flex-col items-end justify-center">
+                                                                <p className="text-4xl md:text-5xl font-black text-amber-500 leading-none drop-shadow-lg" style={{ fontFamily: "var(--font-display)" }}>
+                                                                    {val}
+                                                                </p>
+                                                                <p className="text-[9px] text-amber-500/60 font-black uppercase tracking-[0.3em] mt-1.5">{cat.unit}</p>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-base font-bold text-white group-hover:text-amber-100 transition-colors tracking-tight uppercase">{player.name}</p>
-                                                        <p className="text-[10px] text-zinc-400 font-bold tracking-[0.2em] uppercase mt-0.5">{player.team}</p>
+                                                );
+                                            }
+
+                                            return (
+                                                <div key={player.name} className={`p-4 flex items-center justify-between rounded-2xl hover:bg-white/5 transition-all ${idx < 3 ? 'bg-white/[0.04] border border-white/10' : 'border border-transparent hover:border-white/5'}`}>
+                                                    <div className="flex items-center gap-5">
+                                                        <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-black ${idx === 1 ? 'bg-zinc-300 text-black' : idx === 2 ? 'bg-amber-800 text-white' : 'bg-white/5 text-zinc-400 border border-white/10'}`}>
+                                                            {idx + 1}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-base font-bold text-white group-hover:text-amber-100 transition-colors tracking-tight uppercase">{player.name}</p>
+                                                            <p className="text-[10px] text-zinc-400 font-bold tracking-[0.2em] uppercase mt-0.5">{player.team}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-2xl font-black tabular-nums leading-none text-white" style={{ fontFamily: "var(--font-display)" }}>
+                                                            {val}
+                                                        </p>
+                                                        <p className="text-[9px] text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">{cat.unit}</p>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className={`text-2xl font-black tabular-nums leading-none ${idx === 0 ? 'text-amber-400' : 'text-white'}`} style={{ fontFamily: "var(--font-display)" }}>
-                                                        {cat.id === "runs" || cat.id === "femaleRuns" ? player.runs : 
-                                                         cat.id === "strikeRate" ? player.strikeRate.toFixed(1) :
-                                                         cat.id === "wickets" || cat.id === "femaleWickets" ? player.wickets :
-                                                         cat.id === "economy" ? player.economy.toFixed(2) :
-                                                         cat.id === "sixes" ? player.sixes :
-                                                         cat.id === "boundaries" ? ((player.fours || 0) + (player.sixes || 0)) :
-                                                         cat.id === "fielding" ? player.totalDismissals :
-                                                         0}
-                                                    </p>
-                                                    <p className="text-[9px] text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">{cat.unit}</p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -306,7 +337,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             </p>
                             
                             <div className="space-y-1 mb-6 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                                {calculateMVPBreakdown(selectedMvpPlayer).breakdown.map((item, idx) => (
+                                {calculateMVPBreakdown(selectedMvpPlayer as any).breakdown.map((item, idx) => (
                                     <div key={idx} className="flex justify-between items-center py-2.5 border-b border-white/5 last:border-0">
                                         <span className="text-zinc-400 text-xs font-bold tracking-widest uppercase">{item.label}</span>
                                         <span className="text-amber-400 font-black tabular-nums text-sm">+{item.points}</span>
@@ -317,7 +348,7 @@ export default function StatsClient({ teams, initialStats, initialMvpState }: { 
                             <div className="pt-5 border-t border-amber-500/20 flex justify-between items-end">
                                 <span className="text-zinc-500 font-black tracking-[0.2em] text-[10px] uppercase pb-1">Total Points</span>
                                 <span className="text-4xl font-black text-amber-500 tabular-nums leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                                    {calculateMVPBreakdown(selectedMvpPlayer).total.toFixed(1)}
+                                    {calculateMVPBreakdown(selectedMvpPlayer as any).total.toFixed(1)}
                                 </span>
                             </div>
                         </motion.div>
