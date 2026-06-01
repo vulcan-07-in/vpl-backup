@@ -340,6 +340,19 @@ export function realOvers(v: number): number {
 
 // ── S2 Playoff Seeding & Bracket ─────────────────────────────────────────────
 
+/**
+ * PLAYOFF POINT PENALTIES
+ * ────────────────────────────────────────────────────────────────────────────
+ * Map of team name → points to DEDUCT from their playoff ranking total.
+ * This only affects Qualifier/Final seeding (computePlayoffRankings).
+ * It does NOT affect group standings or Eliminator seeding.
+ *
+ * To undo: set the value to 0 or remove the entry entirely.
+ */
+export const PLAYOFF_POINT_PENALTIES: Record<string, number> = {
+    "Samrajya": 2,   // -2 point penalty applied to playoff rankings
+};
+
 export interface PlayoffRank {
     rank: number;       // 1–6 before eliminators, 1–3 after (among survivors)
     team: string;
@@ -523,9 +536,10 @@ export function computePlayoffRankings(
 
     const updated: PlayoffRank[] = baseSeeds.map(seed => {
         const outcome = outcomes.get(n(seed.team)) ?? { bonusPoints: 0, eliminated: false };
+        const penalty = PLAYOFF_POINT_PENALTIES[seed.team] ?? 0;
         return {
             ...seed,
-            points: seed.points + outcome.bonusPoints,
+            points: seed.points + outcome.bonusPoints - penalty,
             isEliminated: outcome.eliminated,
         };
     });
